@@ -4,6 +4,8 @@ import React from 'react';
 import Link from 'next/link';
 import { Post, ArchiveItem } from '@/lib/types';
 import { Tag, TrendingUp, Calendar, Feather, ArrowUpRight } from 'lucide-react';
+import { AdBanner, AD_CONFIG } from './ads/AdBanner';
+import { SmartlinkPromo } from './ads/SmartlinkPromo';
 
 interface SidebarProps {
   trendingPosts: Post[];
@@ -94,6 +96,22 @@ export function Sidebar({
         </div>
       </div>
 
+      {/* Adsterra 300x250 Rectangle Ad Slot */}
+      <div
+        className="p-4 rounded-xl border flex flex-col items-center justify-center overflow-hidden"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          borderColor: 'var(--border-subtle)'
+        }}
+      >
+        <AdBanner
+          adKey={AD_CONFIG.rectangle_300x250.key}
+          width={AD_CONFIG.rectangle_300x250.width}
+          height={AD_CONFIG.rectangle_300x250.height}
+          label="Partner Dispatch"
+        />
+      </div>
+
       {/* Widget 3: Taxonomy & Tag Cloud */}
       <div
         className="p-6 rounded-xl border space-y-4"
@@ -175,6 +193,9 @@ export function Sidebar({
           </Link>
         </div>
       </div>
+
+      {/* Smartlink Partner Recommendation */}
+      <SmartlinkPromo />
     </aside>
   );
 }

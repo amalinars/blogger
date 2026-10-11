@@ -15,6 +15,10 @@ import { ShareButton } from '@/components/ShareButton';
 import { TableOfContents } from '@/components/TableOfContents';
 import { CommentsSection } from '@/components/CommentsSection';
 import { Clock, Calendar, ArrowLeft, Heart, Eye, ArrowUpRight } from 'lucide-react';
+import { AdBanner } from '@/components/ads/AdBanner';
+import { AD_CONFIG } from '@/lib/ad-config';
+import { NativeBanner } from '@/components/ads/NativeBanner';
+import { SmartlinkPromo } from '@/components/ads/SmartlinkPromo';
 
 
 export async function generateMetadata({
@@ -222,6 +226,9 @@ export default async function PostPage({
             </div>
           </div>
 
+          {/* Adsterra Native Recommendations Banner */}
+          <NativeBanner />
+
           {/* Reader Comments Section */}
           <CommentsSection postId={post.id} initialComments={comments} />
         </div>
@@ -231,6 +238,22 @@ export default async function PostPage({
           <div className="sticky top-6 space-y-8">
             {/* Table of Contents */}
             <TableOfContents content={post.content} />
+
+            {/* Sidebar Ad Unit (300x250 Medium Rectangle) */}
+            <div
+              className="p-4 rounded-xl border flex flex-col items-center justify-center overflow-hidden"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-subtle)'
+              }}
+            >
+              <AdBanner
+                adKey={AD_CONFIG.rectangle_300x250.key}
+                width={AD_CONFIG.rectangle_300x250.width}
+                height={AD_CONFIG.rectangle_300x250.height}
+                label="Partner Dispatch"
+              />
+            </div>
 
             {/* Next Dispatches */}
             {relatedPosts.length > 0 && (
@@ -266,6 +289,9 @@ export default async function PostPage({
                 </div>
               </div>
             )}
+
+            {/* Smartlink Promo in reader sidebar */}
+            <SmartlinkPromo />
           </div>
         </div>
       </div>

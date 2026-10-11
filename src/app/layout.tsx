@@ -60,6 +60,11 @@ export default function RootLayout({
           </main>
           <Footer />
         </ThemeProvider>
+        {/* Adsterra Social Bar */}
+        <script
+          data-cfasync="false"
+          src="https://bauval.org/14/221b8ac1e62e1ea2e1c6c8bcdf06a26e"
+        />
       </body>
     </html>
   );

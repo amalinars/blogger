@@ -7,6 +7,8 @@ import { PostCard } from './PostCard';
 import { FilterBar } from './FilterBar';
 import { Sidebar } from './Sidebar';
 import { BookOpen } from 'lucide-react';
+import { AdBanner, AD_CONFIG } from './ads/AdBanner';
+import { NativeBanner } from './ads/NativeBanner';
 
 interface HomeFeedProps {
   initialPosts: Post[];
@@ -92,6 +94,26 @@ export function HomeFeed({
         </section>
       )}
 
+      {/* Adsterra Leaderboard Banner (728x90 on Desktop, 468x60 on Mobile/Tablet) */}
+      <div className="w-full flex justify-center py-2">
+        <div className="hidden sm:block">
+          <AdBanner
+            adKey={AD_CONFIG.leaderboard_728x90.key}
+            width={AD_CONFIG.leaderboard_728x90.width}
+            height={AD_CONFIG.leaderboard_728x90.height}
+            label="Sponsored Leaderboard"
+          />
+        </div>
+        <div className="block sm:hidden">
+          <AdBanner
+            adKey={AD_CONFIG.banner_468x60.key}
+            width={AD_CONFIG.banner_468x60.width}
+            height={AD_CONFIG.banner_468x60.height}
+            label="Sponsored Dispatch"
+          />
+        </div>
+      </div>
+
       {/* Main Grid & Classic Blogspot Sidebar Section */}
       <section id="topics" className="grid grid-cols-1 lg:grid-cols-12 gap-10">
         {/* Main Feed Column */}
@@ -175,6 +197,9 @@ export function HomeFeed({
               ))}
             </div>
           )}
+
+          {/* Adsterra Native Banner Recommendations */}
+          <NativeBanner />
         </div>
 
         {/* Sidebar Column */}
