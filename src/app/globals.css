@@ -1,26 +1,184 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg-page: #faf8f5;
+  --bg-card: #ffffff;
+  --bg-card-hover: #fdfcf9;
+  --bg-subtle: #f3efe6;
+  --border-subtle: #e8e2d5;
+  --border-strong: #cfc5b2;
+  --text-main: #181614;
+  --text-muted: #6b6459;
+  --text-faint: #9c9486;
+  --accent: #b45309;
+  --accent-hover: #92400e;
+  --accent-subtle: #fef3c7;
+  --accent-border: #fde68a;
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+.dark {
+  --bg-page: #0b0d11;
+  --bg-card: #12151c;
+  --bg-card-hover: #171b24;
+  --bg-subtle: #1a1f2c;
+  --border-subtle: #252b3b;
+  --border-strong: #3b445c;
+  --text-main: #f3f5f8;
+  --text-muted: #9aa4b8;
+  --text-faint: #616e85;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-subtle: #291e08;
+  --accent-border: #4d3810;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-page);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Editorial drop cap */
+.prose-drop-cap::first-letter {
+  float: left;
+  font-family: var(--font-serif);
+  font-size: 3.5rem;
+  line-height: 0.85;
+  padding-right: 0.5rem;
+  padding-top: 0.2rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Markdown prose rendering */
+.editorial-prose h2 {
+  font-family: var(--font-serif);
+  font-size: 1.85rem;
+  font-weight: 600;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+  letter-spacing: -0.015em;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.5rem;
+}
+
+.editorial-prose h3 {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  color: var(--text-main);
+}
+
+.editorial-prose p {
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.8;
+  font-size: 1.075rem;
+  color: var(--text-main);
+}
+
+.editorial-prose blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1.25rem;
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--text-main);
+  background: var(--bg-subtle);
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  padding-right: 1.25rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.editorial-prose code {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  background-color: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  color: var(--accent);
+}
+
+.editorial-prose pre {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  margin-top: 1.75rem;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.editorial-prose pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.editorial-prose ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.75;
+}
+
+.editorial-prose ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 1.25rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.75;
+}
+
+.editorial-prose li {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
 }

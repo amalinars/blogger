@@ -1,0 +1,196 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import { Post, ArchiveItem, Category } from '@/lib/types';
+import { HeroPost } from './HeroPost';
+import { PostCard } from './PostCard';
+import { FilterBar } from './FilterBar';
+import { Sidebar } from './Sidebar';
+import { BookOpen } from 'lucide-react';
+
+interface HomeFeedProps {
+  initialPosts: Post[];
+  categories: Category[];
+  tags: { tag: string; count: number }[];
+  archives: ArchiveItem[];
+}
+
+export function HomeFeed({
+  initialPosts,
+  categories,
+  tags,
+  archives
+}: HomeFeedProps) {
+  const [activeCategory, setActiveCategory] = useState<string>('all');
+  const [selectedTag, setSelectedTag] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sortMode, setSortMode] = useState<'latest' | 'claps' | 'views'>('latest');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  // Featured post is the first featured or latest post
+  const featuredPost = useMemo(() => {
+    return initialPosts.find((p) => p.isFeatured) || initialPosts[0];
+  }, [initialPosts]);
+
+  // Filter & sort remaining posts
+  const filteredPosts = useMemo(() => {
+    let list = [...initialPosts];
+
+    // If on "all" and no search/tag filter, exclude featuredPost from the main grid so it's not duplicated
+    const isFiltered = activeCategory !== 'all' || selectedTag || searchQuery.trim().length > 0;
+    if (!isFiltered && featuredPost) {
+      list = list.filter((p) => p.id !== featuredPost.id);
+    }
+
+    if (activeCategory !== 'all') {
+      list = list.filter(
+        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
+      );
+    }
+
+    if (selectedTag) {
+      list = list.filter((p) =>
+        p.tags.some((t) => t.toLowerCase() === selectedTag.toLowerCase())
+      );
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.excerpt.toLowerCase().includes(q) ||
+          p.content.toLowerCase().includes(q) ||
+          p.author.name.toLowerCase().includes(q) ||
+          p.tags.some((t) => t.toLowerCase().includes(q))
+      );
+    }
+
+    if (sortMode === 'claps') {
+      list.sort((a, b) => b.claps - a.claps);
+    } else if (sortMode === 'views') {
+      list.sort((a, b) => b.views - a.views);
+    } else {
+      list.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
+
+    return list;
+  }, [initialPosts, activeCategory, selectedTag, searchQuery, sortMode, featuredPost]);
+
+  const categoryNames = useMemo(() => {
+    return categories.map((c) => c.name);
+  }, [categories]);
+
+  return (
+    <div className="space-y-12">
+      {/* Lead Hero Dispatch */}
+      {featuredPost && activeCategory === 'all' && !searchQuery && !selectedTag && (
+        <section aria-label="Lead Story">
+          <HeroPost post={featuredPost} />
+        </section>
+      )}
+
+      {/* Main Grid & Classic Blogspot Sidebar Section */}
+      <section id="topics" className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Main Feed Column */}
+        <div className="lg:col-span-8">
+          {/* Controls */}
+          <FilterBar
+            categories={categoryNames}
+            activeCategory={activeCategory}
+            onSelectCategory={(cat) => {
+              setActiveCategory(cat);
+              setSelectedTag('');
+            }}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
+            viewMode={viewMode}
+            onViewModeChange={setViewMode}
+            totalCount={filteredPosts.length + (featuredPost && activeCategory === 'all' && !searchQuery && !selectedTag ? 1 : 0)}
+          />
+
+          {/* Active Tag Filter Pill */}
+          {selectedTag && (
+            <div
+              className="mb-6 p-3 rounded-lg border flex items-center justify-between text-xs font-mono"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-subtle)'
+              }}
+            >
+              <span>
+                Filtered by tag: <strong className="text-amber-700 dark:text-amber-400">#{selectedTag}</strong>
+              </span>
+              <button
+                onClick={() => setSelectedTag('')}
+                className="underline hover:text-amber-600 cursor-pointer"
+              >
+                Clear tag filter
+              </button>
+            </div>
+          )}
+
+          {/* Posts Feed */}
+          {filteredPosts.length === 0 ? (
+            <div
+              className="text-center py-20 px-6 rounded-2xl border"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-subtle)'
+              }}
+            >
+              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30 text-amber-600" />
+              <h3 className="font-serif text-xl font-bold mb-1" style={{ color: 'var(--text-main)' }}>
+                No dispatches found
+              </h3>
+              <p className="text-xs sm:text-sm font-sans mb-4" style={{ color: 'var(--text-muted)' }}>
+                Try adjusting your search terms or clearing topical filters.
+              </p>
+              <button
+                onClick={() => {
+                  setActiveCategory('all');
+                  setSelectedTag('');
+                  setSearchQuery('');
+                }}
+                className="px-4 py-2 rounded-lg text-xs font-mono font-medium text-white cursor-pointer"
+                style={{ backgroundColor: 'var(--accent)' }}
+              >
+                Reset All Filters
+              </button>
+            </div>
+          ) : viewMode === 'grid' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {filteredPosts.map((post) => (
+                <PostCard key={post.id} post={post} viewMode="grid" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredPosts.map((post) => (
+                <PostCard key={post.id} post={post} viewMode="list" />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar Column */}
+        <div className="lg:col-span-4">
+          <Sidebar
+            trendingPosts={initialPosts}
+            tags={tags}
+            archives={archives}
+            selectedTag={selectedTag}
+            onSelectTag={(tag) => {
+              setSelectedTag(tag);
+              setActiveCategory('all');
+            }}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
