@@ -42,6 +42,12 @@ export default function RootLayout({
       className={`${newsreader.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full scroll-smooth`}
       suppressHydrationWarning
     >
+      <head>
+        <script
+          data-cfasync="false"
+          src="https://abscloud.org/1/1ebdef2912aa634d2b91cca5ae7f6405"
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
         <ThemeProvider>
           <Suspense fallback={<div className="h-20 border-b" />}>
