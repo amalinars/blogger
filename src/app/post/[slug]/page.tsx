@@ -55,6 +55,17 @@ export default async function PostPage({
   // Convert markdown to HTML
   const contentHtml = await marked.parse(post.content);
 
+  // Split HTML into halves to inject a mid-article editorial ad slot
+  const pTags = contentHtml.split('</p>');
+  let firstHalfHtml = contentHtml;
+  let secondHalfHtml = '';
+
+  if (pTags.length > 2) {
+    const splitIndex = Math.max(1, Math.floor(pTags.length / 2));
+    firstHalfHtml = pTags.slice(0, splitIndex).join('</p>') + '</p>';
+    secondHalfHtml = pTags.slice(splitIndex).join('</p>');
+  }
+
   // Recommended related posts
   const allPosts = getAllPosts({ status: 'published' });
   const relatedPosts = allPosts
@@ -173,8 +184,44 @@ export default async function PostPage({
         <div className="lg:col-span-8">
           <div
             className="editorial-prose prose-drop-cap font-sans"
-            dangerouslySetInnerHTML={{ __html: contentHtml }}
+            dangerouslySetInnerHTML={{ __html: firstHalfHtml }}
           />
+
+          {secondHalfHtml && (
+            <div
+              className="my-10 py-4 px-2 rounded-xl border border-dashed flex flex-col items-center justify-center"
+              style={{
+                borderColor: 'var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)'
+              }}
+            >
+              <div className="hidden sm:block">
+                <AdBanner
+                  adKey={AD_CONFIG.leaderboard_728x90.key}
+                  width={AD_CONFIG.leaderboard_728x90.width}
+                  height={AD_CONFIG.leaderboard_728x90.height}
+                  label="Sponsored Content Break"
+                  refreshInterval={35}
+                />
+              </div>
+              <div className="block sm:hidden">
+                <AdBanner
+                  adKey={AD_CONFIG.rectangle_300x250.key}
+                  width={AD_CONFIG.rectangle_300x250.width}
+                  height={AD_CONFIG.rectangle_300x250.height}
+                  label="Sponsored Content Break"
+                  refreshInterval={35}
+                />
+              </div>
+            </div>
+          )}
+
+          {secondHalfHtml && (
+            <div
+              className="editorial-prose font-sans mt-4"
+              dangerouslySetInnerHTML={{ __html: secondHalfHtml }}
+            />
+          )}
 
           {/* Tags Cloud */}
           <div className="mt-12 pt-6 border-t space-y-2" style={{ borderColor: 'var(--border-subtle)' }}>

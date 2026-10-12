@@ -4,6 +4,7 @@ import { Newsreader, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google'
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Navbar } from '@/components/Navbar';
+import { StickyBottomBanner } from '@/components/ads/StickyBottomBanner';
 import { Footer } from '@/components/Footer';
 
 const newsreader = Newsreader({
@@ -48,7 +49,7 @@ export default function RootLayout({
           src="https://abscloud.org/1/1ebdef2912aa634d2b91cca5ae7f6405"
         />
       </head>
-      <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
+      <body className="min-h-full flex flex-col font-sans transition-colors duration-200 pb-24">
         <ThemeProvider>
           <Suspense fallback={<div className="h-20 border-b" />}>
             <Navbar />
@@ -59,6 +60,7 @@ export default function RootLayout({
             </Suspense>
           </main>
           <Footer />
+          <StickyBottomBanner />
         </ThemeProvider>
         {/* Adsterra Social Bar */}
         <script

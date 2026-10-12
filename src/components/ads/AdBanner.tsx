@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface AdBannerProps {
   adKey: string;
@@ -8,6 +8,8 @@ interface AdBannerProps {
   height: number;
   className?: string;
   label?: string;
+  autoRefresh?: boolean;
+  refreshInterval?: number; // in seconds
 }
 
 export function AdBanner({
@@ -15,8 +17,25 @@ export function AdBanner({
   width,
   height,
   className = '',
-  label = 'Sponsored Advertisement'
+  label = 'Sponsored Advertisement',
+  autoRefresh = true,
+  refreshInterval = 35
 }: AdBannerProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    if (!autoRefresh || refreshInterval <= 0) return;
+
+    const interval = setInterval(() => {
+      // Only refresh if tab is currently active to preserve impressions quality and bandwidth
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        setRefreshKey((prev) => prev + 1);
+      }
+    }, refreshInterval * 1000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, refreshInterval]);
+
   // srcDoc encapsulates atOptions and prevents collisions between multiple ad slots
   const srcDoc = `
     <!DOCTYPE html>
@@ -47,6 +66,7 @@ export function AdBanner({
           };
         </script>
         <script type="text/javascript" src="https://bauval.org/22/${adKey}"></script>
+        <!-- refresh #${refreshKey} -->
       </body>
     </html>
   `;
@@ -55,14 +75,17 @@ export function AdBanner({
     <div className={`flex flex-col items-center justify-center my-6 overflow-hidden ${className}`}>
       {label && (
         <span
-          className="text-[9px] font-mono uppercase tracking-widest mb-1.5 opacity-40 select-none"
+          className="text-[9px] font-mono uppercase tracking-widest mb-1.5 opacity-40 select-none flex items-center space-x-1"
           style={{ color: 'var(--text-muted)' }}
         >
-          {label}
+          <span>{label}</span>
+          {autoRefresh && (
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500/70 animate-pulse" title="Live Auto-Refreshed Ad Slot" />
+          )}
         </span>
       )}
       <div
-        className="overflow-hidden rounded-lg border border-dashed flex items-center justify-center"
+        className="overflow-hidden rounded-lg border border-dashed flex items-center justify-center transition-all duration-300"
         style={{
           width: `${width}px`,
           maxWidth: '100%',
@@ -72,7 +95,8 @@ export function AdBanner({
         }}
       >
         <iframe
-          title={`ad-${adKey}`}
+          key={`${adKey}-${refreshKey}`}
+          title={`ad-${adKey}-${refreshKey}`}
           srcDoc={srcDoc}
           width={width}
           height={height}

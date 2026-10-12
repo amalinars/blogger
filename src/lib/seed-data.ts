@@ -2,303 +2,540 @@ import { Post, Comment } from './types';
 
 export const INITIAL_POSTS: Post[] = [
   {
-    id: 'post-1',
-    slug: 'lost-art-of-digital-craftsmanship',
-    title: 'The Lost Art of Digital Craftsmanship in an Age of Automated Abstraction',
-    excerpt: 'When software can be generated with a single prompt, what remains sacred is intentionality, tactile feedback, and the friction that breeds genuine nuance.',
-    content: `## The Illusion of Frictionless Production
-
-In the early decades of industrial furniture making, master carpenters noticed an unsettling phenomenon: as steam-powered lathes lowered the cost of turning wood spindles to zero, the market was flooded with chairs whose decorative turns lacked the subtle swelling and tapering that only human hands and eyes had previously calibrated. The spindles were mathematically symmetrical, yet visually sterile.
-
-We are witnessing an identical inflection point in contemporary digital product development.
-
-When interfaces are synthesized in seconds, the temptation to settle for algorithmic averages becomes almost irresistible. We get software that fulfills the functional contract—the buttons submit, the queries resolve, the modals dismiss—yet communicates none of the devotion, idiosyncratic taste, or tactile poise that separates an enduring instrument from disposable utility.
-
-> "True craftsmanship is not merely the absence of flaws, but the presence of care so acute that it leaves an indelible warmth in the artifact itself."
-
-### The Three Hallmarks of Digital Craft
-
-To reclaim craftsmanship from commoditized velocity, we must reconsider what it means to build software as an authored craft:
-
-1. **Rhythmic Typography and Proportional Space**  
-   Type is not merely a legible container for words; it is the physical architecture of the reading eye. When hierarchy respects modular scales and line lengths accommodate the reader's breath, cognitive fatigue evaporates.
-
-2. **Kinetic Weight and Micro-Resonance**  
-   A digital button shouldn't feel like a phantom rectangle triggering a network payload. It should possess mass. The subtle depression on pointer-down, the crisp spring on release, and the tactile confirmation through color shift ground the user in a tangible reality.
-
-3. **Graceful Degeneration and Defiance of Fragility**  
-   Crafted software does not violently shatter when network latency spikes or a dependency falters. It breathes, preserves user intent, and communicates transparently without technical jargon.
-
-\`\`\`typescript
-// Craft is encoded in how we handle the margins of error
-export async function resilientSync<T>(action: () => Promise<T>): Promise<T> {
-  const start = performance.now();
-  try {
-    const outcome = await action();
-    logTelemetry({ status: 'crystallized', duration: performance.now() - start });
-    return outcome;
-  } catch (err) {
-    preserveLocalDraft();
-    throw new DignifiedError('We held your state safe while the link recovers.', err);
-  }
-}
-\`\`\`
-
-### Cultivating an Editorial Eye
-
-The ultimate antidote to digital genericism is not more tools, but fewer, more deliberate ones. As we construct the next generation of publishing platforms, we must refuse the lure of superficial templates. Build things that feel sturdy to touch, honest in their mechanics, and proud of the human intellect behind them.`,
-    coverImage: 'https://images.unsplash.com/photo-1507842229451-7f01be8860ee?auto=format&fit=crop&w=1600&q=80',
-    author: {
-      name: 'Julian Vance',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      role: 'Principal Design Technologist',
-      bio: 'Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools.'
+    "id": "post-1",
+    "slug": "lost-art-of-digital-craftsmanship",
+    "title": "The Lost Art of Digital Craftsmanship in an Age of Automated Abstraction",
+    "excerpt": "When software can be generated with a single prompt, what remains sacred is intentionality, tactile feedback, and the friction that breeds genuine nuance.",
+    "content": "## The Illusion of Frictionless Production\n\nIn the early decades of industrial furniture making, master carpenters noticed an unsettling phenomenon: as steam-powered lathes lowered the cost of turning wood spindles to zero, the market was flooded with chairs whose decorative turns lacked the subtle swelling and tapering that only human hands and eyes had previously calibrated. The spindles were mathematically symmetrical, yet visually sterile.\n\nWe are witnessing an identical inflection point in contemporary digital product development.\n\nWhen interfaces are synthesized in seconds, the temptation to settle for algorithmic averages becomes almost irresistible. We get software that fulfills the functional contract—the buttons submit, the queries resolve, the modals dismiss—yet communicates none of the devotion, idiosyncratic taste, or tactile poise that separates an enduring instrument from disposable utility.\n\n> \"True craftsmanship is not merely the absence of flaws, but the presence of care so acute that it leaves an indelible warmth in the artifact itself.\"\n\n### The Three Hallmarks of Digital Craft\n\nTo reclaim craftsmanship from commoditized velocity, we must reconsider what it means to build software as an authored craft:\n\n1. **Rhythmic Typography and Proportional Space**  \n   Type is not merely a legible container for words; it is the physical architecture of the reading eye. When hierarchy respects modular scales and line lengths accommodate the reader's breath, cognitive fatigue evaporates.\n\n2. **Kinetic Weight and Micro-Resonance**  \n   A digital button shouldn't feel like a phantom rectangle triggering a network payload. It should possess mass. The subtle depression on pointer-down, the crisp spring on release, and the tactile confirmation through color shift ground the user in a tangible reality.\n\n3. **Graceful Degeneration and Defiance of Fragility**  \n   Crafted software does not violently shatter when network latency spikes or a dependency falters. It breathes, preserves user intent, and communicates transparently without technical jargon.\n\n```typescript\n// Craft is encoded in how we handle the margins of error\nexport async function resilientSync<T>(action: () => Promise<T>): Promise<T> {\n  const start = performance.now();\n  try {\n    const outcome = await action();\n    logTelemetry({ status: 'crystallized', duration: performance.now() - start });\n    return outcome;\n  } catch (err) {\n    preserveLocalDraft();\n    throw new DignifiedError('We held your state safe while the link recovers.', err);\n  }\n}\n```\n\n### Cultivating an Editorial Eye\n\nThe ultimate antidote to digital genericism is not more tools, but fewer, more deliberate ones. As we construct the next generation of publishing platforms, we must refuse the lure of superficial templates. Build things that feel sturdy to touch, honest in their mechanics, and proud of the human intellect behind them.",
+    "coverImage": "https://images.unsplash.com/photo-1507842229451-7f01be8860ee?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
     },
-    category: 'Design & Craft',
-    tags: ['Craftsmanship', 'Design Systems', 'Philosophy', 'Human Computer Interaction'],
-    readTimeMinutes: 6,
-    views: 1420,
-    claps: 384,
-    status: 'published',
-    isFeatured: true,
-    createdAt: '2026-10-08T09:30:00.000Z',
-    updatedAt: '2026-10-08T09:30:00.000Z'
+    "category": "Design & Craft",
+    "tags": [
+      "Craftsmanship",
+      "Design Systems",
+      "Philosophy",
+      "Human Computer Interaction"
+    ],
+    "readTimeMinutes": 6,
+    "views": 1426,
+    "claps": 384,
+    "status": "published",
+    "isFeatured": true,
+    "createdAt": "2026-10-08T09:30:00.000Z",
+    "updatedAt": "2026-10-08T09:30:00.000Z"
   },
   {
-    id: 'post-2',
-    slug: 'architecting-for-resonance-fast-software',
-    title: 'Architecting for Resonance: Why Fast Software Feels Like Physical Architecture',
-    excerpt: 'Sub-50ms latency is not just an engineering benchmark; it alters human cognition and transforms digital software from an errand into an instrument.',
-    content: `## The Cognitive Threshold of 100 Milliseconds
-
-In 1968, Robert Miller published a seminal paper on response times in conversational transactions with information systems. His finding remains unshaken after half a century: when an interface acknowledges user input within 100 milliseconds, the human mind attributes the response directly to its own motor action. 
-
-Cross that threshold to 300 milliseconds, and the illusion of direct physical control dissolves. The tool becomes an intermediary, an external bureaucrat you must wait upon.
-
-### The Physics of Perceived Weight
-
-Why does a fountain pen feel fundamentally different than a stylus on cheap capacitive glass? Resistance, instant ink deposition, and the acoustic feedback of metal against parchment.
-
-When we architect modern web applications, speed is the equivalent of ink viscosity. If a state mutation requires three server roundtrips before updating the UI, the application feels like wading through wet cement.
-
-\`\`\`bash
-# Latency budget comparison
-Input Event -> Local Render:        < 8ms  (Immediate sensory anchor)
-Optimistic Mutation Resolution:    < 35ms (Feels instant)
-Background Ledger Synchronization:  Async  (Invisible to perception)
-\`\`\`
-
-### Architectural Strategies for Resonance
-
-To achieve this level of physical resonance in a web-native publication:
-
-- **Optimistic State with Reversible Rollbacks**: Update counters, likes, and comment threads instantly on pointer press, reconciling with the database in parallel.
-- **Micro-caching and Prefetching Boundaries**: Anticipate navigational gestures on hover or viewport intersection before the user clicks.
-- **Zero-Layout Shift Typography**: Reserve exact line heights and aspect ratios before web fonts and imagery resolve.
-
-When these disciplines converge, software stops feeling like a website. It becomes a resonant instrument.`,
-    coverImage: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1600&q=80',
-    author: {
-      name: 'Elena Rostova',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
-      role: 'Staff Systems Architect',
-      bio: 'Obsessed with distributed latency, local-first protocols, and mechanical sympathy.'
+    "id": "post-2",
+    "slug": "architecting-for-resonance-fast-software",
+    "title": "Architecting for Resonance: Why Fast Software Feels Like Physical Architecture",
+    "excerpt": "Sub-50ms latency is not just an engineering benchmark; it alters human cognition and transforms digital software from an errand into an instrument.",
+    "content": "## The Cognitive Threshold of 100 Milliseconds\n\nIn 1968, Robert Miller published a seminal paper on response times in conversational transactions with information systems. His finding remains unshaken after half a century: when an interface acknowledges user input within 100 milliseconds, the human mind attributes the response directly to its own motor action. \n\nCross that threshold to 300 milliseconds, and the illusion of direct physical control dissolves. The tool becomes an intermediary, an external bureaucrat you must wait upon.\n\n### The Physics of Perceived Weight\n\nWhy does a fountain pen feel fundamentally different than a stylus on cheap capacitive glass? Resistance, instant ink deposition, and the acoustic feedback of metal against parchment.\n\nWhen we architect modern web applications, speed is the equivalent of ink viscosity. If a state mutation requires three server roundtrips before updating the UI, the application feels like wading through wet cement.\n\n```bash\n# Latency budget comparison\nInput Event -> Local Render:        < 8ms  (Immediate sensory anchor)\nOptimistic Mutation Resolution:    < 35ms (Feels instant)\nBackground Ledger Synchronization:  Async  (Invisible to perception)\n```\n\n### Architectural Strategies for Resonance\n\nTo achieve this level of physical resonance in a web-native publication:\n\n- **Optimistic State with Reversible Rollbacks**: Update counters, likes, and comment threads instantly on pointer press, reconciling with the database in parallel.\n- **Micro-caching and Prefetching Boundaries**: Anticipate navigational gestures on hover or viewport intersection before the user clicks.\n- **Zero-Layout Shift Typography**: Reserve exact line heights and aspect ratios before web fonts and imagery resolve.\n\nWhen these disciplines converge, software stops feeling like a website. It becomes a resonant instrument.",
+    "coverImage": "https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
     },
-    category: 'Technology',
-    tags: ['Performance', 'Architecture', 'Latency', 'Systems'],
-    readTimeMinutes: 5,
-    views: 980,
-    claps: 247,
-    status: 'published',
-    isFeatured: false,
-    createdAt: '2026-10-09T14:15:00.000Z',
-    updatedAt: '2026-10-09T14:15:00.000Z'
+    "category": "Technology",
+    "tags": [
+      "Performance",
+      "Architecture",
+      "Latency",
+      "Systems"
+    ],
+    "readTimeMinutes": 5,
+    "views": 980,
+    "claps": 247,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-09T14:15:00.000Z",
+    "updatedAt": "2026-10-09T14:15:00.000Z"
   },
   {
-    id: 'post-3',
-    slug: 'the-computational-garden-rethinking-publishing',
-    title: 'The Computational Garden: Rethinking Personal Publishing Beyond the Feed',
-    excerpt: 'The algorithmic stream favors ephemeral outrage over cumulative synthesis. A digital garden treats writing as living, evolving foliage.',
-    content: `## Streams vs. Topologies
-
-The modern social internet is organized around the chronological stream—an unrelenting conveyor belt where thoughts are published, amplified for twelve hours, and drowned beneath subsequent waves of chatter.
-
-In contrast, the classic blogosphere and personal web operated like an arboretum. You did not publish to "win an algorithm"; you cultivated essays that connected horizontally across years, updating theses as new evidence emerged.
-
-> "A stream is consumed; a garden is traversed. One leaves you breathless, the other leaves you grounded."
-
-### Reviving the Blogspot Heritage
-
-The early days of Blogspot and independently hosted spaces gave writers two essential freedoms that algorithmic platforms stripped away:
-
-1. **Permanence of Address**: Every idea earned a persistent URI that did not degrade into link-rot or walled-garden logins.
-2. **Freedom of Structural Expression**: The layout reflected the author’s idiosyncratic intellectual filing system—deep archives, topical labels, curated sidebars, and direct reader dialogue.
-
-By uniting modern full-stack frameworks with this classic ethos, we can build publishing platforms that honor long-form contemplation rather than addictive dopamine loops.`,
-    coverImage: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80',
-    author: {
-      name: 'Julian Vance',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      role: 'Principal Design Technologist',
-      bio: 'Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools.'
+    "id": "post-3",
+    "slug": "the-computational-garden-rethinking-publishing",
+    "title": "The Computational Garden: Rethinking Personal Publishing Beyond the Feed",
+    "excerpt": "The algorithmic stream favors ephemeral outrage over cumulative synthesis. A digital garden treats writing as living, evolving foliage.",
+    "content": "## Streams vs. Topologies\n\nThe modern social internet is organized around the chronological stream—an unrelenting conveyor belt where thoughts are published, amplified for twelve hours, and drowned beneath subsequent waves of chatter.\n\nIn contrast, the classic blogosphere and personal web operated like an arboretum. You did not publish to \"win an algorithm\"; you cultivated essays that connected horizontally across years, updating theses as new evidence emerged.\n\n> \"A stream is consumed; a garden is traversed. One leaves you breathless, the other leaves you grounded.\"\n\n### Reviving the Blogspot Heritage\n\nThe early days of Blogspot and independently hosted spaces gave writers two essential freedoms that algorithmic platforms stripped away:\n\n1. **Permanence of Address**: Every idea earned a persistent URI that did not degrade into link-rot or walled-garden logins.\n2. **Freedom of Structural Expression**: The layout reflected the author’s idiosyncratic intellectual filing system—deep archives, topical labels, curated sidebars, and direct reader dialogue.\n\nBy uniting modern full-stack frameworks with this classic ethos, we can build publishing platforms that honor long-form contemplation rather than addictive dopamine loops.",
+    "coverImage": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
     },
-    category: 'Culture & Web',
-    tags: ['Digital Gardens', 'Web History', 'Blogging', 'IndieWeb'],
-    readTimeMinutes: 4,
-    views: 812,
-    claps: 195,
-    status: 'published',
-    isFeatured: false,
-    createdAt: '2026-10-10T08:00:00.000Z',
-    updatedAt: '2026-10-10T08:00:00.000Z'
+    "category": "Culture & Web",
+    "tags": [
+      "Digital Gardens",
+      "Web History",
+      "Blogging",
+      "IndieWeb"
+    ],
+    "readTimeMinutes": 4,
+    "views": 812,
+    "claps": 195,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-10T08:00:00.000Z",
+    "updatedAt": "2026-10-10T08:00:00.000Z"
   },
   {
-    id: 'post-4',
-    slug: 'beyond-determinism-agents-and-intuition',
-    title: 'Beyond Determinism: What Autonomous Agents Teach Us About Human Intuition',
-    excerpt: 'When machines can parse probability spaces faster than formal logic, our understanding of human judgment undergoes a radical recalibration.',
-    content: `## The Shifting Boundary of Competence
-
-For two centuries, Western education and engineering treated analytical breakdown as the pinnacle of human intellect: take a complex challenge, dissect it into deterministic subroutines, verify each step, and assemble the proof.
-
-Yet modern probabilistic models invert this hierarchy. They thrive precisely where deterministic specifications stumble: ambiguity, style, linguistic nuance, and associative memory.
-
-### The Role of Taste in the Agentic Epoch
-
-If code generation and syntactic execution are now commoditized, what constitutes high leverage for the software architect?
-
-The answer is **Taste and Judgment**. The ability to recognize what *not* to build. The instinct to discard nine plausible solutions in pursuit of the one that possesses structural grace and ethical coherence.
-
-\`\`\`typescript
-interface HumanAgentSymbiosis {
-  generativeEngine: 'Stochastic synthesis of millions of latent patterns';
-  humanConductor: 'Relentless editorial selection and ethical grounding';
-  resultantWork: 'Excellence achieved through recursive refinement';
-}
-\`\`\`
-
-We are no longer solo typists in an empty terminal; we are conductors orchestrating symphonies of probabilistic intelligence.`,
-    coverImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80',
-    author: {
-      name: 'Marcus K. Sterling',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-      role: 'Fellow at Cognitive Systems Institute',
-      bio: 'Writing on symbolic reasoning, epistemology of artificial neural networks, and generative futures.'
+    "id": "post-4",
+    "slug": "beyond-determinism-agents-and-intuition",
+    "title": "Beyond Determinism: What Autonomous Agents Teach Us About Human Intuition",
+    "excerpt": "When machines can parse probability spaces faster than formal logic, our understanding of human judgment undergoes a radical recalibration.",
+    "content": "## The Shifting Boundary of Competence\n\nFor two centuries, Western education and engineering treated analytical breakdown as the pinnacle of human intellect: take a complex challenge, dissect it into deterministic subroutines, verify each step, and assemble the proof.\n\nYet modern probabilistic models invert this hierarchy. They thrive precisely where deterministic specifications stumble: ambiguity, style, linguistic nuance, and associative memory.\n\n### The Role of Taste in the Agentic Epoch\n\nIf code generation and syntactic execution are now commoditized, what constitutes high leverage for the software architect?\n\nThe answer is **Taste and Judgment**. The ability to recognize what *not* to build. The instinct to discard nine plausible solutions in pursuit of the one that possesses structural grace and ethical coherence.\n\n```typescript\ninterface HumanAgentSymbiosis {\n  generativeEngine: 'Stochastic synthesis of millions of latent patterns';\n  humanConductor: 'Relentless editorial selection and ethical grounding';\n  resultantWork: 'Excellence achieved through recursive refinement';\n}\n```\n\nWe are no longer solo typists in an empty terminal; we are conductors orchestrating symphonies of probabilistic intelligence.",
+    "coverImage": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Marcus K. Sterling",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+      "role": "Fellow at Cognitive Systems Institute",
+      "bio": "Writing on symbolic reasoning, epistemology of artificial neural networks, and generative futures."
     },
-    category: 'Artificial Intelligence',
-    tags: ['AI', 'Epistemology', 'Intuition', 'Future of Work'],
-    readTimeMinutes: 7,
-    views: 1250,
-    claps: 412,
-    status: 'published',
-    isFeatured: false,
-    createdAt: '2026-10-10T16:45:00.000Z',
-    updatedAt: '2026-10-10T16:45:00.000Z'
+    "category": "Artificial Intelligence",
+    "tags": [
+      "AI",
+      "Epistemology",
+      "Intuition",
+      "Future of Work"
+    ],
+    "readTimeMinutes": 7,
+    "views": 1250,
+    "claps": 412,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-10T16:45:00.000Z",
+    "updatedAt": "2026-10-10T16:45:00.000Z"
   },
   {
-    id: 'post-5',
-    slug: 'typography-of-thought-letterforms-technical-discourse',
-    title: 'The Typography of Thought: How Letterforms Shape Technical Discourse',
-    excerpt: 'An exploration of serifs, monospace ligatures, and optical sizing in shaping how engineers and thinkers comprehend complex technical treatises.',
-    content: `## The Optical Anatomy of Reading Code and Prose
-
-We often imagine that technical comprehension is purely semantic—that the brain extracts meaning indifferent to the visual rhythm of the glyphs before it.
-
-Empirical ocular tracking tells an entirely different story.
-
-When a reader encounters a high-contrast serif typeface like Newsreader or Baskerville for long-form narrative, the horizontal serifs create an optical shelf that guides saccadic jumps along the line of text. Conversely, for monospace environments, strict horizontal rhythm permits instant vertical scanning for alignment and syntax symmetry.
-
-### The Dual-Register Layout
-
-In Chronicle, we establish a deliberate dual-register typographic architecture:
-
-- **The Editorial Serif Register**: Evoking the weight, deliberation, and gravitas of classic broadside monographs and literary quarterlies.
-- **The Precision Monospace Register**: Providing unflinching clarity for metadata, timestamps, telemetry, and source code excerpts.
-
-When these two voices sing in harmony, technical documentation ceases to feel like a spreadsheet and elevates into literature.`,
-    coverImage: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1600&q=80',
-    author: {
-      name: 'Julian Vance',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-      role: 'Principal Design Technologist',
-      bio: 'Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools.'
+    "id": "post-5",
+    "slug": "typography-of-thought-letterforms-technical-discourse",
+    "title": "The Typography of Thought: How Letterforms Shape Technical Discourse",
+    "excerpt": "An exploration of serifs, monospace ligatures, and optical sizing in shaping how engineers and thinkers comprehend complex technical treatises.",
+    "content": "## The Optical Anatomy of Reading Code and Prose\n\nWe often imagine that technical comprehension is purely semantic—that the brain extracts meaning indifferent to the visual rhythm of the glyphs before it.\n\nEmpirical ocular tracking tells an entirely different story.\n\nWhen a reader encounters a high-contrast serif typeface like Newsreader or Baskerville for long-form narrative, the horizontal serifs create an optical shelf that guides saccadic jumps along the line of text. Conversely, for monospace environments, strict horizontal rhythm permits instant vertical scanning for alignment and syntax symmetry.\n\n### The Dual-Register Layout\n\nIn Chronicle, we establish a deliberate dual-register typographic architecture:\n\n- **The Editorial Serif Register**: Evoking the weight, deliberation, and gravitas of classic broadside monographs and literary quarterlies.\n- **The Precision Monospace Register**: Providing unflinching clarity for metadata, timestamps, telemetry, and source code excerpts.\n\nWhen these two voices sing in harmony, technical documentation ceases to feel like a spreadsheet and elevates into literature.",
+    "coverImage": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
     },
-    category: 'Design & Craft',
-    tags: ['Typography', 'Editorial Design', 'Readability', 'Letterforms'],
-    readTimeMinutes: 5,
-    views: 640,
-    claps: 178,
-    status: 'published',
-    isFeatured: false,
-    createdAt: '2026-10-11T10:10:00.000Z',
-    updatedAt: '2026-10-11T10:10:00.000Z'
+    "category": "Design & Craft",
+    "tags": [
+      "Typography",
+      "Editorial Design",
+      "Readability",
+      "Letterforms"
+    ],
+    "readTimeMinutes": 5,
+    "views": 640,
+    "claps": 178,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T10:10:00.000Z",
+    "updatedAt": "2026-10-11T10:10:00.000Z"
   },
   {
-    id: 'post-6',
-    slug: 'local-first-realities-surviving-cloud-decay',
-    title: 'Local-First Realities: Surviving the Cloud’s Slow Disintegration',
-    excerpt: 'Centralized platforms quietly deprecate, lock out accounts, and suffer bitrot. Why owning your local data files remains the ultimate safeguard.',
-    content: `## The Cloud Was Never a Vault
-
-Every developer of a certain vintage remembers the death of Google Reader, the deprecation of beloved APIs, and the sudden sunsetting of cloud note-taking startups that were once venture-backed darlings.
-
-Data stored exclusively on someone else’s remote server is not an asset; it is a temporary lease subject to unilateral eviction.
-
-### The Principles of Local-First Sovereignty
-
-1. **The Primary Source of Truth Lives on Your Machine**: The local SQLite database, JSON file, or plain Markdown folder is authoritative.
-2. **Network is an Opportunistic Sync Vector**: If your Wi-Fi fails in a train tunnel, you can still read, draft, edit, and organize without a spinner modal blocking your keyboard.
-3. **Open, Inspectable Formats**: Your thoughts should be readable 30 years from now using simple text parsers, without proprietary binaries.
-
-Chronicle adheres strictly to this philosophy: the entire journal's posts and discourse reside in an inspectable, atomic local data layer that can be backed up with a single command.`,
-    coverImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80',
-    author: {
-      name: 'Elena Rostova',
-      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
-      role: 'Staff Systems Architect',
-      bio: 'Obsessed with distributed latency, local-first protocols, and mechanical sympathy.'
+    "id": "post-6",
+    "slug": "local-first-realities-surviving-cloud-decay",
+    "title": "Local-First Realities: Surviving the Cloud’s Slow Disintegration",
+    "excerpt": "Centralized platforms quietly deprecate, lock out accounts, and suffer bitrot. Why owning your local data files remains the ultimate safeguard.",
+    "content": "## The Cloud Was Never a Vault\n\nEvery developer of a certain vintage remembers the death of Google Reader, the deprecation of beloved APIs, and the sudden sunsetting of cloud note-taking startups that were once venture-backed darlings.\n\nData stored exclusively on someone else’s remote server is not an asset; it is a temporary lease subject to unilateral eviction.\n\n### The Principles of Local-First Sovereignty\n\n1. **The Primary Source of Truth Lives on Your Machine**: The local SQLite database, JSON file, or plain Markdown folder is authoritative.\n2. **Network is an Opportunistic Sync Vector**: If your Wi-Fi fails in a train tunnel, you can still read, draft, edit, and organize without a spinner modal blocking your keyboard.\n3. **Open, Inspectable Formats**: Your thoughts should be readable 30 years from now using simple text parsers, without proprietary binaries.\n\nChronicle adheres strictly to this philosophy: the entire journal's posts and discourse reside in an inspectable, atomic local data layer that can be backed up with a single command.",
+    "coverImage": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
     },
-    category: 'Technology',
-    tags: ['Local First', 'Data Sovereignty', 'Open Source', 'Architecture'],
-    readTimeMinutes: 6,
-    views: 755,
-    claps: 220,
-    status: 'published',
-    isFeatured: false,
-    createdAt: '2026-10-11T12:00:00.000Z',
-    updatedAt: '2026-10-11T12:00:00.000Z'
+    "category": "Technology",
+    "tags": [
+      "Local First",
+      "Data Sovereignty",
+      "Open Source",
+      "Architecture"
+    ],
+    "readTimeMinutes": 6,
+    "views": 757,
+    "claps": 220,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T12:00:00.000Z",
+    "updatedAt": "2026-10-11T12:00:00.000Z"
+  },
+  {
+    "id": "post-7",
+    "slug": "the-quiet-elegance-of-sqlite-in-production",
+    "title": "The Quiet Elegance of SQLite in Production: Reconsidering the Single-File Database",
+    "excerpt": "Why modern SSD I/O, NVMe throughput, and local WAL mode make single-file embedded databases faster and more reliable than complex client-server clusters for 95% of web apps.",
+    "content": "## The Fallacy of Premature Scalability\n\nFor over fifteen years, the prevailing dogma in web architecture dictated that every production service, regardless of traffic volume, required a dedicated, distributed client-server database cluster. We provisioned multi-node Postgres or MySQL instances behind connection poolers, introduced network roundtrips for every simple lookup, and paid monthly infrastructure premiums for databases that handled fewer than ten queries per second.\n\nToday, NVMe solid-state storage reads data at several gigabytes per second with microsecond latencies. The physical reality of server hardware has fundamentally shattered the old trade-offs.\n\n### Zero Network Overhead: The True Power of In-Process I/O\n\nWhen your application communicates with SQLite in WAL (Write-Ahead Logging) mode, there are no TCP handshakes, no TLS encryption wrappers, and no kernel socket context switches. A read query is simply an in-process C function call resolving memory-mapped pages directly from the operating system page cache.\n\n```bash\n# Benchmark: Simple Primary Key Lookup (Local NVMe)\nClient-Server Postgres (Over Localhost Loopback): ~0.8ms - 1.5ms\nEmbedded SQLite (In-Process Memory Mapped):        ~0.015ms - 0.04ms (20x-50x faster)\n```\n\n### Safe Concurrency with WAL Mode and Atomic Operations\n\nA common myth is that SQLite cannot handle concurrent traffic. In WAL mode, SQLite supports unlimited concurrent readers running in parallel with a writer without blocking.\n\n```sql\n-- Enable lightning-fast concurrency and durability\nPRAGMA journal_mode = WAL;\nPRAGMA synchronous = NORMAL;\nPRAGMA temp_store = MEMORY;\nPRAGMA cache_size = -64000; -- 64MB cache\n```\n\nBy embracing SQLite for production workloads, we eliminate operational overhead, dramatically simplify disaster recovery (a backup is just a single file copy), and deliver response times that feel instantaneous to readers worldwide.",
+    "coverImage": "https://images.unsplash.com/photo-1544383835-bda2bc66a55d?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
+    },
+    "category": "Systems",
+    "tags": [
+      "Database",
+      "SQLite",
+      "Performance",
+      "Architecture"
+    ],
+    "readTimeMinutes": 5,
+    "views": 890,
+    "claps": 245,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T14:30:00.000Z",
+    "updatedAt": "2026-10-11T14:30:00.000Z"
+  },
+  {
+    "id": "post-8",
+    "slug": "principles-of-editorial-typography-on-the-web",
+    "title": "Principles of Editorial Typography: Leading, Measure, and Visual Harmony",
+    "excerpt": "How proportional leading, dynamic viewport scales, and carefully tuned contrast ratios transform long-form digital reading from eye strain into effortless flow.",
+    "content": "## The Physics of the Printed Page on Digital Screens\n\nReading is a complex cognitive dance. When a line of text spans too wide across a screen, the eye tires before reaching the end, and struggling to locate the start of the next line breaks the reader's immersion. When lines are squished too closely, descending glyphs collide with ascending stems.\n\nIn classical book design, the golden ratio and the canon of page division ruled every margin. On the web, we must translate these timeless physical insights into dynamic responsive fluid typography.\n\n### 1. The Ideal Measure: 55 to 75 Characters\n\nThe optimal line length for prose reading is between 60 and 75 characters per line (the *measure*). In modern CSS, we enforce this with the `ch` unit:\n\n```css\n.editorial-prose {\n  max-width: 68ch;\n  margin-inline: auto;\n  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.35rem);\n  line-height: 1.75;\n}\n```\n\n### 2. Proportional Leading (Line-Height)\n\nAs font size increases—for instance in subheaders and display titles—relative line height must decrease. A 48px headline set to 1.75 leading looks disjointed; it requires tight 1.15 to 1.25 leading to preserve graphic unity.\n\n### 3. Tactile Contrast: Never Pure Black, Never Pure White\n\nHarsh #000000 on blinding #ffffff induces ocular fatigue within minutes. Great editorial publications use warm ink pigments (e.g. #18181b or #111827) set against subtle parchment tones (#fdfcf7 or #faf9f5) in light mode, and deep obsidian with warm amber accents in dark mode.\n\nTypography is not decoration; it is the silent host that welcomes the human consciousness into the realm of ideas.",
+    "coverImage": "https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
+    },
+    "category": "Design & Craft",
+    "tags": [
+      "Typography",
+      "Editorial Design",
+      "CSS",
+      "Readability"
+    ],
+    "readTimeMinutes": 6,
+    "views": 1120,
+    "claps": 310,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T16:15:00.000Z",
+    "updatedAt": "2026-10-11T16:15:00.000Z"
+  },
+  {
+    "id": "post-9",
+    "slug": "the-art-of-minimalist-state-management",
+    "title": "The Art of Minimalist State: Escaping the Redux and Reactive Sprawl",
+    "excerpt": "Modern web apps are choked with redundant reactive stores. How reverting to URL query parameters and local React state restores sanity and speed.",
+    "content": "## The Architecture of Over-Complication\n\nOver the past decade, web engineering developed an addiction to global state containers. Every button click, search input, and modal toggle was mapped into complex action dispatches, immutable reducers, and global context selectors.\n\nThe result was fragile spaghetti code: components re-rendering unpredictably, browser back buttons breaking navigation history, and megabytes of JavaScript shipped merely to maintain state that already had a natural home.\n\n### The URL is Your Best Global State Manager\n\nConsider a search filter on a catalog page. If you store the active filter in a Redux slice or Zustand store, the user cannot bookmark the page, cannot share the URL with a colleague, and loses their state on refresh.\n\n```typescript\n// Storing search state directly in URL SearchParams\nexport function useFilterState() {\n  const router = useRouter();\n  const searchParams = useSearchParams();\n  const activeCategory = searchParams.get('cat') || 'all';\n\n  const setCategory = (cat: string) => {\n    const params = new URLSearchParams(searchParams);\n    params.set('cat', cat);\n    router.replace(`?${params.toString()}`, { scroll: false });\n  };\n\n  return { activeCategory, setCategory };\n}\n```\n\nBy storing shareable state in the URL and transient UI state (such as dropdown toggles or hover previews) in local `useState`, your application becomes inherently shareable, resilient, and fast.\n\n### Three Rules for Clean State\n\n1. **If it should be shareable or bookmarkable**, put it in the URL.\n2. **If it only matters to this single DOM branch**, keep it in local component state.\n3. **If it comes from the server**, let server components or a cache layer handle it without duplication.",
+    "coverImage": "https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
+    },
+    "category": "Technology",
+    "tags": [
+      "React",
+      "State Management",
+      "Architecture",
+      "Clean Code"
+    ],
+    "readTimeMinutes": 5,
+    "views": 950,
+    "claps": 260,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T18:00:00.000Z",
+    "updatedAt": "2026-10-11T18:00:00.000Z"
+  },
+  {
+    "id": "post-10",
+    "slug": "crafting-resilient-micro-interactions",
+    "title": "Crafting Resilient Micro-Interactions: The Subtle Physics of Polish",
+    "excerpt": "Why spring animations, tactile audio feedback, and optimistic UI updates make digital interfaces feel responsive, grounded, and physically alive.",
+    "content": "## The Difference Between Working and Resonant\n\nA calculator from the 1970s possessed tangible keys: you felt the mechanical click when the contact closed, providing definitive neurological confirmation that your keystroke registered.\n\nModern glass touchscreens and digital web apps lack mechanical contacts. Too often, clicking a button produces no sensation other than a visual loader spinner three seconds later.\n\n### Physical Springs vs Linear Easing\n\nHuman eyes evolve in a physical universe governed by momentum, friction, and elasticity. Nothing in nature moves with CSS linear easing: cars do not accelerate to 60mph in 0ms and stop abruptly without decelerating.\n\n```css\n/* Stiff, physical spring curve with natural dampening */\n--ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);\n--ease-out-quad: cubic-bezier(0.25, 0.46, 0.45, 0.94);\n\n.button-tactile {\n  transition: transform 140ms var(--ease-spring), box-shadow 140ms ease;\n}\n.button-tactile:active {\n  transform: scale(0.97) translateY(1px);\n}\n```\n\n### The Grace of Optimistic Feedback\n\nWhen a user claps for an essay in Chronicle, the clap counter increments on the exact millisecond of the pointer-down event. A burst of confetti triggers immediately. In the background, the HTTP request syncs with the database. If an error occurs, the UI gently rolls back with an honest notification.\n\nThis optimism creates trust. The software respects the user's focus and honors their action instantly.",
+    "coverImage": "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
+    },
+    "category": "Design & Craft",
+    "tags": [
+      "UI/UX",
+      "Micro-Interactions",
+      "Animation",
+      "Product Design"
+    ],
+    "readTimeMinutes": 4,
+    "views": 780,
+    "claps": 195,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T20:20:00.000Z",
+    "updatedAt": "2026-10-11T20:20:00.000Z"
+  },
+  {
+    "id": "post-11",
+    "slug": "the-renaissance-of-server-rendered-html",
+    "title": "The Renaissance of Server-Rendered HTML: Why the Monolith Won Again",
+    "excerpt": "After a decade of client-side single page app dominance, the industry has come full circle to streaming HTML, edge compute, and progressive hydration.",
+    "content": "## The Hangover of Massive JavaScript Bundles\n\nBetween 2014 and 2022, web development succumbed to a single architectural dogma: ship an empty `<div id=\"root\"></div>` to the browser along with a 3-megabyte JavaScript bundle, parse it on low-power mobile devices, and then make twenty cascading API queries to render text that could have arrived in the initial HTTP payload.\n\nThe cost was paid by readers in battery drain, laggy scrolling, broken search indexing, and fragile blank screens during network blips.\n\n### The Return of the Server\n\nWith the arrival of React Server Components and modern App Router patterns, the browser does what it was born to do: stream semantic HTML with CSS and minimal interactive JavaScript islands.\n\n```typescript\n// Server Component: Zero client JavaScript bundle overhead\nexport default async function DispatchFeed() {\n  const posts = await getPostsFromDisk();\n  \n  return (\n    <section className=\"feed-grid\">\n      {posts.map(p => (\n        <article key={p.id}>\n          <h2>{p.title}</h2>\n          <p>{p.excerpt}</p>\n        </article>\n      ))}\n    </section>\n  );\n}\n```\n\n### The Virtuous Cycle of Simplicity\n\n1. **Instant First Contentful Paint**: The HTML reaches the screen in under 50ms over standard broadband.\n2. **Robust SEO & Syndication**: Search crawlers, RSS feeds, and social share bots receive semantic content on the very first roundtrip.\n3. **Reduced Cognitive Overhead**: Developers spend less time managing hydration bugs and more time crafting compelling typography and features.\n\nThe server didn't die; it was merely waiting for us to recover our sanity.",
+    "coverImage": "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Marcus K. Sterling",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+      "role": "Fellow at Cognitive Systems Institute",
+      "bio": "Writing on symbolic reasoning, epistemology of artificial neural networks, and generative futures."
+    },
+    "category": "Technology",
+    "tags": [
+      "Next.js",
+      "SSR",
+      "Web Development",
+      "Architecture"
+    ],
+    "readTimeMinutes": 5,
+    "views": 1340,
+    "claps": 388,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T21:40:00.000Z",
+    "updatedAt": "2026-10-11T21:40:00.000Z"
+  },
+  {
+    "id": "post-12",
+    "slug": "epistemology-of-prompt-engineering",
+    "title": "The Epistemology of Prompts: Communicating Intent Across Latent Space",
+    "excerpt": "Prompting is not programming; it is cognitive cartography. How understanding latent manifolds changes how we instruct large multimodal models.",
+    "content": "## Beyond Syntactic Instructions\n\nIn classical software engineering, instructions are strictly deterministic: syntax error on line 42 stops execution entirely. The developer specifies every memory register and control loop.\n\nWhen interacting with deep transformer models, however, you are not compiling machine code. You are selecting coordinates within an extraordinarily high-dimensional semantic manifold.\n\n### The Prompt as an Attractor Field\n\nA well-crafted prompt functions as a gravitational basin in latent space:\n\n- **Context establishes the coordinate system**: Providing background constraints or stylistic references prunes millions of generic token paths.\n- **Few-shot demonstrations anchor tone**: Giving two concrete examples provides stronger directional bias than three pages of descriptive prose.\n- **Negative constraints prevent hallucination loops**: Defining boundaries explicitly guides the probabilistic sampler away from degenerate equilibria.\n\n```markdown\n### Systematic Prompt Specification\n1. Primary Persona & Cognitive Stance\n2. Invariant Constraints & Rules of Engagement\n3. Structural Schema & Formatting Requirements\n4. Exemplar Pairs (Input -> Desired Latent Trajectory)\n```\n\nAs engineers, mastering this medium requires intuition, linguistic precision, and the humility to realize that we are guiding complex emergent systems rather than issuing mechanical commands.",
+    "coverImage": "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Marcus K. Sterling",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+      "role": "Fellow at Cognitive Systems Institute",
+      "bio": "Writing on symbolic reasoning, epistemology of artificial neural networks, and generative futures."
+    },
+    "category": "Artificial Intelligence",
+    "tags": [
+      "AI",
+      "Prompt Engineering",
+      "LLM",
+      "Cognition"
+    ],
+    "readTimeMinutes": 6,
+    "views": 1105,
+    "claps": 320,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-11T22:50:00.000Z",
+    "updatedAt": "2026-10-11T22:50:00.000Z"
+  },
+  {
+    "id": "post-13",
+    "slug": "designing-for-the-offline-first-future",
+    "title": "Designing for the Offline-First Future: Sync Engines and CRDTs",
+    "excerpt": "Why users expect instant loads and zero spinners even when traversing airplane WiFi or subway tunnels, and how conflict-free data types make it possible.",
+    "content": "## The Network is an Intermittent Luxury\n\nWe design software while tethered to gigabit fiber connections in urban offices, forgetting that real human beings use our software on commuter trains entering tunnels, on spotty airport Wi-Fi, or in rural regions with sporadic packet loss.\n\nAn application that renders a blank white screen or displays a spinner when connectivity drops fails its primary duty.\n\n### Conflict-Free Replicated Data Types (CRDTs)\n\nHow do you allow two users—or a single user across two disconnected devices—to write and edit notes concurrently without experiencing merge conflicts or losing data when they reconnect?\n\n```typescript\n// State-based CRDT LWW-Register (Last-Write-Wins)\nexport class LWWRegister<T> {\n  constructor(\n    public value: T,\n    public timestamp: number,\n    public peerId: string\n  ) {}\n\n  merge(incoming: LWWRegister<T>): LWWRegister<T> {\n    if (incoming.timestamp > this.timestamp) {\n      return incoming;\n    }\n    if (incoming.timestamp === this.timestamp && incoming.peerId > this.peerId) {\n      return incoming;\n    }\n    return this;\n  }\n}\n```\n\nBy storing local changes in IndexedDB or SQLite first and treating the network as an asynchronous synchronization channel, your application becomes invincible against packet drops and network outages.",
+    "coverImage": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
+    },
+    "category": "Systems",
+    "tags": [
+      "Offline First",
+      "CRDT",
+      "Distributed Systems",
+      "Architecture"
+    ],
+    "readTimeMinutes": 5,
+    "views": 840,
+    "claps": 215,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-12T00:15:00.000Z",
+    "updatedAt": "2026-10-12T00:15:00.000Z"
+  },
+  {
+    "id": "post-14",
+    "slug": "the-death-of-digital-clutter-brutalist-clarity",
+    "title": "The Death of Digital Clutter: Finding Clarity in Neo-Brutalist Layouts",
+    "excerpt": "Stripping away unnecessary cards, gradients, and floating modals in pursuit of honest information hierarchy and typographic discipline.",
+    "content": "## The Epidemic of Decorative Slop\n\nLook at the modern consumer web: cookie banners, newsletter subscription popups, floating chatbots, pulsing push notification requests, and three layers of drop shadows covering blurry background images.\n\nUsers do not visit a journal to admire CSS gradients; they visit to read words and absorb ideas.\n\n### The Ethics of Neo-Brutalist Architecture\n\nNeo-Brutalism in digital design is not about being deliberately ugly or abrasive. It is about honesty:\n\n1. **Clear Boundaries**: High-contrast borders that communicate exactly where one section ends and another begins.\n2. **Honest Typography**: Large, legible headings set in time-tested typefaces that declare their lineage proudly.\n3. **Zero Distraction**: No autoplaying carousels, no layout shifting banners that push reading lines around.\n\nWhen you remove the ornamental clutter, what remains must stand on the merit of its prose and the precision of its execution.",
+    "coverImage": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
+    },
+    "category": "Design & Craft",
+    "tags": [
+      "Minimalism",
+      "Web Design",
+      "Aesthetics",
+      "Philosophy"
+    ],
+    "readTimeMinutes": 4,
+    "views": 920,
+    "claps": 280,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-12T01:30:00.000Z",
+    "updatedAt": "2026-10-12T01:30:00.000Z"
+  },
+  {
+    "id": "post-15",
+    "slug": "zero-dependency-philosophy-in-modern-tooling",
+    "title": "The Zero-Dependency Philosophy: Building Software That Outlives Its Frameworks",
+    "excerpt": "The average node_modules folder contains over 1,500 packages. Why writing vanilla TypeScript and leveraging web standards is the ultimate longevity strategy.",
+    "content": "## The Fragility of the Dependency Tower of Babel\n\nA simple frontend project today often pulls in 800MB of dependencies across 1,400 nested packages. Half of these dependencies exist merely to perform string manipulations, date formatting, or array chunking that the modern ECMAScript standard already provides natively.\n\nEvery third-party dependency you introduce is an unvetted security attack vector, a potential breaking change on the next minor release, and a maintenance debt owed to tomorrow.\n\n### Modern Web Standards Have Grown Up\n\nBefore introducing a library, ask: can modern web APIs do this in three lines?\n\n```typescript\n// Native Intl APIs replace heavy date & currency libraries\nconst formattedCurrency = new Intl.NumberFormat('en-US', {\n  style: 'currency',\n  currency: 'USD'\n}).format(1249.99);\n\nconst relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })\n  .format(-3, 'day'); // \"3 days ago\"\n```\n\nBy writing software that relies on native language primitives and resilient standards, your code will still compile and run cleanly ten years from today without maintenance headaches.",
+    "coverImage": "https://images.unsplash.com/photo-1504639725590-34d0984388bd?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
+    },
+    "category": "Technology",
+    "tags": [
+      "Dependencies",
+      "JavaScript",
+      "Standards",
+      "Longevity"
+    ],
+    "readTimeMinutes": 5,
+    "views": 1040,
+    "claps": 315,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-12T02:00:00.000Z",
+    "updatedAt": "2026-10-12T02:00:00.000Z"
+  },
+  {
+    "id": "post-16",
+    "slug": "mechanical-sympathy-in-the-browser-runtime",
+    "title": "Mechanical Sympathy in the Browser Runtime: How V8 Truly Executes Your Code",
+    "excerpt": "Understanding hidden classes, JIT deoptimizations, and memory allocation patterns to write JavaScript that executes at hardware speed.",
+    "content": "## Writing Code With Sympathy for the Machine\n\nThe term \"mechanical sympathy\" originated in racing: driver Jackie Stewart noted that you don't have to be an engineer to be a racing champion, but you have to understand how the engine works to extract its highest performance without blowing it up.\n\nIn JavaScript development, engines like Google's V8 perform miracles of Just-In-Time (JIT) compilation. But when you write code that violates the engine's internal assumptions, execution falls off a performance cliff.\n\n### Hidden Classes and Inline Caches (Monomorphism)\n\nV8 creates hidden classes (Shapes) for objects under the hood. If you dynamically attach properties in varying orders, V8 creates distinct shapes, causing function call sites to become megamorphic:\n\n```javascript\n// Monomorphic: Consistent object shape enables instant inline caching\nclass Point {\n  constructor(x, y) {\n    this.x = x;\n    this.y = y;\n  }\n}\n\n// Polymorphic anti-pattern: altering object shape dynamically\nfunction createBadPoint(x, y, flip) {\n  const p = {};\n  if (flip) { p.y = y; p.x = x; } // Creates alternate hidden class transition!\n  else { p.x = x; p.y = y; }\n  return p;\n}\n```\n\nWhen you align your data structures with the hardware and JIT pipeline, web applications perform with the responsiveness of native compiled software.",
+    "coverImage": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Elena Rostova",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80",
+      "role": "Staff Systems Architect",
+      "bio": "Obsessed with distributed latency, local-first protocols, and mechanical sympathy."
+    },
+    "category": "Systems",
+    "tags": [
+      "V8",
+      "JavaScript",
+      "Performance",
+      "Compilers"
+    ],
+    "readTimeMinutes": 6,
+    "views": 870,
+    "claps": 290,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-12T02:45:00.000Z",
+    "updatedAt": "2026-10-12T02:45:00.000Z"
+  },
+  {
+    "id": "post-17",
+    "slug": "in-defense-of-deliberate-slowness",
+    "title": "In Defense of Deliberate Slowness: Crafting Software That Endures",
+    "excerpt": "Move fast and break things broke the web. A manifesto for reflective engineering, thorough code review, and patient architecture.",
+    "content": "## The Poison of Hyper-Velocity\n\n\"Move fast and break things\" was the battle cry of Silicon Valley for twenty years. It produced undeniable breakthroughs, but it also littered the digital landscape with broken tools, discarded privacy, fragile architectures, and burned-out engineering teams.\n\nWhen speed is the only metric of productivity, craftsmanship is the first casualty.\n\n### The Value of the Incubation Period\n\nThe most enduring algorithms and pieces of software—from Unix pipes to TeX to Git—were not rushed out over an espresso-fueled weekend to hit an artificial quarterly deadline. They were pondered, rewritten, refactored, and tested against human reality.\n\n```typescript\ninterface EnduringCraft {\n  deliberation: 'Thinking three steps ahead before touching the keyboard';\n  editing: 'Removing two lines of code for every line added';\n  permanence: 'Building systems that will still function without touch in 2036';\n}\n```\n\nSlowness allows insight to crystallize. It is in the pauses between iterations that genuine architectural elegance is discovered.",
+    "coverImage": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Julian Vance",
+      "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80",
+      "role": "Principal Design Technologist",
+      "bio": "Investigating typographic rhythm, tactile software interfaces, and the philosophy of digital tools."
+    },
+    "category": "Philosophy",
+    "tags": [
+      "Philosophy",
+      "Craftsmanship",
+      "Engineering Culture",
+      "Ethics"
+    ],
+    "readTimeMinutes": 5,
+    "views": 1210,
+    "claps": 440,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-12T03:00:00.000Z",
+    "updatedAt": "2026-10-12T03:00:00.000Z"
+  },
+  {
+    "id": "post-18",
+    "slug": "the-tactile-terminal-command-line-aesthetics",
+    "title": "The Tactile Terminal: Why the Command Line Remains the Ultimate Canvas",
+    "excerpt": "From ANSI escape codes to high-density TUI dashboards, why modern developers are fleeing electron apps in favor of hyper-responsive terminal tools.",
+    "content": "## The Minimalist Sanctum of the Shell\n\nWhile desktop operating systems grow increasingly cluttered with advertising notifications, widgets, and browser tabs consuming gigabytes of RAM, the Unix terminal remains an austere sanctuary of unfiltered power.\n\nIn a terminal, every keystroke is an immediate action. There are no bloated animations or mouse hunting; muscle memory guides your intent directly into the operating system.\n\n### The Modern TUI Renaissance\n\nOver the last five years, a quiet revolution occurred in developer tooling. We witnessed the rise of gorgeous Terminal User Interfaces (TUIs) built with Go, Rust, and Zig: tools like Lazygit, Neovim, Bubbletea, and Btop.\n\n```bash\n# The speed of thought in a terminal workflow\ngit log --graph --oneline --decorate --all\ncargo build --release\nfind . -type f -name \"*.ts\" | xargs wc -l\n```\n\nThe terminal teaches us the supreme value of density, high contrast, and keyboard-driven efficiency. By carrying these design principles into our web interfaces, we make the digital world faster and more delightful for all.",
+    "coverImage": "https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=1600&q=80",
+    "author": {
+      "name": "Marcus K. Sterling",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80",
+      "role": "Fellow at Cognitive Systems Institute",
+      "bio": "Writing on symbolic reasoning, epistemology of artificial neural networks, and generative futures."
+    },
+    "category": "Technology",
+    "tags": [
+      "CLI",
+      "Terminal",
+      "Developer Experience",
+      "Productivity"
+    ],
+    "readTimeMinutes": 5,
+    "views": 980,
+    "claps": 310,
+    "status": "published",
+    "isFeatured": false,
+    "createdAt": "2026-10-12T03:30:00.000Z",
+    "updatedAt": "2026-10-12T03:30:00.000Z"
   }
 ];
 
 export const INITIAL_COMMENTS: Comment[] = [
   {
-    id: 'comm-1',
-    postId: 'post-1',
-    authorName: 'Sarah Jenkins',
-    authorEmail: 'sarah.j@example.com',
-    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
-    content: 'The comparison between steam lathe wood spindles and generative UI is profoundly accurate. We are churning out symmetrical yet lifeless web pages at scale right now.',
-    createdAt: '2026-10-08T14:20:00.000Z',
-    likes: 24
+    "id": "comm-1",
+    "postId": "post-1",
+    "authorName": "Sarah Jenkins",
+    "authorEmail": "sarah.j@example.com",
+    "authorAvatar": "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80",
+    "content": "The comparison between steam lathe wood spindles and generative UI is profoundly accurate. We are churning out symmetrical yet lifeless web pages at scale right now.",
+    "createdAt": "2026-10-08T14:20:00.000Z",
+    "likes": 24
   },
   {
-    id: 'comm-2',
-    postId: 'post-1',
-    authorName: 'David Chen',
-    authorEmail: 'david@craftcode.io',
-    authorAvatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80',
-    content: 'That quote on craftsmanship leaving an indelible warmth... bookmarking this entire essay. The typography on this blog alone proves the point!',
-    createdAt: '2026-10-08T18:05:00.000Z',
-    likes: 18
+    "id": "comm-2",
+    "postId": "post-1",
+    "authorName": "David Chen",
+    "authorEmail": "david@craftcode.io",
+    "authorAvatar": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100&q=80",
+    "content": "That quote on craftsmanship leaving an indelible warmth... bookmarking this entire essay. The typography on this blog alone proves the point!",
+    "createdAt": "2026-10-08T18:05:00.000Z",
+    "likes": 18
   },
   {
-    id: 'comm-3',
-    postId: 'post-2',
-    authorName: 'Nadia Thorne',
-    authorEmail: 'nadia@systems.net',
-    authorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-    content: 'Robert Miller’s 100ms rule should be etched onto every frontend developer’s monitor. When a button click takes 350ms to acknowledge, my train of thought derails completely.',
-    createdAt: '2026-10-09T16:30:00.000Z',
-    likes: 31
+    "id": "comm-3",
+    "postId": "post-2",
+    "authorName": "Nadia Thorne",
+    "authorEmail": "nadia@systems.net",
+    "authorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80",
+    "content": "Robert Miller’s 100ms rule should be etched onto every frontend developer’s monitor. When a button click takes 350ms to acknowledge, my train of thought derails completely.",
+    "createdAt": "2026-10-09T16:30:00.000Z",
+    "likes": 31
   }
 ];

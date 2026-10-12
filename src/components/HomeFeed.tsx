@@ -186,14 +186,62 @@ export function HomeFeed({
             </div>
           ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {filteredPosts.map((post) => (
-                <PostCard key={post.id} post={post} viewMode="grid" />
+              {filteredPosts.map((post, index) => (
+                <React.Fragment key={post.id}>
+                  <PostCard post={post} viewMode="grid" />
+                  {(index + 1) % 4 === 0 && index < filteredPosts.length - 1 && (
+                    <div className="md:col-span-2 w-full flex justify-center py-2">
+                      <div className="hidden sm:block">
+                        <AdBanner
+                          adKey={AD_CONFIG.leaderboard_728x90.key}
+                          width={AD_CONFIG.leaderboard_728x90.width}
+                          height={AD_CONFIG.leaderboard_728x90.height}
+                          label="Featured Dispatch • In-Feed Sponsor"
+                          refreshInterval={35}
+                        />
+                      </div>
+                      <div className="block sm:hidden">
+                        <AdBanner
+                          adKey={AD_CONFIG.banner_468x60.key}
+                          width={AD_CONFIG.banner_468x60.width}
+                          height={AD_CONFIG.banner_468x60.height}
+                          label="Sponsored"
+                          refreshInterval={35}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredPosts.map((post) => (
-                <PostCard key={post.id} post={post} viewMode="list" />
+              {filteredPosts.map((post, index) => (
+                <React.Fragment key={post.id}>
+                  <PostCard post={post} viewMode="list" />
+                  {(index + 1) % 3 === 0 && index < filteredPosts.length - 1 && (
+                    <div className="w-full flex justify-center py-2">
+                      <div className="hidden sm:block">
+                        <AdBanner
+                          adKey={AD_CONFIG.leaderboard_728x90.key}
+                          width={AD_CONFIG.leaderboard_728x90.width}
+                          height={AD_CONFIG.leaderboard_728x90.height}
+                          label="Featured Dispatch • In-Feed Sponsor"
+                          refreshInterval={35}
+                        />
+                      </div>
+                      <div className="block sm:hidden">
+                        <AdBanner
+                          adKey={AD_CONFIG.banner_468x60.key}
+                          width={AD_CONFIG.banner_468x60.width}
+                          height={AD_CONFIG.banner_468x60.height}
+                          label="Sponsored"
+                          refreshInterval={35}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
             </div>
           )}
