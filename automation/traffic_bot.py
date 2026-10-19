@@ -45,8 +45,29 @@ def load_config():
         "headless": False,
         "multi_page_navigation": True,
         "max_pages_per_session": 2,
-        "smartlink_click_chance": 0.08
+        "smartlink_click_chance": 0.04,
+        "use_organic_referers": True
     }
+
+
+DEFAULT_REFERERS = [
+    ("https://www.google.com/", 0.40),
+    ("https://t.co/", 0.15),
+    ("https://www.reddit.com/r/technology/", 0.10),
+    ("https://l.facebook.com/", 0.05),
+    ("https://www.bing.com/", 0.10),
+    ("https://duckduckgo.com/", 0.05),
+    ("https://news.ycombinator.com/", 0.05),
+    (None, 0.10)
+]
+
+
+def get_organic_referer(custom_pool=None) -> str | None:
+    """Mengembalikan referer acak terbobot (Google, Social, Search Engine, atau Direct)."""
+    pool = custom_pool if custom_pool else DEFAULT_REFERERS
+    urls = [item[0] for item in pool]
+    weights = [float(item[1]) for item in pool]
+    return random.choices(urls, weights=weights, k=1)[0]
 
 
 def resolve_proxy_path(proxy_source_path):

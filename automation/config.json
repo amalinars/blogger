@@ -3,19 +3,20 @@
   "local_test_url": "http://localhost:3000",
   "use_local": false,
   "dwell_time": {
-    "min_seconds": 35,
-    "max_seconds": 55
+    "min_seconds": 25,
+    "max_seconds": 45
   },
   "scroll_settings": {
-    "step_pixels": 250,
-    "pause_between_scrolls_min": 1.5,
-    "pause_between_scrolls_max": 3.5
+    "step_pixels": 320,
+    "pause_between_scrolls_min": 0.8,
+    "pause_between_scrolls_max": 1.8
   },
   "proxy_source": "automation/proxies.json",
   "headless": false,
   "multi_page_navigation": true,
   "max_pages_per_session": 2,
-  "smartlink_click_chance": 0.08,
+  "return_home_between_posts": false,
+  "smartlink_click_chance": 0.04,
   "smartlink_pool": [
     "https://araplhn.org/4/3714e867534d8e967cc514e3fe1e1f86",
     "https://asiafilm.org/4/7eac5b9300b22ac99ca80c8cdb6b3bcd",
@@ -23,5 +24,22 @@
     "https://auctionr.org/4/5740ecd138a8347bdcfb133ada0e7c94",
     "https://asiafilm.org/4/345ccd961a9780f5ab49ebc64d853bd0",
     "https://asiafilm.org/4/798a138996d8c9994d4f8e2aea0b738f"
-  ]
+  ],
+  "use_organic_referers": true,
+  "organic_referer_pool": [
+    ["https://www.google.com/", 0.40],
+    ["https://t.co/", 0.15],
+    ["https://www.reddit.com/r/technology/", 0.10],
+    ["https://l.facebook.com/", 0.05],
+    ["https://www.bing.com/", 0.10],
+    ["https://duckduckgo.com/", 0.05],
+    ["https://news.ycombinator.com/", 0.05],
+    [null, 0.10]
+  ],
+  "concurrency": 2,
+  "session_delay_seconds": {
+    "min": 8,
+    "max": 20
+  },
+  "adsterra_api_key": "deade03b46c6143d482513737c983e42"
 }
