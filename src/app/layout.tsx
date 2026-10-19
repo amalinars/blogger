@@ -47,9 +47,8 @@ export default function RootLayout({
     >
       <head>
         {/* Adsterra Popunder Script */}
-        <Script
-          id="adsterra-popunder"
-          strategy="afterInteractive"
+        <script
+          type="text/javascript"
           src={AD_CONFIG.popunder.scriptSrc}
         />
         {/* Adsterra Social Bar */}

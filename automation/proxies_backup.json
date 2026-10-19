@@ -1,0 +1,1082 @@
+[
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "iSDWyBQSz0f0shLt",
+    "password": "Nxkiyf1oY1pUgkZk",
+    "proxy_url": "http://iSDWyBQSz0f0shLt:Nxkiyf1oY1pUgkZk@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "VhVzRA6rYCGv5m07",
+    "password": "QznkUcIbgIgkxhf8",
+    "proxy_url": "http://VhVzRA6rYCGv5m07:QznkUcIbgIgkxhf8@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "9sHxMCfpD44kKPND",
+    "password": "JuVGbULDTHWMM9X4",
+    "proxy_url": "http://9sHxMCfpD44kKPND:JuVGbULDTHWMM9X4@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "Daxq8NJj2efaDPiK",
+    "password": "X0Sisg8dkob4nbLJ",
+    "proxy_url": "http://Daxq8NJj2efaDPiK:X0Sisg8dkob4nbLJ@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "kfmXwMSf00jKvWnm",
+    "password": "CddtSvElkLYEAPeA",
+    "proxy_url": "http://kfmXwMSf00jKvWnm:CddtSvElkLYEAPeA@geo.floppydata.com:10080"
+  },
+  {
+    "country": "US",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "jMuByqFsDG1sXoFn",
+    "password": "RdwHwCa15lfwKAgl",
+    "proxy_url": "http://jMuByqFsDG1sXoFn:RdwHwCa15lfwKAgl@geo.floppydata.com:10080"
+  },
+  {
+    "country": "GB",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "ZuYFkiVI2EVW1MBm",
+    "password": "Y7WUVJfOcO328gFl",
+    "proxy_url": "http://ZuYFkiVI2EVW1MBm:Y7WUVJfOcO328gFl@geo.floppydata.com:10080"
+  },
+  {
+    "country": "FR",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "pjqddFJVv9mobwBZ",
+    "password": "pZmVsCBY6j8S6vXR",
+    "proxy_url": "http://pjqddFJVv9mobwBZ:pZmVsCBY6j8S6vXR@geo.floppydata.com:10080"
+  },
+  {
+    "country": "CA",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "03sn1WnSPUau4u7p",
+    "password": "jXySWamFAr9S9S9v",
+    "proxy_url": "http://03sn1WnSPUau4u7p:jXySWamFAr9S9S9v@geo.floppydata.com:10080"
+  },
+  {
+    "country": "AU",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "fl3uiWOpEqew0vrA",
+    "password": "1jJQD304Neh4fRNr",
+    "proxy_url": "http://fl3uiWOpEqew0vrA:1jJQD304Neh4fRNr@geo.floppydata.com:10080"
+  },
+  {
+    "country": "US",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "xXfIOwoZS5sogQde",
+    "password": "XsKvV016g0MrhwwV",
+    "proxy_url": "http://xXfIOwoZS5sogQde:XsKvV016g0MrhwwV@geo.floppydata.com:10080"
+  },
+  {
+    "country": "GB",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "nBDSr4OtWnYkT3d0",
+    "password": "3l8J8Mg9aAtBPiZh",
+    "proxy_url": "http://nBDSr4OtWnYkT3d0:3l8J8Mg9aAtBPiZh@geo.floppydata.com:10080"
+  },
+  {
+    "country": "FR",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "wXMEnZdkNm6tY3d0",
+    "password": "w2O5mi143d4yZumd",
+    "proxy_url": "http://wXMEnZdkNm6tY3d0:w2O5mi143d4yZumd@geo.floppydata.com:10080"
+  },
+  {
+    "country": "CA",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "cUbGhKIWuhpUxD5h",
+    "password": "iUodm8NxJTXMooiX",
+    "proxy_url": "http://cUbGhKIWuhpUxD5h:iUodm8NxJTXMooiX@geo.floppydata.com:10080"
+  },
+  {
+    "country": "AU",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "connection_type": "resident",
+    "username": "TyHQuOl0sPGGIk5K",
+    "password": "FdHH5zP4SQhtUG8M",
+    "proxy_url": "http://TyHQuOl0sPGGIk5K:FdHH5zP4SQhtUG8M@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "1ttpkYiRqmq9gNS0",
+    "password": "wlIhn8AYGUYJCQtc",
+    "proxy_url": "http://1ttpkYiRqmq9gNS0:wlIhn8AYGUYJCQtc@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "jGRG7GDmHiJgw22W",
+    "password": "UvWkVbu6ND5BsfhI",
+    "proxy_url": "http://jGRG7GDmHiJgw22W:UvWkVbu6ND5BsfhI@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "rEWlQ6pzh4I5qGC0",
+    "password": "yEjvzp3pnfzvbYXm",
+    "proxy_url": "http://rEWlQ6pzh4I5qGC0:yEjvzp3pnfzvbYXm@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "oR0BacOMZvtBCpmS",
+    "password": "xG03ZukcawtUFTmu",
+    "proxy_url": "http://oR0BacOMZvtBCpmS:xG03ZukcawtUFTmu@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "hatZkebSAhtKH0yW",
+    "password": "7vvzNNQj0SzrVboj",
+    "proxy_url": "http://hatZkebSAhtKH0yW:7vvzNNQj0SzrVboj@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "k5j8qOM9NruuHW9B",
+    "password": "D5yGRa5gKExZ4bTQ",
+    "proxy_url": "http://k5j8qOM9NruuHW9B:D5yGRa5gKExZ4bTQ@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "gbSE2A1mnRd2JFHl",
+    "password": "aV86UyNbP13U9fTH",
+    "proxy_url": "http://gbSE2A1mnRd2JFHl:aV86UyNbP13U9fTH@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "kmAJZG6K7RKJDCYk",
+    "password": "SWiJh0ZF8YzwIFUA",
+    "proxy_url": "http://kmAJZG6K7RKJDCYk:SWiJh0ZF8YzwIFUA@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "kpTEpE4Lemm6zcM7",
+    "password": "oKyn4edxY48tuAe7",
+    "proxy_url": "http://kpTEpE4Lemm6zcM7:oKyn4edxY48tuAe7@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "IJa50BBlJqOz0AzB",
+    "password": "2sCyfYJYYNxMJjDz",
+    "proxy_url": "http://IJa50BBlJqOz0AzB:2sCyfYJYYNxMJjDz@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "5KqUwI9vHFAw8kjz",
+    "password": "tfgvWQ1WKtvQ8JmX",
+    "proxy_url": "http://5KqUwI9vHFAw8kjz:tfgvWQ1WKtvQ8JmX@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "0ITxfbkraCU4MxFX",
+    "password": "QaljDapA9iFz3v29",
+    "proxy_url": "http://0ITxfbkraCU4MxFX:QaljDapA9iFz3v29@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "u0EgrrA8RCPwDOjx",
+    "password": "aCJvTF6t593QWVlM",
+    "proxy_url": "http://u0EgrrA8RCPwDOjx:aCJvTF6t593QWVlM@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "0F7WQDeXMxPnHStd",
+    "password": "T6HUnzDkZ7vT3bZ9",
+    "proxy_url": "http://0F7WQDeXMxPnHStd:T6HUnzDkZ7vT3bZ9@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "AAEF0Lgisi4nko62",
+    "password": "Vf48VGxAQlPDVh2m",
+    "proxy_url": "http://AAEF0Lgisi4nko62:Vf48VGxAQlPDVh2m@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "jT1RZIRZ9FMxDgJj",
+    "password": "WXqDqErx0i12ssEV",
+    "proxy_url": "http://jT1RZIRZ9FMxDgJj:WXqDqErx0i12ssEV@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "89apveFToz9m09nO",
+    "password": "MoPJlJUwG2kaXBpN",
+    "proxy_url": "http://89apveFToz9m09nO:MoPJlJUwG2kaXBpN@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "kPjeKvV17ZFO0lJi",
+    "password": "BX5Q6vfgmh6zcD3k",
+    "proxy_url": "http://kPjeKvV17ZFO0lJi:BX5Q6vfgmh6zcD3k@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "nXPftBA0M1UvsKrG",
+    "password": "mCmRulsCyXlK6io3",
+    "proxy_url": "http://nXPftBA0M1UvsKrG:mCmRulsCyXlK6io3@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "tMHuDCZvn00Kg9Rw",
+    "password": "I98flCAVuTi5G2i4",
+    "proxy_url": "http://tMHuDCZvn00Kg9Rw:I98flCAVuTi5G2i4@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "UhpDWr8Gle7dDq7T",
+    "password": "qxkJ4xEHp8W6Ooku",
+    "proxy_url": "http://UhpDWr8Gle7dDq7T:qxkJ4xEHp8W6Ooku@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "Jltl0uSZ8AcBuRax",
+    "password": "DMfxFmueJfjUQKZz",
+    "proxy_url": "http://Jltl0uSZ8AcBuRax:DMfxFmueJfjUQKZz@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "660M5XVNimzrL5nS",
+    "password": "WYWEbuNF7dP6AQTh",
+    "proxy_url": "http://660M5XVNimzrL5nS:WYWEbuNF7dP6AQTh@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "cV610qa39irL4ybg",
+    "password": "yYZIPl0iTUbo7IOX",
+    "proxy_url": "http://cV610qa39irL4ybg:yYZIPl0iTUbo7IOX@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "07MQzMWApmUMjfg5",
+    "password": "PbuLdRWu3Almw4xh",
+    "proxy_url": "http://07MQzMWApmUMjfg5:PbuLdRWu3Almw4xh@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "Ygor0FOAdlviGa7C",
+    "password": "AKyIeLMHzuYbs9Vb",
+    "proxy_url": "http://Ygor0FOAdlviGa7C:AKyIeLMHzuYbs9Vb@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "a1VLvkaouvuKXM4Q",
+    "password": "DZbNPzv3ZWWSEO6f",
+    "proxy_url": "http://a1VLvkaouvuKXM4Q:DZbNPzv3ZWWSEO6f@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "QCAiQphbZizVKXBZ",
+    "password": "ZP9f4lApWwaa8PJ3",
+    "proxy_url": "http://QCAiQphbZizVKXBZ:ZP9f4lApWwaa8PJ3@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "auFPvW5DAt2honUC",
+    "password": "rou6fTpVwItKH5MW",
+    "proxy_url": "http://auFPvW5DAt2honUC:rou6fTpVwItKH5MW@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "zhtpWK0reVGs3W1n",
+    "password": "DIAbiXBRCLp2YwI1",
+    "proxy_url": "http://zhtpWK0reVGs3W1n:DIAbiXBRCLp2YwI1@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "8QPoQY9f36s0xs5w",
+    "password": "dCX9NSWPVtEmMax9",
+    "proxy_url": "http://8QPoQY9f36s0xs5w:dCX9NSWPVtEmMax9@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "MmkUhRS6jnKsznmy",
+    "password": "GxTdnpFlRSe7UxtZ",
+    "proxy_url": "http://MmkUhRS6jnKsznmy:GxTdnpFlRSe7UxtZ@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "kpRgQYAqceOUldcZ",
+    "password": "dkKqP3AV6DsDJ6KE",
+    "proxy_url": "http://kpRgQYAqceOUldcZ:dkKqP3AV6DsDJ6KE@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "otncwUDUaxh0yURL",
+    "password": "CtFRyYANEteffKvN",
+    "proxy_url": "http://otncwUDUaxh0yURL:CtFRyYANEteffKvN@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "HY7yZ798vfeFjWfE",
+    "password": "ueasuW1uSbZt6gzD",
+    "proxy_url": "http://HY7yZ798vfeFjWfE:ueasuW1uSbZt6gzD@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "8z6bz7mKF0wqCGK5",
+    "password": "K8OlRL18vlSAhxGB",
+    "proxy_url": "http://8z6bz7mKF0wqCGK5:K8OlRL18vlSAhxGB@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "hLYlwQX1XqBasQ14",
+    "password": "SqkgaQjCcBYoOxe1",
+    "proxy_url": "http://hLYlwQX1XqBasQ14:SqkgaQjCcBYoOxe1@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "QCEUlCrKxJp4VV3j",
+    "password": "Y70wezndXNtpXIj0",
+    "proxy_url": "http://QCEUlCrKxJp4VV3j:Y70wezndXNtpXIj0@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "LyHnXWm21JJMSNQt",
+    "password": "sdUKHBN8yy5qHCB1",
+    "proxy_url": "http://LyHnXWm21JJMSNQt:sdUKHBN8yy5qHCB1@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "peSIEQsTLIwNV9GU",
+    "password": "GZR1kCjRPDBhZQn8",
+    "proxy_url": "http://peSIEQsTLIwNV9GU:GZR1kCjRPDBhZQn8@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "5xYS0SU4QXxxMZBi",
+    "password": "QiOXgdnPNxFYXASc",
+    "proxy_url": "http://5xYS0SU4QXxxMZBi:QiOXgdnPNxFYXASc@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "2XoHnsjD8y5eDdjz",
+    "password": "EVwDsPuSAfa9RZHa",
+    "proxy_url": "http://2XoHnsjD8y5eDdjz:EVwDsPuSAfa9RZHa@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "EX0H78eC6kNTtUaE",
+    "password": "kKGL2vuGMPvSsRTA",
+    "proxy_url": "http://EX0H78eC6kNTtUaE:kKGL2vuGMPvSsRTA@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "qYFXKQdnaTRKhmDy",
+    "password": "7lPR9uKFp8XIrMLd",
+    "proxy_url": "http://qYFXKQdnaTRKhmDy:7lPR9uKFp8XIrMLd@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "4PIAHjA1B7iDVZYy",
+    "password": "cLV1ZR7dQ72xWDvR",
+    "proxy_url": "http://4PIAHjA1B7iDVZYy:cLV1ZR7dQ72xWDvR@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "89lFh35Ty0gtQ48d",
+    "password": "s3bh0lx93GphEfxy",
+    "proxy_url": "http://89lFh35Ty0gtQ48d:s3bh0lx93GphEfxy@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "NsBQgB9wwPfR4QuS",
+    "password": "BQg4M1q0cQ5rbvWq",
+    "proxy_url": "http://NsBQgB9wwPfR4QuS:BQg4M1q0cQ5rbvWq@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "nxYnUG2q5HrmyeUX",
+    "password": "tY9AhMRDOIJ2XqHE",
+    "proxy_url": "http://nxYnUG2q5HrmyeUX:tY9AhMRDOIJ2XqHE@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "rzR1sE7ffn7P2FNA",
+    "password": "KaYbqTvywdsSNmpR",
+    "proxy_url": "http://rzR1sE7ffn7P2FNA:KaYbqTvywdsSNmpR@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "wUvJ6phPIkH6QZQ9",
+    "password": "pevG6ZGUsLISDl76",
+    "proxy_url": "http://wUvJ6phPIkH6QZQ9:pevG6ZGUsLISDl76@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "eKG1TcfVPemeBybo",
+    "password": "d0ofZTQ8wrNyHYIh",
+    "proxy_url": "http://eKG1TcfVPemeBybo:d0ofZTQ8wrNyHYIh@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "trOQL8XnrQS6OA2D",
+    "password": "16htReVmScnKPfqc",
+    "proxy_url": "http://trOQL8XnrQS6OA2D:16htReVmScnKPfqc@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "aVtoLUSmQfYZJumw",
+    "password": "SfMsoQxsQ5ud4ndZ",
+    "proxy_url": "http://aVtoLUSmQfYZJumw:SfMsoQxsQ5ud4ndZ@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "8T6mnZJs1jtexoxz",
+    "password": "WsyqNjnkRENdcCG6",
+    "proxy_url": "http://8T6mnZJs1jtexoxz:WsyqNjnkRENdcCG6@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "Gob1XsKNOGyFPWht",
+    "password": "PyhRYUVyxPzGMImf",
+    "proxy_url": "http://Gob1XsKNOGyFPWht:PyhRYUVyxPzGMImf@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "c8IgXnYO3AoHnYF1",
+    "password": "f92DIrHn8GzAs4tC",
+    "proxy_url": "http://c8IgXnYO3AoHnYF1:f92DIrHn8GzAs4tC@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "pqHjvLmpaL00NHoz",
+    "password": "rFOIZMxsZc67I9Q9",
+    "proxy_url": "http://pqHjvLmpaL00NHoz:rFOIZMxsZc67I9Q9@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "KWYEphPQyz9fXfC0",
+    "password": "ntVP6VckCodmFnEB",
+    "proxy_url": "http://KWYEphPQyz9fXfC0:ntVP6VckCodmFnEB@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "03oTSJLtqjLOV7MQ",
+    "password": "iCDoXPAg1GNULVKg",
+    "proxy_url": "http://03oTSJLtqjLOV7MQ:iCDoXPAg1GNULVKg@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "scK9JuhPTVIILyro",
+    "password": "EEjaW5hzpDpFJ83j",
+    "proxy_url": "http://scK9JuhPTVIILyro:EEjaW5hzpDpFJ83j@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "0SUXkIS5tUlRNtmn",
+    "password": "UoGMHDYEoSPkE1H1",
+    "proxy_url": "http://0SUXkIS5tUlRNtmn:UoGMHDYEoSPkE1H1@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "L4bns8iWhlUKcmV2",
+    "password": "wwPorLrOdQc2CTyw",
+    "proxy_url": "http://L4bns8iWhlUKcmV2:wwPorLrOdQc2CTyw@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "fPLlVSgsikuUhFkf",
+    "password": "BNETvd8XzR1vK9wa",
+    "proxy_url": "http://fPLlVSgsikuUhFkf:BNETvd8XzR1vK9wa@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "oIzVVbIhRjMej2tN",
+    "password": "ZU6U5OkhFuf7kGmf",
+    "proxy_url": "http://oIzVVbIhRjMej2tN:ZU6U5OkhFuf7kGmf@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "YIVcmsQSsxrQJbUT",
+    "password": "pzL9LHTEzqezfSzJ",
+    "proxy_url": "http://YIVcmsQSsxrQJbUT:pzL9LHTEzqezfSzJ@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "lrSHByce2UIuyRYN",
+    "password": "w0tR10xeoRYLmqzk",
+    "proxy_url": "http://lrSHByce2UIuyRYN:w0tR10xeoRYLmqzk@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "PTiWuYtotkI2JSAz",
+    "password": "deIF8BNwNmloD72h",
+    "proxy_url": "http://PTiWuYtotkI2JSAz:deIF8BNwNmloD72h@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "MKcrwgsZhLEDVt0r",
+    "password": "B48uRbku6mtGXbQ9",
+    "proxy_url": "http://MKcrwgsZhLEDVt0r:B48uRbku6mtGXbQ9@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "0Ig7l86LfBhJI0kj",
+    "password": "seDXCz7KayraTfEJ",
+    "proxy_url": "http://0Ig7l86LfBhJI0kj:seDXCz7KayraTfEJ@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "jGnzryYhzUq8HvwV",
+    "password": "9S0MnTOutcnztv3y",
+    "proxy_url": "http://jGnzryYhzUq8HvwV:9S0MnTOutcnztv3y@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "6X3nOndaef9bwLHI",
+    "password": "4zfkvJeRvLotx5hC",
+    "proxy_url": "http://6X3nOndaef9bwLHI:4zfkvJeRvLotx5hC@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "5Jwf8fsymVWghbGu",
+    "password": "ciRWnmidAHO1x6xK",
+    "proxy_url": "http://5Jwf8fsymVWghbGu:ciRWnmidAHO1x6xK@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "BvKcoqhgBtyVgeZR",
+    "password": "iEpXHLK8XSaREga6",
+    "proxy_url": "http://BvKcoqhgBtyVgeZR:iEpXHLK8XSaREga6@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "s9yMfqA5sbeDZ80K",
+    "password": "obuNCQlOeknpDNjU",
+    "proxy_url": "http://s9yMfqA5sbeDZ80K:obuNCQlOeknpDNjU@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "c5CyfZGk046z86id",
+    "password": "2n7En26wSICW0p4y",
+    "proxy_url": "http://c5CyfZGk046z86id:2n7En26wSICW0p4y@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "UQIat4tE2CMVUUuo",
+    "password": "cZ4s1L0D9hVneO1p",
+    "proxy_url": "http://UQIat4tE2CMVUUuo:cZ4s1L0D9hVneO1p@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "IgW0JepyZeezTZmh",
+    "password": "vFgKN4SiBhVb7FBR",
+    "proxy_url": "http://IgW0JepyZeezTZmh:vFgKN4SiBhVb7FBR@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "3NGzRZipc6wYDi0t",
+    "password": "GC4wRWlgjjownPjy",
+    "proxy_url": "http://3NGzRZipc6wYDi0t:GC4wRWlgjjownPjy@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "L6w6vWOriIw6MitS",
+    "password": "V8KNUXvO8JwHNnoV",
+    "proxy_url": "http://L6w6vWOriIw6MitS:V8KNUXvO8JwHNnoV@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "CLDV2D6hrBtWBXPL",
+    "password": "jb9GspCjghBv7yCs",
+    "proxy_url": "http://CLDV2D6hrBtWBXPL:jb9GspCjghBv7yCs@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "LeJ4y3tpk3swGMMm",
+    "password": "8OYaBh9go1ttPlf4",
+    "proxy_url": "http://LeJ4y3tpk3swGMMm:8OYaBh9go1ttPlf4@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "GFe6WSmjdySwHwB7",
+    "password": "9W6S9YwowKHziyzg",
+    "proxy_url": "http://GFe6WSmjdySwHwB7:9W6S9YwowKHziyzg@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "RMz87DoAqFHns7rn",
+    "password": "9r6lT6Hq7Uiz6GAC",
+    "proxy_url": "http://RMz87DoAqFHns7rn:9r6lT6Hq7Uiz6GAC@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "ftONXLpNmFRo0qST",
+    "password": "hJxQcuryme8BEs82",
+    "proxy_url": "http://ftONXLpNmFRo0qST:hJxQcuryme8BEs82@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "OyB649s5TxB4ZPaT",
+    "password": "EqbBgvl5WcEpZ9Rz",
+    "proxy_url": "http://OyB649s5TxB4ZPaT:EqbBgvl5WcEpZ9Rz@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "aAUBviyDxJE1wpHw",
+    "password": "4RBm1maiJpisz9TU",
+    "proxy_url": "http://aAUBviyDxJE1wpHw:4RBm1maiJpisz9TU@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "LQKL9ooVn0l2GNEO",
+    "password": "mUZzTq83UEWsyONd",
+    "proxy_url": "http://LQKL9ooVn0l2GNEO:mUZzTq83UEWsyONd@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "GTJ8qi9jg55oTPx7",
+    "password": "7AN37TPXoHPpdp5K",
+    "proxy_url": "http://GTJ8qi9jg55oTPx7:7AN37TPXoHPpdp5K@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "4XLnFMz7LdIa9zhn",
+    "password": "k2yVUX53dvUOErDN",
+    "proxy_url": "http://4XLnFMz7LdIa9zhn:k2yVUX53dvUOErDN@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "CVxFjJcPFVEBGtTY",
+    "password": "aAzE5W0yNRPsJB4b",
+    "proxy_url": "http://CVxFjJcPFVEBGtTY:aAzE5W0yNRPsJB4b@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "DoptqphzsRI4SJjm",
+    "password": "3rtVc1jX2ARPbriB",
+    "proxy_url": "http://DoptqphzsRI4SJjm:3rtVc1jX2ARPbriB@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "t1NW80gkoEyCc8kr",
+    "password": "pmuMXUXlC6xcbcFi",
+    "proxy_url": "http://t1NW80gkoEyCc8kr:pmuMXUXlC6xcbcFi@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "MxTHa3bYqqb7gMoT",
+    "password": "Y0SuUtlHNQivM1zE",
+    "proxy_url": "http://MxTHa3bYqqb7gMoT:Y0SuUtlHNQivM1zE@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "ZLTF6ckwjJBlGIJh",
+    "password": "vm1jJIZzazczCXtG",
+    "proxy_url": "http://ZLTF6ckwjJBlGIJh:vm1jJIZzazczCXtG@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "iz3Sd8Z673mX1biY",
+    "password": "KCqBDkvxFqsHfalD",
+    "proxy_url": "http://iz3Sd8Z673mX1biY:KCqBDkvxFqsHfalD@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "eY8FwyxGwR3aiMK5",
+    "password": "n9DeMU46WwOkbbYV",
+    "proxy_url": "http://eY8FwyxGwR3aiMK5:n9DeMU46WwOkbbYV@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "Trk561MWJPEk41UX",
+    "password": "m5TuqstdFvLz3bQS",
+    "proxy_url": "http://Trk561MWJPEk41UX:m5TuqstdFvLz3bQS@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "BPH02tSrAIiVOwHF",
+    "password": "lAjeHWqytY6un2oi",
+    "proxy_url": "http://BPH02tSrAIiVOwHF:lAjeHWqytY6un2oi@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "jIHFNVY1yo8GMaWd",
+    "password": "ZVVEOv9klWAX6aPC",
+    "proxy_url": "http://jIHFNVY1yo8GMaWd:ZVVEOv9klWAX6aPC@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "ibgGSjC5uV480T1d",
+    "password": "Eb1hCnLtY7gbq8wO",
+    "proxy_url": "http://ibgGSjC5uV480T1d:Eb1hCnLtY7gbq8wO@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United States",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "iMPAUjJoYnbAY135",
+    "password": "bVXSLVuMxvJVKXZe",
+    "proxy_url": "http://iMPAUjJoYnbAY135:bVXSLVuMxvJVKXZe@geo.floppydata.com:10080"
+  },
+  {
+    "country": "United Kingdom",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "eipvf1Z0t8qmmzZm",
+    "password": "zAiUA6i2NYlX2IR7",
+    "proxy_url": "http://eipvf1Z0t8qmmzZm:zAiUA6i2NYlX2IR7@geo.floppydata.com:10080"
+  },
+  {
+    "country": "France",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "UvmdKwc5sGVFlk8i",
+    "password": "d7vKA8AieBZN6xD1",
+    "proxy_url": "http://UvmdKwc5sGVFlk8i:d7vKA8AieBZN6xD1@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Canada",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "poDAOnqi36v9DKg6",
+    "password": "vHaE0BEZK8zTAx7d",
+    "proxy_url": "http://poDAOnqi36v9DKg6:vHaE0BEZK8zTAx7d@geo.floppydata.com:10080"
+  },
+  {
+    "country": "Australia",
+    "connection_type": "residential",
+    "host": "geo.floppydata.com",
+    "port": 10080,
+    "username": "Ab0WgtypcCrLEMx9",
+    "password": "LFGRX60Bnz16aK3j",
+    "proxy_url": "http://Ab0WgtypcCrLEMx9:LFGRX60Bnz16aK3j@geo.floppydata.com:10080"
+  }
+]
