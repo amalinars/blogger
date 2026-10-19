@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { Navbar } from '@/components/Navbar';
 import { TopHeaderBanner } from '@/components/ads/TopHeaderBanner';
 import { Footer } from '@/components/Footer';
+import { AD_CONFIG } from '@/lib/ad-config';
 
 const newsreader = Newsreader({
   variable: '--font-serif',
@@ -45,11 +46,18 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Adsterra Popunder Script (New Verified Placement) */}
+        {/* Adsterra Popunder Script */}
         <Script
           id="adsterra-popunder"
           strategy="afterInteractive"
-          src="https://www.profitableratecpmnetwork.com/49c7cec8999e07745020694cb2ce20e2/invoke.js"
+          src={AD_CONFIG.popunder.scriptSrc}
+        />
+        {/* Adsterra Social Bar */}
+        <Script
+          id="adsterra-socialbar"
+          strategy="afterInteractive"
+          src={AD_CONFIG.social_bar.scriptSrc}
+          data-cfasync="false"
         />
       </head>
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">

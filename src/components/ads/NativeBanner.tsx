@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { AD_CONFIG } from '@/lib/ad-config';
 
 export function NativeBanner() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -9,10 +10,11 @@ export function NativeBanner() {
     if (!containerRef.current) return;
 
     // Check if script already appended
-    const existingScript = containerRef.current.querySelector('script[src*="1e05a42e74ceef86af862833db1dc002"]');
+    const scriptSrc = AD_CONFIG.native_banner.scriptSrc;
+    const existingScript = containerRef.current.querySelector(`script[src="${scriptSrc}"]`);
     if (!existingScript) {
       const script = document.createElement('script');
-      script.src = 'https://bauval.org/21/1e05a42e74ceef86af862833db1dc002';
+      script.src = scriptSrc;
       script.async = true;
       script.setAttribute('data-cfasync', 'false');
       containerRef.current.appendChild(script);
@@ -43,7 +45,7 @@ export function NativeBanner() {
           backgroundColor: 'var(--bg-card)'
         }}
       >
-        <div id="container-1e05a42e74ceef86af862833db1dc002" className="w-full text-center"></div>
+        <div id={AD_CONFIG.native_banner.containerId} className="w-full text-center"></div>
       </div>
     </div>
   );
