@@ -17,9 +17,9 @@ export function AdBanner({
   width,
   height,
   className = '',
-  label = 'Sponsored Advertisement',
-  autoRefresh = true,
-  refreshInterval = 25
+  label = 'Advertisement',
+  autoRefresh = false,
+  refreshInterval = 0
 }: AdBannerProps) {
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -27,7 +27,6 @@ export function AdBanner({
     if (!autoRefresh || refreshInterval <= 0) return;
 
     const interval = setInterval(() => {
-      // Only refresh if tab is currently active to preserve impressions quality and bandwidth
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         setRefreshKey((prev) => prev + 1);
       }

@@ -211,7 +211,7 @@ export function Sidebar({
             width={AD_CONFIG.skyscraper_160x600.width}
             height={AD_CONFIG.skyscraper_160x600.height}
             label="Featured Columnist Dispatch"
-            refreshInterval={25}
+            autoRefresh={false}
           />
         </div>
       </div>

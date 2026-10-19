@@ -205,31 +205,16 @@ export default async function PostPage({
             dangerouslySetInnerHTML={{ __html: segment1 }}
           />
 
-          {/* Slot 1: Mid-Article Break (Leaderboard & Rectangle - Always Active) */}
+          {/* Slot 1: Mid-article Clean Display Banner */}
           {segment2 && (
-            <div
-              className="my-8 py-3 px-2 rounded-xl border border-dashed flex flex-wrap items-center justify-center gap-4"
-              style={{
-                borderColor: 'var(--border-subtle)',
-                backgroundColor: 'var(--bg-subtle)'
-              }}
-            >
-              <div className="flex justify-center max-w-full overflow-x-auto">
-                <AdBanner
-                  adKey={AD_CONFIG.leaderboard_728x90.key}
-                  width={AD_CONFIG.leaderboard_728x90.width}
-                  height={AD_CONFIG.leaderboard_728x90.height}
-                  label="Sponsored Content Break • Leaderboard"
-                  refreshInterval={25}
-                />
-              </div>
+            <div className="my-8 flex justify-center items-center">
               <div className="flex justify-center max-w-full overflow-x-auto">
                 <AdBanner
                   adKey={AD_CONFIG.rectangle_300x250.key}
                   width={AD_CONFIG.rectangle_300x250.width}
                   height={AD_CONFIG.rectangle_300x250.height}
-                  label="Sponsored Content Break • Rectangle"
-                  refreshInterval={25}
+                  label="Sponsored Content Break"
+                  autoRefresh={false}
                 />
               </div>
             </div>
@@ -256,31 +241,16 @@ export default async function PostPage({
             />
           )}
 
-          {/* Slot 3: Deep-Reading Display Banners - Always Active */}
+          {/* Slot 3: Deep-Reading Display Banner */}
           {segment4 && (
-            <div
-              className="my-8 py-3 px-2 rounded-xl border border-dashed flex flex-wrap items-center justify-center gap-4"
-              style={{
-                borderColor: 'var(--border-subtle)',
-                backgroundColor: 'var(--bg-subtle)'
-              }}
-            >
+            <div className="my-8 flex justify-center items-center">
               <div className="flex justify-center max-w-full overflow-x-auto">
                 <AdBanner
                   adKey={AD_CONFIG.leaderboard_728x90.key}
                   width={AD_CONFIG.leaderboard_728x90.width}
                   height={AD_CONFIG.leaderboard_728x90.height}
-                  label="Sponsored Content Break • Leaderboard"
-                  refreshInterval={25}
-                />
-              </div>
-              <div className="flex justify-center max-w-full overflow-x-auto">
-                <AdBanner
-                  adKey={AD_CONFIG.rectangle_300x250.key}
-                  width={AD_CONFIG.rectangle_300x250.width}
-                  height={AD_CONFIG.rectangle_300x250.height}
-                  label="Sponsored Content Break • Rectangle"
-                  refreshInterval={25}
+                  label="Sponsored Dispatch"
+                  autoRefresh={false}
                 />
               </div>
             </div>
@@ -422,8 +392,8 @@ export default async function PostPage({
                 adKey={AD_CONFIG.skyscraper_160x600.key}
                 width={AD_CONFIG.skyscraper_160x600.width}
                 height={AD_CONFIG.skyscraper_160x600.height}
-                label="Partner Columnist Dispatch"
-                refreshInterval={25}
+                label="Partner Dispatch"
+                autoRefresh={false}
               />
             </div>
           </div>

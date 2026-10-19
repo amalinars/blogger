@@ -94,24 +94,15 @@ export function HomeFeed({
         </section>
       )}
 
-      {/* Adsterra Leaderboard & Mobile Banner - Always Active on All Resolutions */}
-      <div className="w-full flex flex-wrap justify-center items-center gap-4 py-2">
+      {/* Editorial Leaderboard Banner */}
+      <div className="w-full flex justify-center items-center py-2">
         <div className="flex justify-center max-w-full overflow-x-auto">
           <AdBanner
             adKey={AD_CONFIG.leaderboard_728x90.key}
             width={AD_CONFIG.leaderboard_728x90.width}
             height={AD_CONFIG.leaderboard_728x90.height}
-            label="Sponsored Leaderboard"
-            refreshInterval={25}
-          />
-        </div>
-        <div className="flex justify-center max-w-full overflow-x-auto">
-          <AdBanner
-            adKey={AD_CONFIG.banner_468x60.key}
-            width={AD_CONFIG.banner_468x60.width}
-            height={AD_CONFIG.banner_468x60.height}
             label="Sponsored Dispatch"
-            refreshInterval={25}
+            autoRefresh={false}
           />
         </div>
       </div>
@@ -191,24 +182,15 @@ export function HomeFeed({
               {filteredPosts.map((post, index) => (
                 <React.Fragment key={post.id}>
                   <PostCard post={post} viewMode="grid" />
-                  {(index + 1) % 4 === 0 && index < filteredPosts.length - 1 && (
-                    <div className="md:col-span-2 w-full flex flex-wrap justify-center items-center gap-4 py-2">
+                  {(index + 1) % 6 === 0 && index < filteredPosts.length - 1 && (
+                    <div className="md:col-span-2 w-full flex justify-center items-center py-2">
                       <div className="flex justify-center max-w-full overflow-x-auto">
                         <AdBanner
                           adKey={AD_CONFIG.leaderboard_728x90.key}
                           width={AD_CONFIG.leaderboard_728x90.width}
                           height={AD_CONFIG.leaderboard_728x90.height}
-                          label="Featured Dispatch • Leaderboard"
-                          refreshInterval={25}
-                        />
-                      </div>
-                      <div className="flex justify-center max-w-full overflow-x-auto">
-                        <AdBanner
-                          adKey={AD_CONFIG.banner_468x60.key}
-                          width={AD_CONFIG.banner_468x60.width}
-                          height={AD_CONFIG.banner_468x60.height}
-                          label="Featured Dispatch • Banner"
-                          refreshInterval={25}
+                          label="Featured Dispatch"
+                          autoRefresh={false}
                         />
                       </div>
                     </div>
@@ -221,24 +203,15 @@ export function HomeFeed({
               {filteredPosts.map((post, index) => (
                 <React.Fragment key={post.id}>
                   <PostCard post={post} viewMode="list" />
-                  {(index + 1) % 3 === 0 && index < filteredPosts.length - 1 && (
-                    <div className="w-full flex flex-wrap justify-center items-center gap-4 py-2">
+                  {(index + 1) % 5 === 0 && index < filteredPosts.length - 1 && (
+                    <div className="w-full flex justify-center items-center py-2">
                       <div className="flex justify-center max-w-full overflow-x-auto">
                         <AdBanner
                           adKey={AD_CONFIG.leaderboard_728x90.key}
                           width={AD_CONFIG.leaderboard_728x90.width}
                           height={AD_CONFIG.leaderboard_728x90.height}
-                          label="Featured Dispatch • Leaderboard"
-                          refreshInterval={25}
-                        />
-                      </div>
-                      <div className="flex justify-center max-w-full overflow-x-auto">
-                        <AdBanner
-                          adKey={AD_CONFIG.banner_468x60.key}
-                          width={AD_CONFIG.banner_468x60.width}
-                          height={AD_CONFIG.banner_468x60.height}
-                          label="Featured Dispatch • Banner"
-                          refreshInterval={25}
+                          label="Featured Dispatch"
+                          autoRefresh={false}
                         />
                       </div>
                     </div>

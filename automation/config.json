@@ -1,5 +1,5 @@
 {
-  "target_base_url": "https://blog.riztama.my.id",
+  "target_base_url": "https://read.riztama.my.id",
   "local_test_url": "http://localhost:3000",
   "use_local": false,
   "dwell_time": {
@@ -18,12 +18,9 @@
   "return_home_between_posts": false,
   "smartlink_click_chance": 0.04,
   "smartlink_pool": [
-    "https://araplhn.org/4/3714e867534d8e967cc514e3fe1e1f86",
-    "https://asiafilm.org/4/7eac5b9300b22ac99ca80c8cdb6b3bcd",
-    "https://asiafilm.org/4/25bc1d535da8f9230c12c507135632df",
-    "https://auctionr.org/4/5740ecd138a8347bdcfb133ada0e7c94",
-    "https://asiafilm.org/4/345ccd961a9780f5ab49ebc64d853bd0",
-    "https://asiafilm.org/4/798a138996d8c9994d4f8e2aea0b738f"
+    "https://www.profitableratecpmnetwork.com/wfbxac2hpn?key=49e072f6e7743835ebfbaa0961eff226",
+    "https://www.profitableratecpmnetwork.com/qwc4w81bj?key=c70e184404d856cce251b250f3c58bbc",
+    "https://www.profitableratecpmnetwork.com/app4z7qd9?key=49c7cec8999e07745020694cb2ce20e2"
   ],
   "use_organic_referers": true,
   "organic_referer_pool": [
@@ -41,5 +38,5 @@
     "min": 8,
     "max": 20
   },
-  "adsterra_api_key": "deade03b46c6143d482513737c983e42"
+  "adsterra_api_key": "7d39be5f85b5b39359c2bf852e7b702b"
 }

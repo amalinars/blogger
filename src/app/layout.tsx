@@ -6,9 +6,6 @@ import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Navbar } from '@/components/Navbar';
 import { TopHeaderBanner } from '@/components/ads/TopHeaderBanner';
-import { StickyBottomBanner } from '@/components/ads/StickyBottomBanner';
-import { FloatingSkyscrapers } from '@/components/ads/FloatingSkyscrapers';
-import { PopunderTrigger } from '@/components/ads/PopunderTrigger';
 import { Footer } from '@/components/Footer';
 
 const newsreader = Newsreader({
@@ -48,20 +45,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Adsterra Popunder Script */}
+        {/* Adsterra Popunder Script (New Verified Placement) */}
         <Script
           id="adsterra-popunder"
           strategy="afterInteractive"
-          src="https://abscloud.org/1/1ebdef2912aa634d2b91cca5ae7f6405"
+          src="https://www.profitableratecpmnetwork.com/49c7cec8999e07745020694cb2ce20e2/invoke.js"
         />
       </head>
-      <body className="min-h-full flex flex-col font-sans transition-colors duration-200 pb-24">
-        {/* Invisible trigger to ensure popunder opens on first touch/click */}
-        <PopunderTrigger />
-
-        {/* Floating Lateral Skyscrapers (160x600) on Desktop Screens */}
-        <FloatingSkyscrapers />
-
+      <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
         <ThemeProvider>
           {/* Top Leaderboard / Mobile Banner */}
           <TopHeaderBanner />
@@ -77,17 +68,7 @@ export default function RootLayout({
           </main>
 
           <Footer />
-
-          {/* Persistent Floating Bottom Leaderboard Banner */}
-          <StickyBottomBanner />
         </ThemeProvider>
-
-        {/* Adsterra Social Bar Web Push Layer */}
-        <Script
-          id="adsterra-socialbar"
-          strategy="afterInteractive"
-          src="https://bauval.org/14/221b8ac1e62e1ea2e1c6c8bcdf06a26e"
-        />
       </body>
     </html>
   );

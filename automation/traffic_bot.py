@@ -804,7 +804,7 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 if random.random() < smartlink_chance:
                     print(f"{tag} [*] 🎯 [SMARTLINK BERANDA] Melakukan interaksi klik alami di Beranda...")
                     try:
-                        smartlink_btn = page.query_selector("a[href*='araplhn.org'], a[href*='asiafilm.org'], a[href*='auctionr.org'], aside a, .smartlink-cta, header a")
+                        smartlink_btn = page.query_selector("a[href*='profitableratecpmnetwork.com'], a[href*='araplhn.org'], a[href*='asiafilm.org'], aside a, .smartlink-cta, header a")
                         if smartlink_btn:
                             handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
                     except Exception as e:
@@ -874,7 +874,7 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 if random.random() < smartlink_chance:
                     print(f"{tag} [*] 🎯 [SMARTLINK] Engaging with Smartlink CTA pada Artikel {hop} (Tercatat klik advertiser)...")
                     try:
-                        smartlink_btn = page.query_selector("a[href*='araplhn.org'], a[href*='asiafilm.org'], a[href*='auctionr.org'], aside a, .smartlink-cta, a[target='_blank']")
+                        smartlink_btn = page.query_selector("a[href*='profitableratecpmnetwork.com'], a[href*='araplhn.org'], a[href*='asiafilm.org'], aside a, .smartlink-cta, a[target='_blank']")
                         if smartlink_btn:
                             handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
                     except Exception as e:
