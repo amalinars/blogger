@@ -27,6 +27,16 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from playwright.sync_api import sync_playwright
 
+try:
+    from automation.stealth import get_geo_profile, get_fingerprint_profile, get_stealth_init_script
+except ImportError:
+    try:
+        from stealth import get_geo_profile, get_fingerprint_profile, get_stealth_init_script
+    except ImportError:
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from stealth import get_geo_profile, get_fingerprint_profile, get_stealth_init_script
+
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.json"
 
@@ -729,18 +739,25 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 proxy=proxy_dict
             )
 
-        user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
-        ]
+        # Resolusi profil geolokasi & fingerprint sesuai negara proksi
+        proxy_country = proxy.get("country", "") if proxy else ""
+        geo_profile = get_geo_profile(proxy_country)
+        fp_profile = get_fingerprint_profile()
+
+        print(f"{tag} 🛡️ [STEALTH] Profil Browser: OS={fp_profile['platform']} | Timezone={geo_profile['timezone']} | Locale={geo_profile['locale']}")
 
         context = browser.new_context(
-            viewport={"width": 1440, "height": 900},
-            user_agent=random.choice(user_agents),
-            locale="en-US",
-            timezone_id="America/New_York"
+            viewport=fp_profile["viewport"],
+            user_agent=fp_profile["user_agent"],
+            locale=geo_profile["locale"],
+            timezone_id=geo_profile["timezone"],
+            geolocation=geo_profile["coords"],
+            permissions=["geolocation"]
         )
+
+        # Suntikkan stealth init script (hapus navigator.webdriver, mock chrome runtime, plugins, WebGL)
+        stealth_script = get_stealth_init_script(fp_profile)
+        context.add_init_script(stealth_script)
 
         page = context.new_page()
         start_time = time.time()
@@ -748,8 +765,14 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
         visited_urls.add(target_url)
 
         try:
-            print(f"{tag} [*] Navigating to {target_url} (Beranda Blog)...")
-            page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
+            # Gunakan Organic Referer Engine
+            referer = get_organic_referer(config.get("organic_referer_pool")) if config.get("use_organic_referers", True) else None
+            ref_label = referer if referer else "Direct (None)"
+            print(f"{tag} [*] Navigating to {target_url} (Referer: {ref_label})...")
+            if referer:
+                page.goto(target_url, referer=referer, wait_until="domcontentloaded", timeout=60000)
+            else:
+                page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
             time.sleep(random.uniform(2.5, 4.0))
 
             # Trigger klik fisik koordinat awal (memicu popunder/ad overlay Adsterra di beranda jika ada)
