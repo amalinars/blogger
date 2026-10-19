@@ -626,6 +626,43 @@ def click_element_naturally(page, element):
         return False
 
 
+class ProxyUnavailableError(Exception):
+    """Exception raised when a proxy is required but unavailable, preventing local IP leakage."""
+    pass
+
+
+def run_single_session_safe(target_url="https://blog.riztama.my.id", use_proxy=True, proxy=None, proxy_idx=None, headless=False, config=None, max_pages=2, return_home=False, worker_id=1, proxy_manager=None):
+    """
+    Wrapper aman untuk menjalankan 1 sesi.
+    Memeriksa kepatuhan anti-leak: jika use_proxy=True tetapi proxy is None,
+    sesi langsung dibatalkan tanpa pernah memuat target URL dengan IP lokal.
+    """
+    tag = f"[B{worker_id}]"
+    if use_proxy and not proxy:
+        print(f"{tag} [!] [ANTI-LEAK GUARD] Sesi dibatalkan! Mode proksi aktif tetapi tidak ada proksi valid yang tersedia. Mencegah kebocoran IP lokal asli.")
+        return False
+
+    try:
+        run_session(
+            target_url=target_url,
+            proxy=proxy,
+            proxy_idx=proxy_idx,
+            headless=headless,
+            config=config,
+            max_pages=max_pages,
+            return_home=return_home,
+            worker_id=worker_id,
+            proxy_manager=proxy_manager
+        )
+        return True
+    except ProxyUnavailableError as pe:
+        print(f"{tag} [!] [ANTI-LEAK GUARD] {pe}")
+        return False
+    except Exception as e:
+        print(f"{tag} [-] Session error: {e}")
+        return False
+
+
 def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=None, max_pages=3, return_home=True, worker_id=1, proxy_manager=None):
     """Executes an organic multi-hop browsing session with full ad tech viewability tracking."""
     if config is None:
@@ -948,10 +985,12 @@ def main():
                             worker_id=1
                         )
                         if not selected_proxy and not args.no_proxy and raw_proxies:
-                            print("[*] 🌐 [PROKSI-GUARD] Seluruh proksi residensial mati. Otomatis beralih ke Direct Connection (Tanpa Proksi) agar sesi tetap berjalan lancar!")
+                            print("[!] 🛑 [ANTI-LEAK GUARD] Seluruh proksi residensial mati! Sesi DIBATALKAN demi keamanan untuk mencegah kebocoran IP lokal asli ke jaringan iklan.")
+                            break
 
-                    run_session(
-                        target_url,
+                    run_single_session_safe(
+                        target_url=target_url,
+                        use_proxy=(not args.no_proxy and bool(raw_proxies)),
                         proxy=selected_proxy,
                         proxy_idx=selected_proxy_idx,
                         headless=args.headless,
@@ -993,24 +1032,23 @@ def main():
                                 worker_id=worker_id
                             )
                             if not selected_proxy and not args.no_proxy and raw_proxies:
-                                print(f"[B{worker_id}] 🌐 [PROKSI-GUARD] Proksi pool habis/mati. Beralih otomatis ke Direct Connection (Tanpa Proksi) agar otomasi tidak terhenti!")
+                                print(f"[B{worker_id}] 🛑 [ANTI-LEAK GUARD] Proksi pool habis/mati! Sesi dibatalkan demi keamanan IP asli Anda.")
+                                break
 
                         print(f"[B{worker_id}] >>> Running Session {session_num} of {args.sessions} <<<")
 
-                        try:
-                            run_session(
-                                target_url,
-                                proxy=selected_proxy,
-                                proxy_idx=selected_proxy_idx,
-                                headless=args.headless,
-                                config=config,
-                                max_pages=max_pages,
-                                return_home=return_home,
-                                worker_id=worker_id,
-                                proxy_manager=proxy_manager
-                            )
-                        except Exception as e:
-                            print(f"[B{worker_id}] [-] Worker session error: {e}")
+                        run_single_session_safe(
+                            target_url=target_url,
+                            use_proxy=(not args.no_proxy and bool(raw_proxies)),
+                            proxy=selected_proxy,
+                            proxy_idx=selected_proxy_idx,
+                            headless=args.headless,
+                            config=config,
+                            max_pages=max_pages,
+                            return_home=return_home,
+                            worker_id=worker_id,
+                            proxy_manager=proxy_manager
+                        )
 
                         with session_counter_lock:
                             has_more = current_session < args.sessions
