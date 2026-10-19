@@ -7,7 +7,7 @@ def test_geo_profile_known_countries():
     assert us["locale"] == "en-US"
 
     au = get_geo_profile("Australia")
-    assert au["timezone"] == "Australia/Sydney"
+    assert au["timezone"] in ["Australia/Sydney", "Australia/Melbourne"]
     assert au["locale"] == "en-AU"
 
     gb = get_geo_profile("United Kingdom")

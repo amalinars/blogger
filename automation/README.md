@@ -1,49 +1,56 @@
 # Automation Suite — Chronicle Traffic & Ad Viewability Engine
 
-Folder ini berisi bot otomasi berbasis **Python & Playwright** yang dirancang khusus untuk memaksimalkan metrik *viewability*, *dwell time*, dan rotasi proksi residensial sesuai panduan teknis [docs/traffic.md](../docs/traffic.md).
+Folder ini berisi bot otomasi berbasis **Python & Playwright** dengan arsitektur **Stealth Anti-Detection, Dynamic Geo-Timezone Sync, Organic Referers, dan Anti-Leak Guard** untuk memaksimalkan metrik *viewability*, *dwell time*, serta keamanan akun jaringan iklan.
 
 ---
 
 ## 📁 Struktur File
-* [config.json](file:///home/jovan/project/botshortlink/automation/config.json) — Konfigurasi target domain, durasi dwell time, kecepatan scroll, dan path proksi.
-* [traffic_bot.py](file:///home/jovan/project/botshortlink/automation/traffic_bot.py) — Mesin otomasi browser utama (Playwright Chromium).
+* [stealth.py](file:///home/jovan/project/botshortlink/automation/stealth.py) — Engine anti-deteksi Playwright: dynamic timezone & locale matching per negara proksi, mock `navigator.webdriver`, mock `window.chrome`, WebGL renderer & platform consistency.
+* [traffic_bot.py](file:///home/jovan/project/botshortlink/automation/traffic_bot.py) — Mesin otomasi browser utama dengan weighted organic referers, authentic advertiser dwell, dan fail-safe anti-leak guard.
+* [config.json](file:///home/jovan/project/botshortlink/automation/config.json) — Konfigurasi target domain, rasio referer terbobot, safe Smartlink CTR (~4%), dan durasi dwell time.
+* [gui.py](file:///home/jovan/project/botshortlink/automation/gui.py) — Antarmuka visual (PySide6) dengan visualisasi status proksi, live console, dan kontrol multi-worker.
+* [test_proxies.py](file:///home/jovan/project/botshortlink/automation/test_proxies.py) — Diagnostik & tes konektivitas proksi (cek hidup/mati dan latensi TCP).
+* [adsterra_stats.py](file:///home/jovan/project/botshortlink/automation/adsterra_stats.py) — Pemantauan statistik API resmi (impresi, klik, CPM, revenue, breakdown negara).
 
 ---
 
-## 🚀 Cara Menjalankan
+## 🛡️ Fitur Unggulan Anti-Ban & Stealth Engine
+1. **Dynamic Geolocation & Timezone Sync**: Timezone (`Intl.DateTimeFormat`), locale, dan koordinat browser secara dinamis mengikuti negara proksi (US, UK, AU, CA, FR, ID), mengeliminasi deteksi *IP-vs-Timezone Mismatch*.
+2. **Weighted Organic Referer Engine**: Pintu masuk pertama mengundi referer terbobot (Google 40%, X/Twitter 15%, Reddit 10%, Bing 10%, Direct 10%, Hackernews/Medium), mengeliminasi pola *100% Direct Traffic*.
+3. **Authentic Advertiser Engagement**: Klik Smartlink/Popunder tidak lagi ditutup seketika (3.5 detik). Bot melakukan dwell time 15–24 detik dengan scroll santai di landing page advertiser, mencegah tuduhan *zero-conversion click fraud*.
+4. **Strict Proxy Anti-Leak Guard**: Jika seluruh proksi mati, bot **DILARANG KERAS** beralih ke koneksi lokal. Sesi langsung dibatalkan untuk melindungi IP ISP asli pengguna dari kebocoran.
+5. **Corrupted Proxy Auto-Recovery**: Pemulihan otomatis jika file `proxies.json` kosong (0 byte) atau rusak.
 
-### 1. Test di Server Lokal (Headless atau GUI)
-Menjalankan tes terhadap `http://localhost:3000` tanpa proksi:
-```bash
-python3 automation/traffic_bot.py --local --headless
-```
+---
 
-Jika ingin melihat browser terbuka di layar (mode GUI):
+## 🖥️ 1. Menjalankan Menggunakan GUI (Direkomendasikan)
+Tersedia antarmuka visual (PySide6) lengkap dengan live log console, status card, dan kontrol worker:
 ```bash
-python3 automation/traffic_bot.py --local
-```
-
-### 2. Jalankan terhadap Domain Produksi (`blog.riztama.my.id`)
-Menggunakan proksi residensial acak dari [gologin_proxies.json](/home/jovan/project/autoview/gologin_proxies.json):
-```bash
-python3 automation/traffic_bot.py --headless --sessions 3
-```
-
-### 3. Targetkan Artikel Tertentu
-```bash
-python3 automation/traffic_bot.py --slug the-tactile-terminal-command-line-aesthetics --sessions 1
-```
-
-### 4. Pilih Proksi Tertentu Berdasarkan Indeks
-```bash
-# Menggunakan proksi US (indeks 0)
-python3 automation/traffic_bot.py --proxy-index 0
+./run_gui.sh
+# atau
+python3 automation/gui.py
 ```
 
 ---
 
-## ⚡ Fitur Utama Engine
-1. **IAB Viewability Compliance**: Melakukan scroll bertahap dengan jeda acak sehingga seluruh banner in-article dan sidebar berada di viewport minimal 1–2 detik berturut-turut.
-2. **Auto-Refresh Trigger**: Bertahan di halaman (*dwell time*) selama 35–50 detik untuk memicu siklus refresh 25 detik pada banner Adsterra.
-3. **Popunder First-Touch Trigger**: Melakukan simulasi sentuhan/klik di area aman untuk memicu Popunder Adsterra di detik awal.
-4. **Multi-Page Navigation**: Mengklik tautan artikel internal berikutnya secara otomatis untuk menurunkan *bounce rate* dan menghasilkan header `Referer` organik.
+## 💻 2. Menjalankan via Terminal / CLI
+
+### A. Quick Test (1 Session, Terlihat di Layar)
+```bash
+python3 automation/traffic_bot.py --sessions 1
+```
+
+### B. Test di Server Lokal
+```bash
+python3 automation/traffic_bot.py --local --sessions 1
+```
+
+### C. Jalankan Headless Multi-Session
+```bash
+python3 automation/traffic_bot.py --headless --sessions 5 --concurrency 2
+```
+
+### D. Uji Unit Test Suite
+```bash
+python3 -m pytest tests/ -v
+```

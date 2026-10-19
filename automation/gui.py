@@ -248,8 +248,19 @@ class BotProcessWorker(QThread):
                 emit("WARN", line)
                 return
             elif "Beralih otomatis ke Direct Connection" in line or "Seluruh proksi" in line:
-                emit("SUCCESS", line)
+                emit("WARN", line)
                 return
+
+        # Anti-Leak Guard trigger
+        if "ANTI-LEAK GUARD" in line:
+            self.status_signal.emit("ERROR", "Anti-Leak Guard: Sesi dibatalkan demi keamanan IP asli!")
+            emit("WARN", line)
+            return
+
+        # Stealth fingerprint & geo profile info
+        if "[STEALTH]" in line:
+            emit("SUCCESS", line)
+            return
 
         # Proksi dilepas kembali ke pool idle setelah sesi selesai
         if "dikembalikan ke pool idle" in line:
