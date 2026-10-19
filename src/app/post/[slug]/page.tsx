@@ -55,15 +55,33 @@ export default async function PostPage({
   // Convert markdown to HTML
   const contentHtml = await marked.parse(post.content);
 
-  // Split HTML into halves to inject a mid-article editorial ad slot
+  // Split HTML into multiple segments to inject high-density ad slots
   const pTags = contentHtml.split('</p>');
-  let firstHalfHtml = contentHtml;
-  let secondHalfHtml = '';
+  let segment1 = contentHtml;
+  let segment2 = '';
+  let segment3 = '';
+  let segment4 = '';
 
-  if (pTags.length > 2) {
+  if (pTags.length >= 8) {
+    const s1 = Math.max(2, Math.floor(pTags.length * 0.25));
+    const s2 = Math.max(s1 + 2, Math.floor(pTags.length * 0.5));
+    const s3 = Math.max(s2 + 2, Math.floor(pTags.length * 0.75));
+
+    segment1 = pTags.slice(0, s1).join('</p>') + '</p>';
+    segment2 = pTags.slice(s1, s2).join('</p>') + '</p>';
+    segment3 = pTags.slice(s2, s3).join('</p>') + '</p>';
+    segment4 = pTags.slice(s3).join('</p>');
+  } else if (pTags.length >= 4) {
+    const s1 = Math.max(1, Math.floor(pTags.length * 0.35));
+    const s2 = Math.max(s1 + 1, Math.floor(pTags.length * 0.7));
+
+    segment1 = pTags.slice(0, s1).join('</p>') + '</p>';
+    segment2 = pTags.slice(s1, s2).join('</p>') + '</p>';
+    segment3 = pTags.slice(s2).join('</p>');
+  } else if (pTags.length > 2) {
     const splitIndex = Math.max(1, Math.floor(pTags.length / 2));
-    firstHalfHtml = pTags.slice(0, splitIndex).join('</p>') + '</p>';
-    secondHalfHtml = pTags.slice(splitIndex).join('</p>');
+    segment1 = pTags.slice(0, splitIndex).join('</p>') + '</p>';
+    segment2 = pTags.slice(splitIndex).join('</p>');
   }
 
   // Recommended related posts
@@ -184,42 +202,94 @@ export default async function PostPage({
         <div className="lg:col-span-8">
           <div
             className="editorial-prose prose-drop-cap font-sans"
-            dangerouslySetInnerHTML={{ __html: firstHalfHtml }}
+            dangerouslySetInnerHTML={{ __html: segment1 }}
           />
 
-          {secondHalfHtml && (
+          {/* Slot 1: Mid-Article Break (Leaderboard & Rectangle - Always Active) */}
+          {segment2 && (
             <div
-              className="my-10 py-4 px-2 rounded-xl border border-dashed flex flex-col items-center justify-center"
+              className="my-8 py-3 px-2 rounded-xl border border-dashed flex flex-wrap items-center justify-center gap-4"
               style={{
                 borderColor: 'var(--border-subtle)',
                 backgroundColor: 'var(--bg-subtle)'
               }}
             >
-              <div className="hidden sm:block">
+              <div className="flex justify-center max-w-full overflow-x-auto">
                 <AdBanner
                   adKey={AD_CONFIG.leaderboard_728x90.key}
                   width={AD_CONFIG.leaderboard_728x90.width}
                   height={AD_CONFIG.leaderboard_728x90.height}
-                  label="Sponsored Content Break"
-                  refreshInterval={35}
+                  label="Sponsored Content Break • Leaderboard"
+                  refreshInterval={25}
                 />
               </div>
-              <div className="block sm:hidden">
+              <div className="flex justify-center max-w-full overflow-x-auto">
                 <AdBanner
                   adKey={AD_CONFIG.rectangle_300x250.key}
                   width={AD_CONFIG.rectangle_300x250.width}
                   height={AD_CONFIG.rectangle_300x250.height}
-                  label="Sponsored Content Break"
-                  refreshInterval={35}
+                  label="Sponsored Content Break • Rectangle"
+                  refreshInterval={25}
                 />
               </div>
             </div>
           )}
 
-          {secondHalfHtml && (
+          {segment2 && (
             <div
               className="editorial-prose font-sans mt-4"
-              dangerouslySetInnerHTML={{ __html: secondHalfHtml }}
+              dangerouslySetInnerHTML={{ __html: segment2 }}
+            />
+          )}
+
+          {/* Slot 2: High-Converting Smartlink Promo Break */}
+          {segment3 && (
+            <div className="my-8">
+              <SmartlinkPromo />
+            </div>
+          )}
+
+          {segment3 && (
+            <div
+              className="editorial-prose font-sans mt-4"
+              dangerouslySetInnerHTML={{ __html: segment3 }}
+            />
+          )}
+
+          {/* Slot 3: Deep-Reading Display Banners - Always Active */}
+          {segment4 && (
+            <div
+              className="my-8 py-3 px-2 rounded-xl border border-dashed flex flex-wrap items-center justify-center gap-4"
+              style={{
+                borderColor: 'var(--border-subtle)',
+                backgroundColor: 'var(--bg-subtle)'
+              }}
+            >
+              <div className="flex justify-center max-w-full overflow-x-auto">
+                <AdBanner
+                  adKey={AD_CONFIG.leaderboard_728x90.key}
+                  width={AD_CONFIG.leaderboard_728x90.width}
+                  height={AD_CONFIG.leaderboard_728x90.height}
+                  label="Sponsored Content Break • Leaderboard"
+                  refreshInterval={25}
+                />
+              </div>
+              <div className="flex justify-center max-w-full overflow-x-auto">
+                <AdBanner
+                  adKey={AD_CONFIG.rectangle_300x250.key}
+                  width={AD_CONFIG.rectangle_300x250.width}
+                  height={AD_CONFIG.rectangle_300x250.height}
+                  label="Sponsored Content Break • Rectangle"
+                  refreshInterval={25}
+                />
+              </div>
+            </div>
+          )}
+
+          {segment4 && (
+            <div
+              className="editorial-prose font-sans mt-4"
+              dangerouslySetInnerHTML={{ __html: segment4 }}
             />
           )}
 
@@ -339,6 +409,23 @@ export default async function PostPage({
 
             {/* Smartlink Promo in reader sidebar */}
             <SmartlinkPromo />
+
+            {/* Skyscraper Banner Slot (160x600) */}
+            <div
+              className="p-3 rounded-xl border flex flex-col items-center justify-center overflow-hidden"
+              style={{
+                backgroundColor: 'var(--bg-card)',
+                borderColor: 'var(--border-subtle)'
+              }}
+            >
+              <AdBanner
+                adKey={AD_CONFIG.skyscraper_160x600.key}
+                width={AD_CONFIG.skyscraper_160x600.width}
+                height={AD_CONFIG.skyscraper_160x600.height}
+                label="Partner Columnist Dispatch"
+                refreshInterval={25}
+              />
+            </div>
           </div>
         </div>
       </div>

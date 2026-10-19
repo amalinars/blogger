@@ -196,6 +196,25 @@ export function Sidebar({
 
       {/* Smartlink Partner Recommendation */}
       <SmartlinkPromo />
+
+      {/* Sticky High-Viewability Skyscraper (Follows Reader Scroll) */}
+      <div className="sticky top-24 z-10 pt-2 flex flex-col items-center">
+        <div
+          className="p-3 rounded-xl border flex flex-col items-center justify-center overflow-hidden shadow-sm"
+          style={{
+            backgroundColor: 'var(--bg-card)',
+            borderColor: 'var(--border-subtle)'
+          }}
+        >
+          <AdBanner
+            adKey={AD_CONFIG.skyscraper_160x600.key}
+            width={AD_CONFIG.skyscraper_160x600.width}
+            height={AD_CONFIG.skyscraper_160x600.height}
+            label="Featured Columnist Dispatch"
+            refreshInterval={25}
+          />
+        </div>
+      </div>
     </aside>
   );
 }

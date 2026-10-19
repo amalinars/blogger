@@ -29,7 +29,15 @@ export const AD_CONFIG = {
     containerId: 'container-1e05a42e74ceef86af862833db1dc002'
   },
   smartlink: {
-    url: 'https://araplhn.org/4/3714e867534d8e967cc514e3fe1e1f86'
+    url: 'https://araplhn.org/4/3714e867534d8e967cc514e3fe1e1f86',
+    pool: [
+      { id: 31673390, name: 'Blog Smartlink', url: 'https://araplhn.org/4/3714e867534d8e967cc514e3fe1e1f86', category: 'mainstream' },
+      { id: 31673376, name: 'Smartlink 1', url: 'https://asiafilm.org/4/7eac5b9300b22ac99ca80c8cdb6b3bcd', category: 'mainstream' },
+      { id: 31809735, name: 'Smartlink 2', url: 'https://asiafilm.org/4/25bc1d535da8f9230c12c507135632df', category: 'mainstream' },
+      { id: 31809819, name: 'Smartlink 3', url: 'https://auctionr.org/4/5740ecd138a8347bdcfb133ada0e7c94', category: 'adult' },
+      { id: 31809827, name: 'Smartlink 4', url: 'https://asiafilm.org/4/345ccd961a9780f5ab49ebc64d853bd0', category: 'mainstream' },
+      { id: 31809832, name: 'Smartlink 5', url: 'https://asiafilm.org/4/798a138996d8c9994d4f8e2aea0b738f', category: 'mainstream' }
+    ]
   },
   social_bar: {
     scriptSrc: 'https://bauval.org/14/221b8ac1e62e1ea2e1c6c8bcdf06a26e'
@@ -38,3 +46,11 @@ export const AD_CONFIG = {
     scriptSrc: 'https://abscloud.org/1/1ebdef2912aa634d2b91cca5ae7f6405'
   }
 } as const;
+
+export function getRandomSmartlink(allowAdult: boolean = true): string {
+  const pool = allowAdult
+    ? AD_CONFIG.smartlink.pool
+    : AD_CONFIG.smartlink.pool.filter((s) => s.category === 'mainstream');
+  const randomIndex = Math.floor(Math.random() * pool.length);
+  return pool[randomIndex].url;
+}

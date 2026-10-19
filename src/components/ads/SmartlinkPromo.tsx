@@ -1,10 +1,16 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ExternalLink, Sparkles } from 'lucide-react';
+import { AD_CONFIG, getRandomSmartlink } from '@/lib/ad-config';
 
 export function SmartlinkPromo() {
-  const smartlinkUrl = 'https://araplhn.org/4/3714e867534d8e967cc514e3fe1e1f86';
+  const [smartlinkUrl, setSmartlinkUrl] = useState<string>(AD_CONFIG.smartlink.url);
+
+  useEffect(() => {
+    // Randomize across all 6 active smartlinks on client side
+    setSmartlinkUrl(getRandomSmartlink(true));
+  }, []);
 
   return (
     <aside

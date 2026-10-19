@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Proxy credentials & data
+automation/proxies.json
+automation/proxies.txt
+automation/*proxy*.txt
+automation/*proxy*.json
+!automation/proxies.example.json
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+

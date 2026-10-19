@@ -19,7 +19,7 @@ export function AdBanner({
   className = '',
   label = 'Sponsored Advertisement',
   autoRefresh = true,
-  refreshInterval = 35
+  refreshInterval = 25
 }: AdBannerProps) {
   const [refreshKey, setRefreshKey] = useState(0);
 

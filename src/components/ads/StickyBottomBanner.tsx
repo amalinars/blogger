@@ -44,29 +44,27 @@ export function StickyBottomBanner() {
             </button>
           </div>
 
-          {/* Banner Slot: Desktop (728x90) / Mobile (468x60) */}
-          <div className="w-full flex justify-center items-center">
-            {/* Desktop / Tablet Landscape */}
-            <div className="hidden sm:block">
+          {/* Banner Slots: Always Rendered on All Viewports */}
+          <div className="w-full flex flex-wrap justify-center items-center gap-3 overflow-x-auto py-1">
+            <div className="flex justify-center max-w-full overflow-x-auto">
               <AdBanner
                 adKey={AD_CONFIG.leaderboard_728x90.key}
                 width={AD_CONFIG.leaderboard_728x90.width}
                 height={AD_CONFIG.leaderboard_728x90.height}
                 label=""
                 className="my-0"
-                refreshInterval={35}
+                refreshInterval={25}
               />
             </div>
 
-            {/* Mobile / Narrow Screen */}
-            <div className="block sm:hidden">
+            <div className="flex justify-center max-w-full overflow-x-auto">
               <AdBanner
                 adKey={AD_CONFIG.banner_468x60.key}
                 width={AD_CONFIG.banner_468x60.width}
                 height={AD_CONFIG.banner_468x60.height}
                 label=""
                 className="my-0"
-                refreshInterval={35}
+                refreshInterval={25}
               />
             </div>
           </div>
