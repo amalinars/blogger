@@ -433,21 +433,22 @@ def smooth_scroll(page, distance: int, steps: int = 12):
 
 def handle_smartlink_click(context, main_page, smartlink_btn, target_base_url, worker_id: int = 1):
     """
-    Interaksi klik Smartlink CTA:
+    Interaksi klik Smartlink / Advertiser CTA:
     1. Klik tombol CTA secara fisik alami.
-    2. Tunggu tab smartlink terbuka dan beri jeda 3.5 detik agar impresi & klik tercatat di jaringan iklan.
-    3. Hapus dan tutup tab smartlink bersih SEBELUM masuk ke tahap dwell time.
-    4. Kembalikan fokus utama browser ke artikel target.
+    2. Tunggu tab smartlink terbuka dan beralih fokus ke tab advertiser.
+    3. Lakukan authentic engagement (dwell 15-24 detik + scrolling & mouse movement) di landing page pengiklan.
+       Hal ini penting agar pengiklan tidak mencatat traffic sebagai 0s bounce / click fraud.
+    4. Tutup tab iklan secara bersih dan kembalikan fokus ke artikel target.
     """
     tag = f"[B{worker_id}]"
     try:
         print(f"{tag} [*] Physically clicking Smartlink CTA button...")
         click_element_naturally(main_page, smartlink_btn)
 
-        # Tunggu kemunculan tab smartlink baru (polling hingga 2.5 detik)
+        # Tunggu kemunculan tab smartlink baru (polling hingga 3.5 detik)
         new_tab = None
         start_wait = time.time()
-        while time.time() - start_wait < 2.5:
+        while time.time() - start_wait < 3.5:
             extra = [p for p in context.pages if p != main_page and not p.is_closed()]
             if extra:
                 new_tab = extra[0]
@@ -456,16 +457,38 @@ def handle_smartlink_click(context, main_page, smartlink_btn, target_base_url, w
 
         if new_tab:
             try:
-                tab_url = new_tab.url[:65]
+                tab_url = new_tab.url[:70]
             except Exception:
                 tab_url = "Smartlink Ad Page"
-            print(f"{tag} [✓] [SMARTLINK] Tab iklan/smartlink terbuka ({tab_url}). Menunggu 3.5s agar impresi & klik advertiser tercatat...")
-            time.sleep(3.5)
-            print(f"{tag} [✓] [SMARTLINK] Menutup tab smartlink bersih sebelum dwell time...")
+
+            dwell_ad = random.uniform(14.0, 24.0)
+            print(f"{tag} [✓] [SMARTLINK] Tab iklan/smartlink terbuka ({tab_url}). Melakukan authentic engagement di landing page ({dwell_ad:.1f}s)...")
             try:
+                new_tab.bring_to_front()
+                time.sleep(random.uniform(2.5, 4.0))
+
+                ad_start = time.time()
+                while time.time() - ad_start < dwell_ad:
+                    if new_tab.is_closed():
+                        break
+                    try:
+                        rx = random.randint(150, 750)
+                        ry = random.randint(150, 550)
+                        new_tab.mouse.move(rx, ry, steps=random.randint(6, 14))
+                        scroll_amount = random.choice([150, 250, 320, -120])
+                        smooth_scroll(new_tab, scroll_amount, steps=8)
+                    except Exception:
+                        pass
+                    time.sleep(random.uniform(2.0, 4.5))
+
+                print(f"{tag} [✓] [SMARTLINK] Selesai membaca landing page pengiklan ({dwell_ad:.1f}s). Menutup tab iklan...")
                 new_tab.close(run_before_unload=False)
-            except Exception:
-                pass
+            except Exception as ad_err:
+                print(f"{tag} [-] [SMARTLINK] Notice interaksi tab iklan: {ad_err}")
+                try:
+                    new_tab.close(run_before_unload=False)
+                except Exception:
+                    pass
 
         # Bersihkan jika masih ada tab popup lain yang tersisa
         enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=1, worker_id=worker_id)
@@ -716,8 +739,8 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 # Scroll santai beranda agar seluruh posisi iklan feed, header, dan sidebar terlihat
                 human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(5, 8), worker_id=worker_id, label="beranda")
 
-                # Seringkan interaksi klik / smartlink alami di Beranda
-                smartlink_chance = config.get("smartlink_click_chance", 0.70)
+                # Interaksi klik smartlink alami di Beranda (rasio wajar ~4%)
+                smartlink_chance = config.get("smartlink_click_chance", 0.04)
                 if random.random() < smartlink_chance:
                     print(f"{tag} [*] 🎯 [SMARTLINK BERANDA] Melakukan interaksi klik alami di Beranda...")
                     try:
@@ -736,7 +759,7 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
             # =========================================================
             # TAHAP 2: EKSPLORASI ARTIKEL BERTINGKAT (Hop 1 .. max_pages)
             # =========================================================
-            smartlink_chance = config.get("smartlink_click_chance", 0.65)
+            smartlink_chance = config.get("smartlink_click_chance", 0.04)
 
             for hop in range(1, max_pages + 1):
                 if page.is_closed():
