@@ -38,3 +38,5 @@ def test_stealth_init_script():
     assert "navigator.webdriver" in script
     assert "window.chrome" in script
     assert "plugins" in script
+    assert "mediaDevices" in script
+    assert "RTCPeerConnection" in script

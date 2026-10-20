@@ -1,0 +1,15 @@
+{
+  "target_video_url": "https://www.youtube.com",
+  "search_keywords": [
+    "coding tutorial",
+    "web development"
+  ],
+  "watch_duration": {
+    "min_seconds": 60,
+    "max_seconds": 180
+  },
+  "scroll_chance": 0.4,
+  "proxy_source": "automation/proxies.json",
+  "headless": false,
+  "concurrency": 1
+}
