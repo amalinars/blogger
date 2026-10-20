@@ -101,84 +101,120 @@ def get_base_domain(url: str) -> str:
         return ""
 
 
+def is_target_domain(url: str, target_base_url: str) -> bool:
+    try:
+        if not url:
+            return True
+        t_netloc = get_base_domain(target_base_url).lower()
+        p_netloc = get_base_domain(url).lower()
+        if not p_netloc or url.startswith("about:blank"):
+            return True
+        if "localhost" in t_netloc or "127.0.0.1" in t_netloc:
+            return "localhost" in p_netloc or "127.0.0.1" in p_netloc
+        if t_netloc in p_netloc or p_netloc in t_netloc:
+            return True
+        # Ekstrak brand / second-level domain (misal 'riztama' dari 'read.riztama.my.id')
+        parts = t_netloc.split(".")
+        if len(parts) >= 2:
+            brand = parts[-3] if len(parts) >= 3 and parts[-2] in ["my", "co", "ac", "go", "or", "net", "com"] else parts[-2]
+            if brand and brand in p_netloc:
+                return True
+        root = ".".join(parts[-2:]) if len(parts) >= 2 else t_netloc
+        if root and p_netloc.endswith(root):
+            return True
+        return False
+    except Exception:
+        return True
+
+
 # Melacak waktu terakhir tab guard mendeteksi tab agar tidak log-spam saat tab terus terbuka
 _last_tab_guard_detection = {}
 
 def enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=3, worker_id=1):
     """
-    STRICT SINGLE-TAB ENFORCER:
-    Memastikan HANYA 1 tab yang terbuka di browser.
-    Satu-satunya tab yang diizinkan adalah tab domain target (blog.riztama.my.id atau localhost).
-    Semua tab lain (apapun itu: smartlink, popunder, redirect ad seperti Chaturbate dsb.)
-    akan ditutup bersih dan layar otomatis difokuskan kembali ke artikel target.
-    
-    Dilengkapi anti-spam: jika tab terus-menerus terbuka, log dikurangi agar tidak membanjiri terminal.
+    STRICT SINGLE-TAB ENFORCER (DOMAIN-AWARE):
+    Memastikan HANYA 1 tab yang terbuka di browser dan URL-nya adalah domain target sah.
+    Jika ada tab iklan (apapun itu: smartlink, popunder, redirect ad Chaturbate dsb.),
+    tab iklan akan ditutup bersih. Jika tab utama terbajak oleh redirect iklan,
+    tab utama otomatis dinavigasikan kembali ke blog target.
     """
     tag = f"[B{worker_id}]"
     try:
         if not context:
-            return
-        if main_page and main_page.is_closed():
-            return
+            return main_page
 
-        target_domain = get_base_domain(target_base_url)
-        all_pages = list(context.pages)
-        if len(all_pages) <= 1:
-            return
+        all_pages = [p for p in context.pages if not p.is_closed()]
+        if not all_pages:
+            return main_page
 
-        extra_pages = []
+        target_pages = []
+        ad_pages = []
+
         for p in all_pages:
-            if p.is_closed():
-                continue
-            if p == main_page:
-                continue
-            extra_pages.append(p)
-
-        if not extra_pages:
-            return
+            try:
+                p_url = p.url or ""
+                if is_target_domain(p_url, target_base_url):
+                    target_pages.append(p)
+                else:
+                    ad_pages.append((p, p_url))
+            except Exception:
+                target_pages.append(p)
 
         now = time.time()
         last_detect = _last_tab_guard_detection.get(worker_id, 0)
-        is_repeated = (now - last_detect) < 15  # Jika terakhir deteksi <15 detik lalu, kurangi log
+        is_repeated = (now - last_detect) < 15
         _last_tab_guard_detection[worker_id] = now
 
-        if not is_repeated:
-            print(f"{tag} [*] [TAB-GUARD] Terdeteksi {len(extra_pages)} tab tambahan di luar domain target!")
+        # Tutup semua tab iklan
+        if ad_pages:
+            if not is_repeated:
+                print(f"{tag} [*] [TAB-GUARD] Terdeteksi {len(ad_pages)} tab iklan di luar domain target!")
 
-        # Jeda beberapa detik agar tracking link / pixel Adsterra mencatat impresi/klik
-        if wait_seconds > 0:
-            time.sleep(wait_seconds)
+            if wait_seconds > 0:
+                time.sleep(wait_seconds)
 
-        # Tutup semua tab selain main_page
-        for p in extra_pages:
+            for ap, ap_url in ad_pages:
+                try:
+                    if not ap.is_closed():
+                        if not is_repeated:
+                            disp_url = ap_url[:60] if ap_url else "ad-tab"
+                            print(f"{tag} [✓] [TAB-GUARD] Menutup tab smartlink/iklan: {disp_url}...")
+                        ap.close(run_before_unload=False)
+                except Exception as close_err:
+                    print(f"{tag} [-] [TAB-GUARD-NOTICE] Gagal menutup tab iklan: {close_err}")
+
+        # Tentukan halaman target aktif
+        active_target = None
+        if target_pages:
+            if main_page in target_pages and not main_page.is_closed():
+                active_target = main_page
+            else:
+                active_target = target_pages[0]
+        else:
+            # Kasus kritis: main_page dibajak iklan dan tidak ada tab target lain!
+            if main_page and not main_page.is_closed():
+                print(f"{tag} [!] [HOLD/RECOVERY] Halaman utama dibajak iklan ({main_page.url[:60]})! Mengembalikan layar ke blog target...")
+                try:
+                    main_page.goto(target_base_url, wait_until="domcontentloaded", timeout=20000)
+                    active_target = main_page
+                except Exception as nav_e:
+                    print(f"{tag} [-] [HOLD/ERROR] Gagal memulihkan navigasi target: {nav_e}")
+                    active_target = main_page
+
+        # Kembalikan fokus utama ke halaman target
+        if active_target and not active_target.is_closed():
             try:
-                if not p.is_closed():
-                    if not is_repeated:
-                        try:
-                            p_url = p.url[:60]
-                        except Exception:
-                            p_url = "ad-tab"
-                        print(f"{tag} [✓] [TAB-GUARD] Menutup tab smartlink/iklan: {p_url}...")
-                    p.close(run_before_unload=False)
+                active_target.bring_to_front()
             except Exception:
                 pass
+            if ad_pages and not is_repeated:
+                t_domain = get_base_domain(target_base_url)
+                print(f"{tag} [✓] [TAB-GUARD] Selesai: Hanya 1 tab aktif tersisa ({t_domain}). Layar kembali ke blog.")
 
-        # Double check jika masih ada tab tersisa
-        time.sleep(0.3)
-        for p in context.pages:
-            if p != main_page and not p.is_closed():
-                try:
-                    p.close(run_before_unload=False)
-                except Exception:
-                    pass
-
-        # Kembalikan fokus utama ke halaman blog target
-        if main_page and not main_page.is_closed():
-            main_page.bring_to_front()
-            if not is_repeated:
-                print(f"{tag} [✓] [TAB-GUARD] Selesai: Hanya 1 tab aktif tersisa ({target_domain}). Layar kembali ke blog.")
+        return active_target if active_target else main_page
     except Exception as e:
         print(f"{tag} [-] [TAB-GUARD] Notice: {e}")
+        return main_page
 
 
 
@@ -251,15 +287,20 @@ def handle_smartlink_click(context, main_page, smartlink_btn, target_base_url, w
                     pass
 
         # Bersihkan jika masih ada tab popup lain yang tersisa
-        enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=1, worker_id=worker_id)
+        main_page = enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=1, worker_id=worker_id)
 
         # Pastikan layar kembali fokus ke artikel
         if main_page and not main_page.is_closed():
-            main_page.bring_to_front()
+            try:
+                main_page.bring_to_front()
+            except Exception:
+                pass
             print(f"{tag} [✓] [SMARTLINK] Tab smartlink telah ditutup bersih. Layar kembali fokus di artikel untuk dwell time!")
 
+        return main_page
     except Exception as e:
-        print(f"{tag} [-] Smartlink click handler notice: {e}")
+        print(f"{tag} [-] [HOLD/ERROR] Smartlink click handler notice: {e}")
+        return main_page
 
 
 def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, label: str = "artikel"):
@@ -282,7 +323,7 @@ def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, la
 
         # Tab guard dengan cooldown 8 detik — mencegah loop spam deteksi tab berulang
         if now - last_tab_guard_time > 8.0:
-            enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
+            page = enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
             last_tab_guard_time = time.time()
 
         # Countdown heartbeat log setiap 5-6 detik agar realtime status terbaca di console log
@@ -295,27 +336,28 @@ def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, la
         # Setiap 6 - 9 detik, lakukan scrolling aktif naik-turun alami
         if now - last_scroll_time > random.uniform(6.0, 9.5):
             try:
-                # Random scroll ke atas atau ke bawah (smooth)
-                direction = random.choice([-1, 1, -1, 1, 1])
-                scroll_amount = random.randint(140, 280) * direction
-                smooth_scroll(page, distance=scroll_amount, steps=random.randint(8, 14))
-                last_scroll_time = time.time()
+                if not page.is_closed():
+                    direction = random.choice([-1, 1, -1, 1, 1])
+                    scroll_amount = random.randint(140, 280) * direction
+                    smooth_scroll(page, distance=scroll_amount, steps=random.randint(8, 14))
+                    last_scroll_time = time.time()
 
-                # Mouse bergerak ke teks artikel/banner
-                page.mouse.move(
-                    random.randint(200, 750),
-                    random.randint(200, 580),
-                    steps=random.randint(4, 9)
-                )
-            except Exception:
-                pass
+                    # Mouse bergerak ke teks artikel/banner
+                    page.mouse.move(
+                        random.randint(200, 750),
+                        random.randint(200, 580),
+                        steps=random.randint(4, 9)
+                    )
+            except Exception as scroll_err:
+                print(f"{tag} [-] [DWELL-NOTICE] Interaksi scroll santai dilewati: {scroll_err}")
 
         time.sleep(1.0)
 
     if page.is_closed():
-        print(f"{tag} [-] Dwell time dihentikan karena halaman browser ditutup.")
+        print(f"{tag} [-] [DWELL-NOTICE] Dwell time dihentikan karena halaman browser ditutup.")
     else:
         print(f"{tag} [✓] Dwell time selesai ({duration}s). Melanjutkan flow...")
+    return page
 
 
 def human_scroll(page, config, context=None, target_url="", max_scroll_steps=12, worker_id=1, label="artikel"):
@@ -347,7 +389,7 @@ def human_scroll(page, config, context=None, target_url="", max_scroll_steps=12,
 
             # Tab guard setiap 3 langkah scroll agar tidak memperlambat setiap step
             if context and target_url and (steps_done - last_guard_step >= 3):
-                enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
+                page = enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
                 last_guard_step = steps_done
 
             scroll_by = random.randint(step - 40, step + 80)
@@ -357,11 +399,12 @@ def human_scroll(page, config, context=None, target_url="", max_scroll_steps=12,
 
             # Gerakan mouse alami
             try:
-                page.mouse.move(
-                    random.randint(180, 750),
-                    random.randint(180, 580),
-                    steps=random.randint(3, 6)
-                )
+                if not page.is_closed():
+                    page.mouse.move(
+                        random.randint(180, 750),
+                        random.randint(180, 580),
+                        steps=random.randint(3, 6)
+                    )
             except Exception:
                 pass
 
@@ -369,34 +412,43 @@ def human_scroll(page, config, context=None, target_url="", max_scroll_steps=12,
             time.sleep(pause)
 
         # Final check di akhir scroll
-        if context and target_url:
-            enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
+        if context and target_url and not page.is_closed():
+            page = enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
 
         if label == "beranda":
             print(f"{tag} [+] Scroll Beranda selesai. Seluruh posisi banner iklan di Beranda telah dirender.")
         else:
             print(f"{tag} [+] Scroll artikel selesai. Posisi iklan telah dirender.")
+        return page
     except Exception as e:
-        print(f"{tag} [-] Scroll simulation notice: {e}")
+        print(f"{tag} [-] [SCROLL-NOTICE] Scroll simulation notice: {e}")
+        if context and target_url:
+            try:
+                page = enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
+            except Exception:
+                pass
+        return page
 
 
-def click_element_naturally(page, element):
-    """Moves mouse naturally to element's bounding box and clicks."""
+def click_element_naturally(page, element, worker_id=1):
+    """Moves mouse naturally to element's bounding box and clicks with safe timeout."""
+    tag = f"[B{worker_id}]"
     try:
-        element.scroll_into_view_if_needed()
-        time.sleep(random.uniform(0.6, 1.2))
+        element.scroll_into_view_if_needed(timeout=7000)
+        time.sleep(random.uniform(0.4, 0.9))
         box = element.bounding_box()
         if not box:
             return False
         target_x = box["x"] + box["width"] * random.uniform(0.25, 0.75)
         target_y = box["y"] + box["height"] * random.uniform(0.25, 0.75)
-        page.mouse.move(target_x, target_y, steps=random.randint(10, 20))
-        time.sleep(random.uniform(0.15, 0.3))
+        page.mouse.move(target_x, target_y, steps=random.randint(8, 16))
+        time.sleep(random.uniform(0.12, 0.25))
         page.mouse.down()
         time.sleep(random.uniform(0.08, 0.16))
         page.mouse.up()
         return True
-    except Exception:
+    except Exception as click_err:
+        print(f"{tag} [-] [CLICK-NOTICE] Klik alami dialihkan: {click_err}")
         return False
 
 
@@ -485,6 +537,12 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
         )
 
         page = context.new_page()
+        page.set_default_timeout(15000)
+        page.set_default_navigation_timeout(25000)
+        try:
+            page.on("dialog", lambda dialog: dialog.dismiss())
+        except Exception:
+            pass
         start_time = time.time()
         visited_urls = set()
         visited_urls.add(target_url)
@@ -514,7 +572,7 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 pass
 
             # Enforce single tab guard jika popunder terbuka
-            enforce_single_target_tab(context, page, target_url, wait_seconds=3, worker_id=worker_id)
+            page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
 
             # =========================================================
             # TAHAP 1: EKSPLORASI BERANDA (JANGAN LANGSUNG BUKA ARTIKEL)
@@ -522,7 +580,7 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
             is_initial_home = "/post/" not in page.url
             if is_initial_home:
                 # Scroll santai beranda agar seluruh posisi iklan feed, header, dan sidebar terlihat
-                human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(5, 8), worker_id=worker_id, label="beranda")
+                page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(5, 8), worker_id=worker_id, label="beranda")
 
                 # Interaksi klik smartlink alami di Beranda (rasio wajar ~4%)
                 smartlink_chance = config.get("smartlink_click_chance", 0.04)
@@ -531,13 +589,13 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                     try:
                         smartlink_btn = page.query_selector("a[href*='profitableratecpmnetwork.com'], a[href*='araplhn.org'], a[href*='asiafilm.org'], aside a, .smartlink-cta, header a")
                         if smartlink_btn:
-                            handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
+                            page = handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
                     except Exception as e:
-                        print(f"{tag} [-] Smartlink beranda notice: {e}")
+                        print(f"{tag} [-] [HOLD/ERROR] Smartlink beranda notice: {e}")
 
                 # Dwell time beranda terukur (~16-24s, cukup untuk viewability & auto-refresh)
                 home_dwell = random.randint(16, 24)
-                human_dwell(page, context, target_url, home_dwell, worker_id=worker_id, label="beranda")
+                page = human_dwell(page, context, target_url, home_dwell, worker_id=worker_id, label="beranda")
 
                 print(f"{tag} [✓] [BERANDA] Seluruh iklan di Beranda telah ter-render & tercatat impresi. Siap memilih artikel!")
 
@@ -560,6 +618,20 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                         if href and href not in visited_urls:
                             candidates.append((pl, href))
 
+                    # Jika DOM tidak menampilkan artikel (terhalang overlay/redirect)
+                    if not candidates and not all_post_links:
+                        print(f"{tag} [!] [HOLD/RECOVERY] Link artikel tidak terdeteksi di DOM (mungkin tertutup overlay). Memuat ulang beranda: {target_url}...")
+                        try:
+                            page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
+                            time.sleep(2.0)
+                            all_post_links = page.query_selector_all("a[href^='/post/']")
+                            for pl in all_post_links:
+                                href = pl.get_attribute("href")
+                                if href and href not in visited_urls:
+                                    candidates.append((pl, href))
+                        except Exception as reload_err:
+                            print(f"{tag} [-] [HOLD/ERROR] Gagal memuat ulang beranda: {reload_err}")
+
                     if not candidates and all_post_links:
                         sel = random.choice(all_post_links)
                         candidates = [(sel, sel.get_attribute("href"))]
@@ -570,30 +642,50 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                         print(f"{tag} [*] ➡️ Memilih artikel #{hop}: {chosen_href}")
 
                         # Klik alami masuk ke artikel (sering memicu redirect/popunder smartlink)
-                        click_element_naturally(page, chosen_el)
-                        enforce_single_target_tab(context, page, target_url, wait_seconds=3.5, worker_id=worker_id)
+                        click_element_naturally(page, chosen_el, worker_id=worker_id)
+                        page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
 
-                        # Retry click jika tertahan overlay popup
-                        if not page.url.endswith(chosen_href):
-                            page.mouse.down()
-                            time.sleep(0.1)
-                            page.mouse.up()
+                        # Verifikasi apakah sudah masuk ke artikel target
+                        if not page.is_closed() and chosen_href not in page.url:
+                            # Jika klik tertahan overlay iklan/popunder, navigasi langsung ke URL artikel
+                            from urllib.parse import urljoin
+                            full_article_url = urljoin(target_url, chosen_href)
+                            print(f"{tag} [*] ➡️ [HOLD/RECOVERY] Klik artikel tertahan overlay iklan. Memuat URL artikel langsung: {full_article_url}...")
+                            try:
+                                page.goto(full_article_url, wait_until="domcontentloaded", timeout=25000)
+                            except Exception as nav_e:
+                                print(f"{tag} [-] [NAV-NOTICE] Navigasi fallback artikel: {nav_e}")
 
-                        page.wait_for_load_state("domcontentloaded", timeout=35000)
-                        time.sleep(2.5)
-                        enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
+                        page = enforce_single_target_tab(context, page, target_url, wait_seconds=1.5, worker_id=worker_id)
                     else:
-                        print(f"{tag} [-] Tidak ada artikel baru yang ditemukan di feed beranda.")
-                        break
+                        # Fallback jika DOM sama sekali tidak memuat link artikel: navigasi langsung ke slug artikel sah
+                        known_slugs = [
+                            "/post/in-defense-of-deliberate-slowness",
+                            "/post/mechanical-sympathy-in-the-browser-runtime",
+                            "/post/lost-art-of-digital-craftsmanship",
+                            "/post/the-tactile-terminal-command-line-aesthetics",
+                            "/post/the-death-of-digital-clutter-brutalist-clarity"
+                        ]
+                        unvisited = [s for s in known_slugs if s not in visited_urls]
+                        fallback_slug = random.choice(unvisited if unvisited else known_slugs)
+                        visited_urls.add(fallback_slug)
+                        from urllib.parse import urljoin
+                        full_article_url = urljoin(target_url, fallback_slug)
+                        print(f"{tag} [*] ➡️ [NAV-FALLBACK] Navigasi langsung ke artikel blog: {fallback_slug}...")
+                        try:
+                            page.goto(full_article_url, wait_until="domcontentloaded", timeout=25000)
+                        except Exception as nav_e:
+                            print(f"{tag} [-] [NAV-NOTICE] Navigasi fallback artikel: {nav_e}")
+                        page = enforce_single_target_tab(context, page, target_url, wait_seconds=1.5, worker_id=worker_id)
                 except Exception as e:
-                    print(f"{tag} [-] Navigasi artikel notice: {e}")
+                    print(f"{tag} [-] [HOLD/ERROR] Navigasi artikel notice: {e}")
                     break
 
                 current_post_url = page.url
                 print(f"\n{tag} >>> 📖 [Artikel {hop}/{max_pages}] Membaca artikel: {current_post_url} <<<")
 
                 # A. Di artikel scroll natural bertahap (smooth & gesit)
-                human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(6, 10), worker_id=worker_id, label="artikel")
+                page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(6, 10), worker_id=worker_id, label="artikel")
 
                 # B. Trigger / Klik Smartlink CTA di artikel (seringkan interaksi klik manusia)
                 if random.random() < smartlink_chance:
@@ -601,13 +693,13 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                     try:
                         smartlink_btn = page.query_selector("a[href*='profitableratecpmnetwork.com'], a[href*='araplhn.org'], a[href*='asiafilm.org'], aside a, .smartlink-cta, a[target='_blank']")
                         if smartlink_btn:
-                            handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
+                            page = handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
                     except Exception as e:
-                        print(f"{tag} [-] Smartlink article notice: {e}")
+                        print(f"{tag} [-] [HOLD/ERROR] Smartlink article notice: {e}")
 
                 # C. Dwell time santai di artikel (membaca santai & scrolling naik-turun menunggu auto-refresh iklan 35s)
                 post_dwell = random.randint(dwell_min, dwell_max)
-                human_dwell(page, context, target_url, post_dwell, worker_id=worker_id, label="artikel")
+                page = human_dwell(page, context, target_url, post_dwell, worker_id=worker_id, label="artikel")
 
                 print(f"{tag} [+] Artikel {hop}/{max_pages} selesai dinikmati.")
 
@@ -621,24 +713,44 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 if return_home:
                     try:
                         print(f"\n{tag} [*] 🏠 Pola Pembaca Organik: Kembali ke Beranda sebelum memilih artikel baru...")
-                        home_link = page.query_selector("a[href='/'], header a[href='/'], a:has-text('CHRONICLE')")
+                        home_link = page.query_selector(
+                            "a[href='/'], header a[href='/'], a:has-text('CHRONICLE'), a:has-text('Return to Journal Frontpage')"
+                        )
                         if home_link:
-                            click_element_naturally(page, home_link)
-                            enforce_single_target_tab(context, page, target_url, wait_seconds=3, worker_id=worker_id)
-                            page.wait_for_load_state("domcontentloaded", timeout=30000)
-                            time.sleep(random.uniform(2.5, 4.0))
+                            click_element_naturally(page, home_link, worker_id=worker_id)
+                            page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
+                            # Verifikasi apakah sudah di beranda
+                            if not page.is_closed() and "/post/" in page.url:
+                                print(f"{tag} [*] [HOLD/RECOVERY] Klik beranda tertahan overlay, memuat URL beranda langsung: {target_url}...")
+                                try:
+                                    page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
+                                except Exception as he:
+                                    print(f"{tag} [-] [NAV-NOTICE] Navigasi beranda fallback: {he}")
+                            else:
+                                try:
+                                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                                except Exception:
+                                    pass
+                            time.sleep(random.uniform(2.0, 3.5))
+                        else:
+                            print(f"{tag} [*] 🏠 Memuat URL beranda langsung: {target_url}...")
+                            try:
+                                page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
+                            except Exception as he:
+                                print(f"{tag} [-] [NAV-NOTICE] Navigasi beranda fallback: {he}")
+                            time.sleep(random.uniform(2.0, 3.5))
 
-                            # Di beranda santai scroll lagi sampai semua iklan terlihat
-                            print(f"{tag} [*] 📜 [BERANDA FEED] Menjelajahi kembali feed Beranda santai agar seluruh posisi iklan ter-refresh...")
-                            human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(4, 7), worker_id=worker_id, label="beranda")
+                        # Di beranda santai scroll lagi sampai semua iklan terlihat
+                        print(f"{tag} [*] 📜 [BERANDA FEED] Menjelajahi kembali feed Beranda santai agar seluruh posisi iklan ter-refresh...")
+                        page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(4, 7), worker_id=worker_id, label="beranda")
 
-                            # Dwell santai di beranda antar artikel (~12 - 18 detik dengan scrolling naik-turun)
-                            mid_dwell = random.randint(12, 18)
-                            human_dwell(page, context, target_url, mid_dwell, worker_id=worker_id, label="beranda")
+                        # Dwell santai di beranda antar artikel (~12 - 18 detik dengan scrolling naik-turun)
+                        mid_dwell = random.randint(12, 18)
+                        page = human_dwell(page, context, target_url, mid_dwell, worker_id=worker_id, label="beranda")
 
-                            print(f"{tag} [✓] Iklan di Beranda siap & ter-refresh. Bersiap memilih artikel selanjutnya...")
+                        print(f"{tag} [✓] Iklan di Beranda siap & ter-refresh. Bersiap memilih artikel selanjutnya...")
                     except Exception as e:
-                        print(f"{tag} [-] Notice returning home: {e}")
+                        print(f"{tag} [-] [RETURN-HOME-NOTICE] Notice returning home: {e}")
 
         except Exception as e:
             err_msg = str(e).splitlines()[0] if str(e) else "Unknown error"

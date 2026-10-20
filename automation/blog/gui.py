@@ -475,9 +475,9 @@ class BotProcessWorker(QThread):
             return
 
         # Dwell time
-        if "Dwell time aktif" in line or "Dwell time remaining:" in line or "Dwell time aktif di Beranda:" in line:
+        if "Dwell time" in line and any(k in line for k in ["aktif", "remaining", "di Beranda", "di Artikel"]):
             try:
-                m_sec = re.search(r"(?:aktif|remaining|di Beranda|di Artikel):\s*(\d+)", line, re.IGNORECASE)
+                m_sec = re.search(r"(?:aktif|remaining|di Beranda|di Artikel|Dwell time.*?):\s*(\d+)", line, re.IGNORECASE)
                 rem = int(m_sec.group(1)) if m_sec else 30
                 is_beranda = "Beranda" in line
                 dwell_label = "Dwell Beranda" if is_beranda else "Dwell Time"
@@ -491,10 +491,11 @@ class BotProcessWorker(QThread):
                     "dwell_label": dwell_label
                 })
 
-                if "aktif" in line:
+                if "remaining:" in line:
+                    if rem % 10 == 0 or rem <= 5:
+                        emit("TIMER", f"⏳ {dwell_label} tersisa: {rem} detik...")
+                else:
                     emit("TIMER", f"⏳ {dwell_label}: {rem} detik (Membaca santai & scrolling naik-turun)")
-                elif "remaining:" in line and (rem % 10 == 0 or rem <= 5):
-                    emit("TIMER", f"⏳ {dwell_label} tersisa: {rem} detik...")
             except Exception:
                 pass
             return
@@ -608,6 +609,24 @@ class BotProcessWorker(QThread):
         if "All automation sessions completed successfully" in line:
             self.status_signal.emit("DONE", "Semua sesi telah selesai dengan sukses!")
             emit("SUCCESS", "🎉 SEMUA SESI OTOMASI TELAH SELESAI DENGAN SUKSES!")
+        # Diagnostic & Resilience notices (HOLD, RECOVERY, ERROR, NAV-FALLBACK, etc.)
+        if "HOLD/RECOVERY" in line or "RECOVERY" in line:
+            self.worker_flow_signal.emit(w_id, {
+                "status_text": "🔄 Pemulihan Halaman..."
+            })
+            emit("WARN", f"🔄 {line}")
+            return
+
+        if "HOLD/ERROR" in line or "RECOVERY-ERROR" in line:
+            emit("WARN", f"❌ {line}")
+            return
+
+        if "NAV-FALLBACK" in line or "NAV-NOTICE" in line:
+            emit("INFO", f"🧭 {line}")
+            return
+
+        if any(tag in line for tag in ["SCROLL-NOTICE", "CLICK-NOTICE", "DWELL-NOTICE", "TAB-GUARD-NOTICE"]):
+            emit("WARN", f"⚠️ {line}")
             return
 
         # Default fallback

@@ -120,9 +120,27 @@ def create_stealth_context(
     stealth_script = get_stealth_init_script(fp_profile)
     context.add_init_script(stealth_script)
 
+    # Batasi timeout default agar aksi Playwright (click, move, evaluate) tidak pernah nge-hang/stuck selamanya
+    context.set_default_timeout(15000)             # Maks 15 detik untuk interaksi elemen/mouse/evaluasi
+    context.set_default_navigation_timeout(25000)  # Maks 25 detik untuk navigasi halaman
+
     # Otomatis dismiss dialog tak terduga (alert/prompt/confirm/beforeunload) agar worker tidak macet
     try:
         context.on("dialog", lambda dialog: dialog.dismiss())
+    except Exception:
+        pass
+
+    # Pasang proteksi timeout & dialog dismissal pada setiap tab/popup baru yang terbuka
+    def _guard_new_tab(new_p):
+        try:
+            new_p.set_default_timeout(15000)
+            new_p.set_default_navigation_timeout(25000)
+            new_p.on("dialog", lambda d: d.dismiss())
+        except Exception:
+            pass
+
+    try:
+        context.on("page", _guard_new_tab)
     except Exception:
         pass
 

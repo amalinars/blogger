@@ -93,3 +93,57 @@ def test_worker_card_countdown(qapp):
     card.reset_state()
     assert not card.is_dwelling
     assert "STANDBY" in card.status_pill.text()
+
+
+def test_is_target_domain():
+    from automation.blog.bot import is_target_domain
+    target = "https://read.riztama.my.id"
+
+    # Valid targets
+    assert is_target_domain("https://read.riztama.my.id/post/in-defense-of-deliberate-slowness", target)
+    assert is_target_domain("https://blog.riztama.my.id", target)
+    assert is_target_domain("https://riztama.my.id/about", target)
+    assert is_target_domain("about:blank", target)
+
+    # Localhost
+    assert is_target_domain("http://localhost:3000/post/test", "http://localhost:3000")
+    assert is_target_domain("http://127.0.0.1:3000", "http://localhost:3000")
+
+    # Malicious / Popunder / Ad domains must be recognized as NOT target
+    assert not is_target_domain("https://chaturbate.com/?join_overlay=1&campaign=KK90V", target)
+    assert not is_target_domain("https://workdeadlinededicate.com/api/users?token=123", target)
+    assert not is_target_domain("https://vidox.net/MT-1495/index.php", target)
+    assert not is_target_domain("https://www.betano.ca/casino/?utm_source=Adsterra", target)
+    assert not is_target_domain("https://spendsdetachment.com/api/users", target)
+    assert not is_target_domain("https://zoologyfibre.com/api/users", target)
+
+
+def test_parse_diagnostic_resilience_lines():
+    from automation.blog.gui import BotProcessWorker
+
+    worker = BotProcessWorker([])
+    logs = []
+    flows = []
+
+    worker.log_signal.connect(lambda ts, lvl, msg: logs.append((lvl, msg)))
+    worker.worker_flow_signal.connect(lambda wid, data: flows.append((wid, data)))
+
+    # Test HOLD / RECOVERY
+    worker.parse_line("[B1] [!] [HOLD/RECOVERY] Halaman utama dibajak iklan! Mengembalikan layar ke blog target...")
+    assert len(logs) == 1
+    assert logs[0][0] == "WARN"
+    assert "🔄" in logs[0][1]
+    assert len(flows) == 1
+    assert flows[0][1]["status_text"] == "🔄 Pemulihan Halaman..."
+
+    # Test NAV-FALLBACK
+    worker.parse_line("[B2] [*] ➡️ [NAV-FALLBACK] Navigasi langsung ke artikel blog: /post/test...")
+    assert len(logs) == 2
+    assert logs[1][0] == "INFO"
+    assert "🧭" in logs[1][1]
+
+    # Test Notices
+    worker.parse_line("[B3] [-] [SCROLL-NOTICE] Scroll simulation notice: context destroyed")
+    assert len(logs) == 3
+    assert logs[2][0] == "WARN"
+    assert "⚠️" in logs[2][1]
