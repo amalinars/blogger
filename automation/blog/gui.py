@@ -177,6 +177,8 @@ class BotProcessWorker(QThread):
             # Emit visual activity indicator for each specific browser worker
             if "Navigating to" in line or "Target Awal" in line or "Membuka browser" in line:
                 self.worker_activity_signal.emit(w_id, "NAVIGATE")
+            elif "Dwell time" in line:
+                self.worker_activity_signal.emit(w_id, "DWELL")
             elif "Membaca artikel" in line or "Scroll" in line or "Artikel" in line:
                 self.worker_activity_signal.emit(w_id, "READING")
             elif "TAB-GUARD" in line or "ad overlay" in line or "Smartlink" in line or "popunder" in line:
@@ -439,7 +441,28 @@ class BotProcessWorker(QThread):
             return
 
         if "Tab iklan/smartlink terbuka" in line:
+            m_sec = re.search(r"\((\d+)s\)", line)
+            ad_rem = int(m_sec.group(1)) if m_sec else 18
+            self.status_signal.emit("SMARTLINK", f"Membaca landing page pengiklan ({ad_rem}s)...")
+            self.worker_flow_signal.emit(w_id, {
+                "step": "SMARTLINK",
+                "status_text": f"🎯 Dwell Iklan ({ad_rem}s)",
+                "dwell_seconds": ad_rem,
+                "dwell_label": "Dwell Iklan"
+            })
             emit("ADS", f"💥 {line}")
+            return
+
+        if "Smartlink ad dwell remaining:" in line:
+            m_sec = re.search(r"remaining:\s*(\d+)", line)
+            if m_sec:
+                ad_rem = int(m_sec.group(1))
+                self.worker_flow_signal.emit(w_id, {
+                    "step": "SMARTLINK",
+                    "status_text": f"🎯 Dwell Iklan ({ad_rem}s)",
+                    "dwell_seconds": ad_rem,
+                    "dwell_label": "Dwell Iklan"
+                })
             return
 
         if "SMARTLINK" in line and ("Engaging with Smartlink" in line or "Physically clicking Smartlink" in line or "Organic roll SUCCESS" in line):
@@ -452,22 +475,37 @@ class BotProcessWorker(QThread):
             return
 
         # Dwell time
-        if "Dwell time aktif:" in line or "Dwell time remaining:" in line or "Dwell time aktif di Beranda:" in line:
+        if "Dwell time aktif" in line or "Dwell time remaining:" in line or "Dwell time aktif di Beranda:" in line:
             try:
-                if "aktif:" in line:
-                    rem = line.split("aktif:")[-1].split("s")[0].strip()
-                elif "di Beranda:" in line:
-                    rem = line.split("di Beranda:")[-1].split("s")[0].strip()
-                else:
-                    rem = line.split("remaining:")[-1].split("s")[0].strip()
+                m_sec = re.search(r"(?:aktif|remaining|di Beranda|di Artikel):\s*(\d+)", line, re.IGNORECASE)
+                rem = int(m_sec.group(1)) if m_sec else 30
+                is_beranda = "Beranda" in line
+                dwell_label = "Dwell Beranda" if is_beranda else "Dwell Time"
+                step_key = "DWELL_BERANDA" if is_beranda else "DWELL"
+
                 self.status_signal.emit("DWELL", f"Menunggu auto-refresh iklan ({rem}s)...")
                 self.worker_flow_signal.emit(w_id, {
-                    "step": "DWELL",
-                    "status_text": f"⏳ Dwell Time ({rem}s)"
+                    "step": step_key,
+                    "status_text": f"⏳ {dwell_label} ({rem}s)",
+                    "dwell_seconds": rem,
+                    "dwell_label": dwell_label
                 })
-                emit("TIMER", f"⏳ Dwell time: {rem} detik lagi (Membaca santai & scrolling naik-turun)")
+
+                if "aktif" in line:
+                    emit("TIMER", f"⏳ {dwell_label}: {rem} detik (Membaca santai & scrolling naik-turun)")
+                elif "remaining:" in line and (rem % 10 == 0 or rem <= 5):
+                    emit("TIMER", f"⏳ {dwell_label} tersisa: {rem} detik...")
             except Exception:
                 pass
+            return
+
+        if "Dwell time selesai" in line:
+            self.worker_flow_signal.emit(w_id, {
+                "step": "DWELL_DONE",
+                "status_text": "⌛ Dwell Selesai",
+                "dwell_seconds": 0
+            })
+            emit("TIMER", "⌛ Dwell time selesai. Melanjutkan flow...")
             return
 
         # Multi-Hop exploration indicators
@@ -536,11 +574,14 @@ class BotProcessWorker(QThread):
 
         # Cooldown between sessions
         if "Cooling down for" in line:
-            cd = line.split("for")[-1].split("s")[0].strip()
+            m_cd = re.search(r"for\s+(\d+)s", line)
+            cd = int(m_cd.group(1)) if m_cd else 5
             self.status_signal.emit("COOLDOWN", f"Istirahat {cd} detik sebelum sesi berikutnya...")
             self.worker_flow_signal.emit(w_id, {
                 "step": "COOLDOWN",
-                "status_text": f"☕ Cooldown ({cd}s)"
+                "status_text": f"☕ Cooldown ({cd}s)",
+                "dwell_seconds": cd,
+                "dwell_label": "Cooldown"
             })
             emit("TIMER", f"☕ Jeda antar sesi: {cd} detik agar pola lalu lintas tampak alami")
             return
@@ -967,14 +1008,14 @@ def generate_flow_steps(max_pages: int = 3, has_smartlink: bool = True):
 def get_step_index(step_key: str, hop: int, max_pages: int, has_smartlink: bool = True) -> int:
     if step_key in ("PROXY", "PROXY_TEST"):
         return 0
-    if step_key in ("PROXY_OK", "LANDING"):
+    if step_key in ("PROXY_OK", "LANDING", "DWELL_BERANDA", "BERANDA"):
         return 1
     if step_key in ("ADS", "ARTICLE"):
         h = max(1, min(hop or 1, max_pages))
         return 1 + h
     if step_key == "SMARTLINK":
         return 2 + max_pages if has_smartlink else 2 + max_pages
-    if step_key == "DWELL":
+    if step_key in ("DWELL", "DWELL_DONE"):
         return 2 + max_pages + (1 if has_smartlink else 0)
     if step_key in ("DONE", "COOLDOWN", "CLOSING"):
         return 3 + max_pages + (1 if has_smartlink else 0)
@@ -1102,6 +1143,9 @@ class WorkerCard(QFrame):
         self.worker_id = worker_id
         self.max_pages = max_pages
         self.has_smartlink = has_smartlink
+        self.is_dwelling = False
+        self.dwell_end_time = 0.0
+        self.dwell_label = "Dwell Time"
         self.setObjectName("WorkerCard")
         self.init_ui()
 
@@ -1170,12 +1214,32 @@ class WorkerCard(QFrame):
         self.stepper.set_steps(steps)
 
     def reset_state(self):
+        self.is_dwelling = False
+        self.dwell_end_time = 0.0
         self.session_lbl.setText("🎯 Sesi: Menunggu")
         self.status_pill.setText("⚪ STANDBY (SIAP)")
         self.status_pill.setStyleSheet("background: #1e293b; color: #64748b; border: 1px solid #334155; border-radius: 4px; padding: 2px 8px;")
         self.proxy_lbl.setText("🛡️ Proksi: Belum Terhubung")
         self.detail_lbl.setText("🔗 URL: -")
         self.stepper.set_current_step(-1)
+
+    def tick_second(self):
+        if self.is_dwelling and self.dwell_end_time > 0:
+            rem = max(0, int(self.dwell_end_time - time.time()))
+            self.status_pill.setText(f"⏳ {self.dwell_label} ({rem}s)")
+            if "Cooldown" in self.dwell_label:
+                self.status_pill.setStyleSheet("background: #312e81; color: #c7d2fe; border: 1px solid #4f46e5; border-radius: 4px; padding: 2px 8px;")
+            elif "Iklan" in self.dwell_label:
+                self.status_pill.setStyleSheet("background: #831843; color: #fbcfe8; border: 1px solid #db2777; border-radius: 4px; padding: 2px 8px;")
+            else:
+                self.status_pill.setStyleSheet("background: #1e3a8a; color: #93c5fd; border: 1px solid #2563eb; border-radius: 4px; padding: 2px 8px;")
+
+            if rem <= 0:
+                self.is_dwelling = False
+                if "Cooldown" in self.dwell_label:
+                    self.status_pill.setText("☕ Siap Memulai Sesi")
+                else:
+                    self.status_pill.setText(f"⌛ {self.dwell_label} (Selesai)")
 
     def update_flow(self, data: dict):
         step_key = data.get("step", "")
@@ -1185,6 +1249,20 @@ class WorkerCard(QFrame):
             curr = data["session"]
             tot = data.get("total_sessions", "?")
             self.session_lbl.setText(f"🎯 Sesi: {curr} / {tot}")
+
+        # Dwell countdown handling
+        if "dwell_seconds" in data and data["dwell_seconds"] is not None:
+            dwell_sec = int(data["dwell_seconds"])
+            if dwell_sec > 0:
+                self.is_dwelling = True
+                self.dwell_end_time = time.time() + dwell_sec
+                self.dwell_label = data.get("dwell_label", "Dwell Time")
+            else:
+                self.is_dwelling = False
+                self.dwell_end_time = 0.0
+        elif step_key and step_key not in ("DWELL", "DWELL_BERANDA", "SMARTLINK", "COOLDOWN"):
+            self.is_dwelling = False
+            self.dwell_end_time = 0.0
 
         if "status_text" in data:
             txt = data["status_text"]
@@ -1196,7 +1274,10 @@ class WorkerCard(QFrame):
             elif "Valid" in txt or "Lolos" in txt:
                 self.status_pill.setStyleSheet("background: #064e3b; color: #6ee7b7; border: 1px solid #059669; border-radius: 4px; padding: 2px 8px;")
             elif "Dwell" in txt:
-                self.status_pill.setStyleSheet("background: #1e3a8a; color: #93c5fd; border: 1px solid #2563eb; border-radius: 4px; padding: 2px 8px;")
+                if "Iklan" in txt:
+                    self.status_pill.setStyleSheet("background: #831843; color: #fbcfe8; border: 1px solid #db2777; border-radius: 4px; padding: 2px 8px;")
+                else:
+                    self.status_pill.setStyleSheet("background: #1e3a8a; color: #93c5fd; border: 1px solid #2563eb; border-radius: 4px; padding: 2px 8px;")
             elif "Selesai" in txt:
                 self.status_pill.setStyleSheet("background: #064e3b; color: #34d399; border: 1px solid #10b981; border-radius: 4px; padding: 2px 8px;")
             elif "Cooldown" in txt:
@@ -2184,6 +2265,10 @@ class TrafficBotGUI(QMainWindow):
             secs = elapsed_sec % 60
             self.time_badge.setText(f"⏱️ {mins:02d}:{secs:02d}")
 
+        if hasattr(self, "worker_cards"):
+            for card in self.worker_cards.values():
+                card.tick_second()
+
     def on_log_received(self, timestamp: str, level: str, msg: str):
         color_map = {
             "INFO": "#94a3b8",      # Slate grey
@@ -2285,6 +2370,9 @@ class TrafficBotGUI(QMainWindow):
         if status == "NAVIGATE":
             badge.setText(f"#B{worker_id}: 🌐 Buka")
             badge.setStyleSheet("font-size: 9px; font-weight: bold; padding: 2px 4px; border-radius: 4px; background: #0284c7; color: #ffffff; border: 1px solid #38bdf8;")
+        elif status == "DWELL":
+            badge.setText(f"#B{worker_id}: ⌛ Dwell")
+            badge.setStyleSheet("font-size: 9px; font-weight: bold; padding: 2px 4px; border-radius: 4px; background: #1e3a8a; color: #93c5fd; border: 1px solid #2563eb;")
         elif status == "READING":
             badge.setText(f"#B{worker_id}: 📖 Baca")
             badge.setStyleSheet("font-size: 9px; font-weight: bold; padding: 2px 4px; border-radius: 4px; background: #7c3aed; color: #ffffff; border: 1px solid #c084fc;")

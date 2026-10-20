@@ -214,16 +214,23 @@ def handle_smartlink_click(context, main_page, smartlink_btn, target_base_url, w
             except Exception:
                 tab_url = "Smartlink Ad Page"
 
-            dwell_ad = random.uniform(14.0, 24.0)
-            print(f"{tag} [✓] [SMARTLINK] Tab iklan/smartlink terbuka ({tab_url}). Melakukan authentic engagement di landing page ({dwell_ad:.1f}s)...")
+            dwell_ad = int(random.uniform(14.0, 24.0))
+            print(f"{tag} [✓] [SMARTLINK] Tab iklan/smartlink terbuka ({tab_url}). Melakukan authentic engagement di landing page ({dwell_ad}s)...")
             try:
                 new_tab.bring_to_front()
-                time.sleep(random.uniform(2.5, 4.0))
+                time.sleep(random.uniform(2.0, 3.5))
 
                 ad_start = time.time()
+                last_ad_log = time.time()
                 while time.time() - ad_start < dwell_ad:
                     if new_tab.is_closed():
                         break
+                    now = time.time()
+                    if now - last_ad_log >= 5.0:
+                        rem = max(0, int(dwell_ad - (now - ad_start)))
+                        if rem > 0:
+                            print(f"{tag} [*] ⏳ Smartlink ad dwell remaining: {rem}s...")
+                        last_ad_log = now
                     try:
                         rx = random.randint(150, 750)
                         ry = random.randint(150, 550)
@@ -232,9 +239,9 @@ def handle_smartlink_click(context, main_page, smartlink_btn, target_base_url, w
                         smooth_scroll(new_tab, scroll_amount, steps=8)
                     except Exception:
                         pass
-                    time.sleep(random.uniform(2.0, 4.5))
+                    time.sleep(random.uniform(1.5, 3.0))
 
-                print(f"{tag} [✓] [SMARTLINK] Selesai membaca landing page pengiklan ({dwell_ad:.1f}s). Menutup tab iklan...")
+                print(f"{tag} [✓] [SMARTLINK] Selesai membaca landing page pengiklan ({dwell_ad}s). Menutup tab iklan...")
                 new_tab.close(run_before_unload=False)
             except Exception as ad_err:
                 print(f"{tag} [-] [SMARTLINK] Notice interaksi tab iklan: {ad_err}")
@@ -263,10 +270,12 @@ def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, la
     """
     tag = f"[B{worker_id}]"
     page_desc = "Artikel" if label == "artikel" else "Beranda"
-    print(f"{tag} [*] Dwell time aktif: {duration}s (Membaca santai & scrolling naik-turun {page_desc} sambil menunggu auto-refresh iklan 35s)...")
+    dwell_scope = f"di {page_desc}" if label == "beranda" else "aktif"
+    print(f"{tag} [*] Dwell time {dwell_scope}: {duration}s (Membaca santai & scrolling naik-turun {page_desc} sambil menunggu auto-refresh iklan 35s)...")
     end_time = time.time() + duration
     last_scroll_time = time.time()
     last_tab_guard_time = 0  # Cooldown agar tab guard tidak dipanggil setiap detik
+    last_countdown_log = time.time()
 
     while time.time() < end_time and not page.is_closed():
         now = time.time()
@@ -275,6 +284,13 @@ def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, la
         if now - last_tab_guard_time > 8.0:
             enforce_single_target_tab(context, page, target_url, wait_seconds=1, worker_id=worker_id)
             last_tab_guard_time = time.time()
+
+        # Countdown heartbeat log setiap 5-6 detik agar realtime status terbaca di console log
+        if now - last_countdown_log >= 5.0:
+            rem = max(0, int(end_time - now))
+            if rem > 0:
+                print(f"{tag} [*] ⏳ Dwell time remaining: {rem}s ({page_desc} viewability aktif)...")
+            last_countdown_log = now
 
         # Setiap 6 - 9 detik, lakukan scrolling aktif naik-turun alami
         if now - last_scroll_time > random.uniform(6.0, 9.5):
@@ -295,6 +311,11 @@ def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, la
                 pass
 
         time.sleep(1.0)
+
+    if page.is_closed():
+        print(f"{tag} [-] Dwell time dihentikan karena halaman browser ditutup.")
+    else:
+        print(f"{tag} [✓] Dwell time selesai ({duration}s). Melanjutkan flow...")
 
 
 def human_scroll(page, config, context=None, target_url="", max_scroll_steps=12, worker_id=1, label="artikel"):

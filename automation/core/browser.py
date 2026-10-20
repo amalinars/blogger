@@ -120,6 +120,12 @@ def create_stealth_context(
     stealth_script = get_stealth_init_script(fp_profile)
     context.add_init_script(stealth_script)
 
+    # Otomatis dismiss dialog tak terduga (alert/prompt/confirm/beforeunload) agar worker tidak macet
+    try:
+        context.on("dialog", lambda dialog: dialog.dismiss())
+    except Exception:
+        pass
+
     metadata = {
         "geo": geo_profile,
         "fingerprint": fp_profile,
