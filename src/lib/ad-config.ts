@@ -4,12 +4,17 @@
  */
 
 export const MONETAG_CONFIG = {
-  // Zone ID Monetag dari sw.js
-  zoneId: '12087417',
+  // Zone ID Service Worker dari sw.js
+  zoneId: '12088388',
   domain: '3nbf4.com',
+  // Multitag All-in-One
+  multitag: {
+    scriptSrc: 'https://quge5.com/88/tag.min.js',
+    zone: '299712'
+  },
   // Direct Link / Smartlink dari Monetag
   directLinkUrl: '',
-  // URL script Monetag
+  // URL script Monetag Service Worker
   scriptSrc: 'https://3nbf4.com/act/files/service-worker.min.js?r=sw',
   // In-Page Push / Vignette / OnClick zone settings
   zones: {

@@ -42,7 +42,15 @@ export default function RootLayout({
       className={`${newsreader.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full scroll-smooth`}
       suppressHydrationWarning
     >
-      <head />
+      <head>
+        {/* Monetag Multitag (All-in-One) */}
+        <script
+          src="https://quge5.com/88/tag.min.js"
+          data-zone="299712"
+          async
+          data-cfasync="false"
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
         <ThemeProvider>
 
