@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 traffic_bot.py - Synthetic Browser Emulation & Ad Viewability Engine
-Designed for blog.riztama.my.id (Chronicle Editorial Blog)
+Designed for read.riztama.my.id (Chronicle Editorial Blog)
 
 Complies with guidelines from docs/traffic.md:
 - Native Playwright Chromium context with real Google Chrome binary
@@ -56,7 +56,7 @@ def load_config():
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     return {
-        "target_base_url": "https://blog.riztama.my.id",
+        "target_base_url": "https://read.riztama.my.id",
         "local_test_url": "http://localhost:3000",
         "use_local": False,
         "dwell_time": {"min_seconds": 35, "max_seconds": 50},
@@ -310,6 +310,10 @@ def human_dwell(page, context, target_url, duration: int, worker_id: int = 1, la
     disertai gerakan mouse alami dan penjagaan tab tunggal sambil menunggu auto-refresh iklan 35s.
     """
     tag = f"[B{worker_id}]"
+    # Guard: halaman None (bisa terjadi jika human_scroll mengembalikan None saat page sudah closed)
+    if page is None:
+        print(f"{tag} [-] [DWELL-NOTICE] Dwell dibatalkan: halaman browser adalah None (sudah ditutup sebelumnya).")
+        return page
     page_desc = "Artikel" if label == "artikel" else "Beranda"
     dwell_scope = f"di {page_desc}" if label == "beranda" else "aktif"
     print(f"{tag} [*] Dwell time {dwell_scope}: {duration}s (Membaca santai & scrolling naik-turun {page_desc} sambil menunggu auto-refresh iklan 35s)...")
@@ -368,8 +372,9 @@ def human_scroll(page, config, context=None, target_url="", max_scroll_steps=12,
     p_max = config.get("scroll_settings", {}).get("pause_between_scrolls_max", 2.4)
 
     try:
-        if page.is_closed():
-            return
+        if page is None or page.is_closed():
+            print(f"{tag} [-] [SCROLL-NOTICE] Scroll dibatalkan: halaman tidak tersedia (closed/None).")
+            return page
 
         total_height = page.evaluate("() => document.body.scrollHeight")
         viewport_height = page.evaluate("() => window.innerHeight")
@@ -455,7 +460,7 @@ def click_element_naturally(page, element, worker_id=1):
 
 
 
-def run_single_session_safe(target_url="https://blog.riztama.my.id", use_proxy=True, proxy=None, proxy_idx=None, headless=False, config=None, max_pages=2, return_home=False, worker_id=1, proxy_manager=None):
+def run_single_session_safe(target_url="https://read.riztama.my.id", use_proxy=True, proxy=None, proxy_idx=None, headless=False, config=None, max_pages=2, return_home=False, worker_id=1, proxy_manager=None):
     """
     Wrapper aman untuk menjalankan 1 sesi.
     Memeriksa kepatuhan anti-leak: jika use_proxy=True tetapi proxy is None,
@@ -510,44 +515,48 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
     print("=" * 65)
 
     with sync_playwright() as p:
-        # Menghitung posisi jendela bertingkat (cascade) agar setiap browser terlihat terpisah jelas di layar (hingga 20 browser)
-        col = (worker_id - 1) % 5
-        row = (worker_id - 1) // 5
-        x_offset = col * 75 + row * 25 + 30
-        y_offset = row * 60 + col * 25 + 30
-
-        browser_args = build_browser_args(
-            window_position=(x_offset, y_offset),
-            window_size=(1260, 820),
-        )
-        proxy_dict = format_proxy_dict(proxy)
-        browser = launch_browser(
-            p,
-            proxy_dict=proxy_dict,
-            headless=headless,
-            browser_args=browser_args,
-            tag=tag,
-        )
-
-        proxy_country = proxy.get("country", "") if proxy else ""
-        context, meta = create_stealth_context(
-            browser,
-            proxy_country=proxy_country,
-            tag=tag,
-        )
-
-        page = context.new_page()
-        page.set_default_timeout(15000)
-        page.set_default_navigation_timeout(25000)
-        try:
-            page.on("dialog", lambda dialog: dialog.dismiss())
-        except Exception:
-            pass
+        browser = None
+        context = None
+        session_failed = False
         start_time = time.time()
-        visited_urls = set()
-        visited_urls.add(target_url)
 
         try:
+            # Menghitung posisi jendela bertingkat (cascade) agar setiap browser terlihat terpisah jelas di layar (hingga 20 browser)
+            col = (worker_id - 1) % 5
+            row = (worker_id - 1) // 5
+            x_offset = col * 75 + row * 25 + 30
+            y_offset = row * 60 + col * 25 + 30
+
+            browser_args = build_browser_args(
+                window_position=(x_offset, y_offset),
+                window_size=(1260, 820),
+            )
+            proxy_dict = format_proxy_dict(proxy)
+            browser = launch_browser(
+                p,
+                proxy_dict=proxy_dict,
+                headless=headless,
+                browser_args=browser_args,
+                tag=tag,
+            )
+
+            proxy_country = proxy.get("country", "") if proxy else ""
+            context, meta = create_stealth_context(
+                browser,
+                proxy_country=proxy_country,
+                tag=tag,
+            )
+
+            page = context.new_page()
+            page.set_default_timeout(15000)
+            page.set_default_navigation_timeout(25000)
+            try:
+                page.on("dialog", lambda dialog: dialog.dismiss())
+            except Exception:
+                pass
+            visited_urls = set()
+            visited_urls.add(target_url)
+
             # Gunakan Organic Referer Engine
             referer = get_organic_referer(config.get("organic_referer_pool")) if config.get("use_organic_referers", True) else None
             ref_label = referer if referer else "Direct (None)"
@@ -753,31 +762,48 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                         print(f"{tag} [-] [RETURN-HOME-NOTICE] Notice returning home: {e}")
 
         except Exception as e:
+            session_failed = True
             err_msg = str(e).splitlines()[0] if str(e) else "Unknown error"
+            # Hanya error yang jelas berasal dari proksi yang dihitung sebagai
+            # kegagalan proksi. Timeout/reset generik bisa berasal dari target,
+            # jadi tidak boleh membunuh proksi yang sehat.
             is_proxy_err = any(code in err_msg for code in [
-                "ERR_TIMED_OUT", "ERR_PROXY", "ERR_TUNNEL", "ERR_CONNECTION_RESET",
-                "ERR_CONNECTION_CLOSED", "ERR_SOCKS", "Timeout", "net::ERR_"
+                "ERR_PROXY", "ERR_TUNNEL", "ERR_SOCKS",
+                "ERR_PROXY_CONNECTION_FAILED", "ERR_PROXY_AUTH_UNSUPPORTED",
+                "ERR_INVALID_AUTH_CREDENTIALS",
             ])
             if is_proxy_err and proxy:
                 print(f"{tag} [-] Proksi Timeout/Down saat navigasi: {err_msg}")
                 if proxy_manager:
                     if proxy_idx is not None:
-                        proxy_manager.mark_dead(proxy_idx, reason="Navigation Timeout / Proxy Failure")
+                        proxy_manager.mark_dead(
+                            proxy_idx,
+                            reason="Navigation Timeout / Proxy Failure",
+                            target_url=target_url,
+                        )
                     else:
-                        proxy_manager.remove_dead_proxy(proxy, reason="Navigation Timeout / Proxy Failure")
+                        proxy_manager.remove_dead_proxy(
+                            proxy,
+                            reason="Navigation Timeout / Proxy Failure",
+                            target_url=target_url,
+                        )
             else:
                 print(f"{tag} [-] Error during navigation: {err_msg}")
         finally:
             print(f"{tag} [*] Closing browser session cleanly...")
-            try:
-                context.close()
-            except Exception:
-                pass
-            try:
-                browser.close()
-            except Exception:
-                pass
+            if context is not None:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            if browser is not None:
+                try:
+                    browser.close()
+                except Exception:
+                    pass
             if proxy_manager and proxy_idx is not None:
+                if not session_failed:
+                    proxy_manager.report_session_success(proxy_idx, worker_id=worker_id)
                 proxy_manager.release_proxy(proxy_idx, worker_id=worker_id)
             print(f"{tag} [+] Total Session Dwell Time: {time.time() - start_time:.1f}s")
 
@@ -798,7 +824,7 @@ def main():
 
     config = load_config()
 
-    base_url = config.get("local_test_url", "http://localhost:3000") if args.local else config.get("target_base_url", "https://blog.riztama.my.id")
+    base_url = config.get("local_test_url", "http://localhost:3000") if args.local else config.get("target_base_url", "https://read.riztama.my.id")
     if args.slug:
         target_url = f"{base_url}/post/{args.slug}"
     else:

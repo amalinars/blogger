@@ -21,9 +21,29 @@ except ImportError:
     subprocess.check_call([sys.executable, "-m", "pip", "install", "requests"])
     import requests
 
+__test__ = False
+
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_PROXIES_JSON = BASE_DIR / "proxies.json"
-DEFAULT_TARGET = "https://blog.riztama.my.id"
+DEFAULT_TARGET = "https://read.riztama.my.id"
+
+
+def check_target_direct(target_url: str, timeout: float = 8.0) -> tuple[bool, str]:
+    """Cek target tanpa proksi sebagai pembanding agar target down tidak dianggap semua proxy mati."""
+    try:
+        session = requests.Session()
+        session.trust_env = False
+        resp = session.get(
+            target_url,
+            timeout=timeout,
+            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"},
+            allow_redirects=True,
+        )
+        if resp.status_code == 200:
+            return True, "HTTP 200 OK"
+        return False, f"HTTP {resp.status_code}"
+    except Exception as e:
+        return False, str(e).splitlines()[0][:60] if str(e) else "Unknown"
 
 
 def test_socket_ping(host: str, port: int, timeout: float = 4.0) -> tuple[bool, float, str]:
@@ -90,44 +110,45 @@ def test_proxy_http(proxy_info: dict, target_url: str = DEFAULT_TARGET, timeout:
 
     start = time.time()
     try:
-        # Gunakan API deteksi IP eksternal atau target blog
-        test_url = target_url
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ChronicleTrafficBot/1.0"
         }
 
         resp = requests.get(
-            test_url,
+            target_url,
             proxies=proxies_dict,
             timeout=timeout,
             headers=headers,
-            allow_redirects=True
+            allow_redirects=True,
         )
 
         elapsed = (time.time() - start) * 1000
         result["latency_ms"] = round(elapsed, 1)
         result["status_code"] = resp.status_code
 
-        if resp.status_code in [200, 301, 302, 304]:
+        if resp.status_code == 200:
             result["http_ok"] = True
+        elif resp.status_code == 402:
+            result["error"] = "402 Payment Required - saldo/akun proxy habis atau expired"
         else:
-            result["error"] = f"HTTP Error Status {resp.status_code}"
+            result["error"] = f"HTTP {resp.status_code} (bukan 200 OK)"
 
-    except requests.exceptions.ProxyError as e:
-        result["error"] = "Proxy Auth / Tunnel Failed (Username/Password salah atau server menolak koneksi)"
-        result["latency_ms"] = round((time.time() - start) * 1000, 1)
-    except requests.exceptions.ConnectTimeout:
-        result["error"] = f"Connection Timed Out (> {timeout}s)"
-        result["latency_ms"] = round(timeout * 1000, 1)
-    except requests.exceptions.ReadTimeout:
-        result["error"] = "Read Timed Out (Server proksi merespons terlalu lambat)"
-        result["latency_ms"] = round(timeout * 1000, 1)
-    except requests.exceptions.SSLError as e:
-        result["error"] = f"SSL Handshake Error via Proxy: {e}"
-    except Exception as e:
-        err_s = str(e).splitlines()[0] if str(e) else "Unknown"
-        result["error"] = err_s[:80]
-        result["latency_ms"] = round((time.time() - start) * 1000, 1)
+    except Exception as target_error:
+        elapsed = (time.time() - start) * 1000
+        result["latency_ms"] = round(elapsed, 1)
+        err_s = str(target_error).splitlines()[0] if str(target_error) else "Unknown"
+        if "402" in err_s:
+            result["error"] = "402 Payment Required - saldo/akun proxy habis atau expired"
+        elif "407" in err_s:
+            result["error"] = "Proxy Auth / Tunnel Failed (Username/Password salah atau server menolak koneksi)"
+        elif isinstance(target_error, requests.exceptions.ConnectTimeout):
+            result["error"] = f"Connection Timed Out (> {timeout}s)"
+        elif isinstance(target_error, requests.exceptions.ReadTimeout):
+            result["error"] = "Read Timed Out (Server proksi merespons terlalu lambat)"
+        elif isinstance(target_error, requests.exceptions.SSLError):
+            result["error"] = f"SSL Handshake Error via Proxy: {err_s[:60]}"
+        else:
+            result["error"] = err_s[:80]
 
     return result
 
@@ -136,9 +157,9 @@ def main():
     parser = argparse.ArgumentParser(description="Chronicle Proxy Connection Tester & Diagnostic")
     parser.add_argument("--file", "-f", default=str(DEFAULT_PROXIES_JSON), help="Path ke file proxies.json")
     parser.add_argument("--proxy", "-p", default=None, help="Tes satu URL/string proksi saja (misal: http://user:pass@host:port)")
-    parser.add_argument("--target", "-t", default=DEFAULT_TARGET, help="Target URL yang ingin diuji (default: https://blog.riztama.my.id)")
+    parser.add_argument("--target", "-t", default=DEFAULT_TARGET, help="Target URL yang ingin diuji (default: https://read.riztama.my.id)")
     parser.add_argument("--timeout", type=float, default=6.0, help="Batas timeout per proksi dalam detik (default: 6.0s)")
-    parser.add_argument("--threads", type=int, default=15, help="Jumlah thread pengujian paralel (default: 15)")
+    parser.add_argument("--threads", type=int, default=1, help="Jumlah thread pengujian paralel (default: 1 = linear satu per satu)")
     parser.add_argument("--limit", "-l", type=int, default=None, help="Batasi jumlah proksi yang diuji (contoh: 10 untuk tes cepat)")
     parser.add_argument("--save-alive", "-s", default=None, help="Simpan hanya proksi yang aktif ke file JSON (contoh: automation/proxies_alive.json)")
     parser.add_argument("--clean-dead", "--auto-clean", action="store_true", help="Otomatis hapus proksi mati langsung dari file aslinya (dengan backup otomatis)")
@@ -150,6 +171,14 @@ def main():
     print(f"[*] Target Uji       : {args.target}")
     print(f"[*] Timeout per Host : {args.timeout} detik")
     print(f"[*] Parallel Threads : {args.threads}")
+
+    target_ok, target_reason = check_target_direct(args.target, timeout=min(8.0, args.timeout))
+    if target_ok:
+        print(f"[*] Target Langsung  : OK ({target_reason})")
+    else:
+        print(f"[!] [TARGET-GUARD] Target langsung TIDAK 200 OK ({target_reason}).")
+        print("[!] Hasil gagal proksi tidak boleh disimpulkan sebagai proxy mati;")
+        print("[!] --clean-dead otomatis dibatalkan pada run ini.")
 
     proxies_to_test = []
 
@@ -241,11 +270,15 @@ def main():
                 detail = f"HTTP {res['status_code']} OK"
                 color_code = "\033[92m" # Green
             else:
-                dead_count += 1
-                status_str = "❌ MATI"
+                if target_ok:
+                    dead_count += 1
+                    status_str = "❌ MATI"
+                    color_code = "\033[91m" # Red
+                else:
+                    status_str = "⚠️ GAGAL"
+                    color_code = "\033[93m" # Yellow
                 latency_str = f"{res['latency_ms']:.0f}ms" if res['latency_ms'] > 0 else "-"
                 detail = res["error"] or "Gagal terhubung"
-                color_code = "\033[91m" # Red
 
             reset_code = "\033[0m"
             print(f"{color_code}{idx:<4} {country:<16} {host_port:<28} {status_str:<10} {latency_str:<10} {detail[:30]}{reset_code}")
@@ -265,7 +298,7 @@ def main():
     print("=" * 70)
 
     # Otomatis bersihkan proksi mati dari file sumber jika --clean-dead aktif
-    if args.clean_dead and not args.proxy:
+    if args.clean_dead and not args.proxy and target_ok:
         src_path = Path(args.file)
         if src_path.exists():
             backup_path = src_path.parent / "proxies_backup.json"
@@ -277,11 +310,37 @@ def main():
                 except Exception:
                     pass
             try:
+                def _key(px):
+                    return (
+                        str(px.get("host", "")).lower(),
+                        str(px.get("port", "")),
+                        str(px.get("username", "")),
+                    )
+
+                tested_keys = {_key(px) for px in proxies_to_test}
+                alive_keys = {_key(px) for px in alive_proxies}
+                with open(src_path, "r", encoding="utf-8") as f:
+                    current = json.load(f)
+
+                merged = []
+                for px in current:
+                    key = _key(px)
+                    if key in tested_keys:
+                        if key in alive_keys:
+                            clean = dict(px)
+                            clean.pop("dead", None)
+                            merged.append(clean)
+                    else:
+                        merged.append(px)
+
                 with open(src_path, "w", encoding="utf-8") as f:
-                    json.dump(alive_proxies, f, indent=2)
-                print(f"[✓] 🧹 [AUTO-CLEAN] Berhasil membuang {dead_count} proksi mati dari {src_path.name}! (Sisa aktif: {len(alive_proxies)} proksi).")
+                    json.dump(merged, f, indent=2)
+                print(f"[✓] 🧹 [AUTO-CLEAN] Berhasil membuang {dead_count} proksi mati dari {src_path.name}! (Sisa aktif: {len(merged)} proksi, proksi baru yang tidak diuji tetap dipertahankan).")
             except Exception as e:
                 print(f"[-] Gagal memperbarui file proksi: {e}")
+
+    elif args.clean_dead and not args.proxy and not target_ok:
+        print("[!] [AUTO-CLEAN] Dibatalkan karena target langsung tidak merespons 200 OK.")
 
     # Simpan proksi aktif jika diminta
     if args.save_alive and alive_proxies:

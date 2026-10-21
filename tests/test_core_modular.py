@@ -33,7 +33,9 @@ def test_core_proxy_manager():
     ]
     pm = ProxyManager(proxies=dummy_proxies)
     assert len(pm.proxies) == 2
-    assert 1 in pm.dead_indices
+    # Flag dead lama dari disk sengaja diabaikan agar semua proksi diuji ulang.
+    assert pm.dead_indices == set()
+    assert "dead" not in pm.proxies[1]
 
 
 def test_youtube_config_loads():

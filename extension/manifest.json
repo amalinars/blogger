@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "GoLogin Signup Helper",
+  "version": "1.0.0",
+  "description": "Bantu signup GoLogin, lewati installer, lalu salin list proxy otomatis.",
+  "permissions": ["storage", "downloads", "clipboardWrite"],
+  "host_permissions": ["https://app.gologin.com/*", "https://dl.gologin.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.gologin.com/*"],
+      "js": ["page-captcha.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://app.gologin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "GoLogin Signup Helper",
+    "default_popup": "popup.html"
+  }
+}

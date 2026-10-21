@@ -120,8 +120,8 @@ def create_stealth_context(
     stealth_script = get_stealth_init_script(fp_profile)
     context.add_init_script(stealth_script)
 
-    # Batasi timeout default agar aksi Playwright (click, move, evaluate) tidak pernah nge-hang/stuck selamanya
-    context.set_default_timeout(15000)             # Maks 15 detik untuk interaksi elemen/mouse/evaluasi
+    # Batasi timeout default agar aksi Playwright (click, waitFor, dll) tidak nge-hang selamanya
+    context.set_default_timeout(15000)             # Maks 15 detik untuk interaksi elemen
     context.set_default_navigation_timeout(25000)  # Maks 25 detik untuk navigasi halaman
 
     # Otomatis dismiss dialog tak terduga (alert/prompt/confirm/beforeunload) agar worker tidak macet

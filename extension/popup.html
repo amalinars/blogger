@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GoLogin Signup Helper</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; width: 340px; background: #0d1117; color: #e6edf3; font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    header { padding: 14px 16px 10px; border-bottom: 1px solid #21262d; }
+    h1 { margin: 0; font-size: 14px; letter-spacing: .2px; }
+    .sub { color: #8b949e; font-size: 11px; margin-top: 3px; }
+    main { padding: 14px 16px; }
+    label { display: block; color: #8b949e; font-size: 11px; margin: 10px 0 4px; }
+    input[type="text"], input[type="password"] { width: 100%; padding: 7px 9px; border: 1px solid #30363d; border-radius: 6px; background: #161b22; color: #e6edf3; font: inherit; }
+    input:focus { outline: none; border-color: #2f81f7; }
+    .row { display: flex; gap: 8px; }
+    .row > div { flex: 1; }
+    .email-box { display: flex; gap: 6px; align-items: center; background: #161b22; border: 1px solid #30363d; border-radius: 6px; padding: 6px 8px; }
+    .email-box code { flex: 1; color: #7ee2c2; font-size: 12px; word-break: break-all; }
+    button { all: unset; cursor: pointer; padding: 6px 10px; border-radius: 6px; background: #21262d; color: #c9d1d9; font: inherit; text-align: center; }
+    button:hover { background: #30363d; }
+    button.primary { background: #238636; color: #fff; }
+    button.primary:hover { background: #2ea043; }
+    .toggles { margin-top: 12px; border-top: 1px solid #21262d; padding-top: 8px; }
+    .toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0; color: #c9d1d9; font-size: 12px; }
+    .toggle input { width: 15px; height: 15px; accent-color: #2ea043; }
+    .actions { display: flex; gap: 8px; margin-top: 14px; }
+    .actions button { flex: 1; }
+    .note { margin-top: 12px; padding: 8px 9px; border: 1px solid #3d2e00; background: #201a00; color: #d4a72c; border-radius: 6px; font-size: 11px; }
+    .saved { color: #3fb950; font-size: 11px; margin-left: auto; align-self: center; }
+    textarea { width: 100%; height: 90px; resize: vertical; padding: 7px 9px; border: 1px solid #30363d; border-radius: 6px; background: #161b22; color: #7ee2c2; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    textarea:focus { outline: none; border-color: #2f81f7; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>GoLogin Signup Helper</h1>
+    <div class="sub">Signup, login, skip installer, tutup popup.</div>
+  </header>
+  <main>
+    <label>Email akun</label>
+    <div class="email-box">
+      <code id="email">-</code>
+      <button id="copy" title="Copy">Copy</button>
+      <button id="regen" title="Generate ulang">Baru</button>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="prefix">Nama dasar (opsional)</label>
+        <input id="prefix" type="text" spellcheck="false" placeholder="kosong = nama random">
+      </div>
+      <div>
+        <label for="domain">Domain</label>
+        <input id="domain" type="text" spellcheck="false">
+      </div>
+    </div>
+
+    <label for="password">Password</label>
+    <input id="password" type="password" spellcheck="false">
+
+    <div class="toggles">
+      <div class="toggle"><span>Helper aktif</span><input id="enabled" type="checkbox"></div>
+      <div class="toggle"><span>Auto isi + submit signup</span><input id="autoSignup" type="checkbox"></div>
+      <div class="toggle"><span>Auto login</span><input id="autoLogin" type="checkbox"></div>
+      <div class="toggle"><span>Auto selesaikan quiz</span><input id="autoQuiz" type="checkbox"></div>
+      <div class="toggle"><span>Lewati halaman installer</span><input id="skipInstaller" type="checkbox"></div>
+      <div class="toggle"><span>Batalkan download installer</span><input id="blockDownloads" type="checkbox"></div>
+      <div class="toggle"><span>Tutup popup otomatis</span><input id="dismissPopups" type="checkbox"></div>
+    </div>
+
+    <div class="actions">
+      <button id="save" class="primary">Simpan</button>
+      <button id="open">Buka signup</button>
+    </div>
+    <div class="note">Mulai dari tombol Start di floating UI. Captcha dan verifikasi email tetap manual.</div>
+
+    <label>List proxy terakhir</label>
+    <textarea id="proxies" readonly placeholder="Belum ada. Klik Start di halaman GoLogin."></textarea>
+    <div class="actions">
+      <button id="copyProxies">Copy list proxy</button>
+    </div>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>

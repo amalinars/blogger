@@ -173,16 +173,24 @@ def main():
     for i in range(args.sessions):
         print(f"\n>>> Meluncurkan Sesi YouTube {i + 1} dari {args.sessions} <<<")
         selected_proxy = None
+        selected_proxy_idx = None
         if proxy_mgr:
-            selected_proxy, _ = proxy_mgr.get_valid_proxy(target_url=target_url, worker_id=1)
+            selected_proxy, selected_proxy_idx = proxy_mgr.get_valid_proxy(target_url=target_url, worker_id=1)
+            if selected_proxy is None:
+                print("[!] [ANTI-LEAK GUARD] Tidak ada proksi valid. Sesi YouTube dibatalkan.")
+                break
 
-        run_youtube_session(
-            target_url=target_url,
-            proxy=selected_proxy,
-            headless=headless,
-            watch_seconds=watch_seconds,
-            worker_id=1,
-        )
+        try:
+            run_youtube_session(
+                target_url=target_url,
+                proxy=selected_proxy,
+                headless=headless,
+                watch_seconds=watch_seconds,
+                worker_id=1,
+            )
+        finally:
+            if proxy_mgr and selected_proxy_idx is not None:
+                proxy_mgr.release_proxy(selected_proxy_idx, worker_id=1)
 
 
 if __name__ == "__main__":

@@ -11,6 +11,11 @@ import time
 import re
 from pathlib import Path
 from datetime import datetime
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -34,7 +39,7 @@ def load_config_data():
         except Exception:
             pass
     return {
-        "target_base_url": "https://blog.riztama.my.id",
+        "target_base_url": "https://read.riztama.my.id",
         "local_test_url": "http://localhost:3000",
         "dwell_time": {"min_seconds": 35, "max_seconds": 55},
         "headless": False,
@@ -51,6 +56,14 @@ def load_proxies_data():
         except Exception:
             pass
     return []
+
+
+def save_proxies_data(proxies):
+    """Atomic write agar proses bot yang sedang membaca file tidak melihat JSON setengah jadi."""
+    temp_file = PROXIES_PATH.with_suffix(".tmp")
+    with open(temp_file, "w", encoding="utf-8") as f:
+        json.dump(proxies, f, indent=2)
+    temp_file.replace(PROXIES_PATH)
 
 
 def parse_proxy_line(raw: str):
@@ -231,6 +244,11 @@ class BotProcessWorker(QThread):
                     "proxy_str": px_disp
                 })
                 emit("INFO", line)
+                return
+            elif "gagal" in line.lower() or "diistirahatkan" in line.lower():
+                if proxy_ref:
+                    self.proxy_status_signal.emit(proxy_ref, "COOLDOWN", "Belum mati")
+                emit("WARN", line)
                 return
 
         # Real-time Proxy-Guard events (Auto-flagging dead proxies)
@@ -758,8 +776,7 @@ class ProxyImportDialog(QDialog):
             msg = f"Berhasil mengganti seluruh daftar dengan {len(final_list)} proksi baru!"
 
         try:
-            with open(PROXIES_PATH, "w", encoding="utf-8") as f:
-                json.dump(final_list, f, indent=2)
+            save_proxies_data(final_list)
 
             if self.parent_gui:
                 self.parent_gui.reload_proxies_ui()
@@ -777,9 +794,10 @@ class ProxyImportDialog(QDialog):
 
 class ProxyTesterWorker(QThread):
     result_signal = Signal(int, dict)  # index, result_dict
+    target_guard_signal = Signal(bool, str)  # target_ok, reason
     finished_signal = Signal(int, int, float, list)  # alive_count, dead_count, avg_latency, alive_list
 
-    def __init__(self, proxies, target_url="https://blog.riztama.my.id", timeout=5.0, max_threads=15):
+    def __init__(self, proxies, target_url="https://read.riztama.my.id", timeout=8.0, max_threads=1):
         super().__init__()
         self.proxies = proxies
         self.target_url = target_url
@@ -788,7 +806,7 @@ class ProxyTesterWorker(QThread):
         self._is_stopped = False
 
     def run(self):
-        from automation.test_proxies import test_proxy_http
+        from automation.test_proxies import check_target_direct, test_proxy_http
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         total = len(self.proxies)
@@ -796,16 +814,21 @@ class ProxyTesterWorker(QThread):
             self.finished_signal.emit(0, 0, 0.0, [])
             return
 
+        target_ok, target_reason = check_target_direct(self.target_url, timeout=6.0)
+        self.target_guard_signal.emit(target_ok, target_reason)
+
         alive_list = []
         dead_count = 0
         total_latency = 0.0
 
-        with ThreadPoolExecutor(max_workers=min(self.max_threads, total)) as executor:
-            futures = {
-                executor.submit(test_proxy_http, px, self.target_url, self.timeout): (idx + 1, px)
-                for idx, px in enumerate(self.proxies)
-            }
+        max_workers = max(1, min(self.max_threads, total))
+        executor = ThreadPoolExecutor(max_workers=max_workers)
+        futures = {
+            executor.submit(test_proxy_http, px, self.target_url, self.timeout): (idx + 1, px)
+            for idx, px in enumerate(self.proxies)
+        }
 
+        try:
             for fut in as_completed(futures):
                 if self._is_stopped:
                     break
@@ -819,7 +842,7 @@ class ProxyTesterWorker(QThread):
                         "country": orig_px.get("country", "Unknown"),
                         "http_ok": False,
                         "latency_ms": 0,
-                        "error": str(e)
+                        "error": str(e),
                     }
 
                 if res.get("http_ok"):
@@ -829,6 +852,14 @@ class ProxyTesterWorker(QThread):
                     dead_count += 1
 
                 self.result_signal.emit(idx, res)
+        finally:
+            for fut in futures:
+                fut.cancel()
+            executor.shutdown(wait=True)
+
+        if not self._is_stopped and dead_count > 0:
+            final_ok, final_reason = check_target_direct(self.target_url, timeout=6.0)
+            self.target_guard_signal.emit(final_ok, final_reason)
 
         alive_count = len(alive_list)
         avg_latency = (total_latency / alive_count) if alive_count > 0 else 0.0
@@ -858,9 +889,23 @@ class ProxyTestDialog(QDialog):
         title.setStyleSheet("color: #38bdf8;")
         layout.addWidget(title)
 
-        info = QLabel("Uji apakah server proksi Anda aktif dan bisa membuka web target (https://blog.riztama.my.id).")
+        info = QLabel("Uji apakah server proksi Anda aktif dan bisa membuka web target (https://read.riztama.my.id).")
         info.setStyleSheet("color: #94a3b8; font-size: 11px;")
         layout.addWidget(info)
+
+        speed_row = QHBoxLayout()
+        speed_lbl = QLabel("Parallel:")
+        speed_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        speed_row.addWidget(speed_lbl)
+        self.threads_spin = QSpinBox()
+        self.threads_spin.setRange(1, 10)
+        self.threads_spin.setValue(4)
+        self.threads_spin.setSuffix(" worker")
+        self.threads_spin.setFixedWidth(100)
+        self.threads_spin.setToolTip("Jumlah proxy yang diuji bersamaan. 1 = paling aman/linear, 4 = lebih cepat.")
+        speed_row.addWidget(self.threads_spin)
+        speed_row.addStretch()
+        layout.addLayout(speed_row)
 
         # Status & Progress
         self.progress_bar = QProgressBar()
@@ -881,8 +926,8 @@ class ProxyTestDialog(QDialog):
         layout.addWidget(self.result_text)
 
         # Auto prune checkbox
-        self.auto_prune_check = QCheckBox("🧹 Otomatis Hapus Proksi yang Mati dari proxies.json jika ditemukan mati")
-        self.auto_prune_check.setChecked(True)
+        self.auto_prune_check = QCheckBox("🧹 Hapus permanen proksi yang benar-benar mati (hanya hasil tes penuh)")
+        self.auto_prune_check.setChecked(False)
         self.auto_prune_check.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: bold; margin-top: 4px;")
         layout.addWidget(self.auto_prune_check)
 
@@ -901,6 +946,11 @@ class ProxyTestDialog(QDialog):
         self.save_alive_btn.setEnabled(False)
         self.save_alive_btn.clicked.connect(self.save_alive_only)
 
+        self.stop_btn = QPushButton("⏹️ Stop Tes")
+        self.stop_btn.setObjectName("SecondaryBtn")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self.stop_testing)
+
         self.close_btn = QPushButton("Tutup")
         self.close_btn.setObjectName("SecondaryBtn")
         self.close_btn.clicked.connect(self.close)
@@ -908,6 +958,7 @@ class ProxyTestDialog(QDialog):
         btn_layout.addWidget(self.test_all_btn)
         btn_layout.addWidget(self.test_fast_btn)
         btn_layout.addWidget(self.save_alive_btn)
+        btn_layout.addWidget(self.stop_btn)
         btn_layout.addStretch()
         btn_layout.addWidget(self.close_btn)
         layout.addLayout(btn_layout)
@@ -918,15 +969,21 @@ class ProxyTestDialog(QDialog):
             QMessageBox.warning(self, "Peringatan", "Tidak ada proksi di dalam daftar (proxies.json kosong).")
             return
 
+        self.target_ok = True
+        self.target_reason = "Memeriksa target..."
+
         self.is_limited_test = bool(limit)
         if limit:
             proxies = proxies[:limit]
+        self.tested_snapshot = list(proxies)
 
         self.total_to_test = len(proxies)
         self.tested_count = 0
         self.alive_count = 0
         self.dead_count = 0
+        self.payment_error_count = 0
         self.alive_proxies = []
+        self.was_stopped = False
 
         self.result_text.clear()
         self.progress_bar.setRange(0, self.total_to_test)
@@ -934,12 +991,35 @@ class ProxyTestDialog(QDialog):
         self.test_all_btn.setEnabled(False)
         self.test_fast_btn.setEnabled(False)
         self.save_alive_btn.setEnabled(False)
-        self.summary_lbl.setText(f"Sedang menguji {self.total_to_test} proksi...")
+        self.stop_btn.setEnabled(True)
+        self.threads_spin.setEnabled(False)
+        self.summary_lbl.setText("Memeriksa kesehatan target...")
 
-        self.worker = ProxyTesterWorker(proxies, timeout=5.0, max_threads=15)
+        self.worker = ProxyTesterWorker(
+            proxies,
+            timeout=6.0,
+            max_threads=self.threads_spin.value(),
+        )
+        self.worker.target_guard_signal.connect(self.on_target_guard)
         self.worker.result_signal.connect(self.on_proxy_result)
         self.worker.finished_signal.connect(self.on_testing_finished)
         self.worker.start()
+
+    def on_target_guard(self, ok: bool, reason: str):
+        self.target_ok = ok
+        self.target_reason = reason
+        if ok:
+            if self.tested_count == 0:
+                self.summary_lbl.setText(f"Target OK. Menguji {self.total_to_test} proksi...")
+            return
+
+        self.result_text.append(
+            f"<div style='color:#facc15;'><b>[TARGET-GUARD]</b> Target tidak merespons 200 OK "
+            f"secara langsung ({reason}). Hasil gagal TIDAK dihitung sebagai proxy mati dan "
+            "auto-prune dibatalkan.</div>"
+        )
+        if self.tested_count == 0:
+            self.summary_lbl.setText(f"Target tidak sehat. Menguji {self.total_to_test} proksi untuk diagnosa...")
 
     def on_proxy_result(self, idx: int, res: dict):
         self.tested_count += 1
@@ -953,21 +1033,64 @@ class ProxyTestDialog(QDialog):
             self.alive_count += 1
             line = f"<div style='margin-bottom:2px; color:#4ade80;'>✅ #{idx} [{country}] {host_port} - OK ({lat})</div>"
         else:
-            self.dead_count += 1
             err = res.get("error", "Gagal")
-            line = f"<div style='margin-bottom:2px; color:#f43f5e;'>❌ #{idx} [{country}] {host_port} - MATI ({err})</div>"
+            if "402" in err:
+                self.payment_error_count += 1
+            if self.target_ok:
+                self.dead_count += 1
+                line = f"<div style='margin-bottom:2px; color:#f43f5e;'>❌ #{idx} [{country}] {host_port} - MATI ({err})</div>"
+            else:
+                line = f"<div style='margin-bottom:2px; color:#facc15;'>⚠️ #{idx} [{country}] {host_port} - GAGAL, target tidak sehat ({err})</div>"
 
         self.result_text.append(line)
         self.result_text.moveCursor(QTextCursor.End)
-        self.summary_lbl.setText(f"Progress: {self.tested_count}/{self.total_to_test} | ✅ {self.alive_count} Hidup | ❌ {self.dead_count} Mati")
+        self.summary_lbl.setText(
+            f"Progress: {self.tested_count}/{self.total_to_test} | "
+            f"✅ {self.alive_count} Hidup | ❌ {self.dead_count} Mati"
+        )
+
+    def _merge_proxy_test_results(self, tested_snapshot: list, alive_list: list) -> list:
+        """
+        Menghapus hanya proksi yang benar-benar diuji dan gagal.
+        Proksi baru yang ditambahkan saat tes berjalan tetap dipertahankan.
+        """
+        current = load_proxies_data()
+        tested_keys = {(str(px.get("host", "")).lower(), str(px.get("port", "")), str(px.get("username", ""))) for px in tested_snapshot}
+        alive_keys = {(str(px.get("host", "")).lower(), str(px.get("port", "")), str(px.get("username", ""))) for px in alive_list}
+        merged = []
+        for px in current:
+            key = (str(px.get("host", "")).lower(), str(px.get("port", "")), str(px.get("username", "")))
+            if key in tested_keys:
+                if key in alive_keys:
+                    clean = dict(px)
+                    clean.pop("dead", None)
+                    merged.append(clean)
+            else:
+                merged.append(px)
+        return merged
 
     def on_testing_finished(self, alive: int, dead: int, avg_lat: float, alive_list: list):
         self.test_all_btn.setEnabled(True)
         self.test_fast_btn.setEnabled(True)
+        self.stop_btn.setEnabled(False)
+        self.threads_spin.setEnabled(True)
         self.alive_proxies = alive_list
 
-        # Auto-prune proksi mati jika opsi dicentang dan pengujian penuh dilakukan
-        if getattr(self, "auto_prune_check", None) and self.auto_prune_check.isChecked() and dead > 0 and not self.is_limited_test:
+        completed = (
+            not self.was_stopped
+            and self.total_to_test > 0
+            and self.tested_count >= self.total_to_test
+        )
+        full_test = completed and not self.is_limited_test
+
+        if not completed:
+            self.result_text.append(
+                f"<br><span style='color:#facc15;'><b>[STOP]</b> Tes dihentikan setelah "
+                f"{self.tested_count}/{self.total_to_test} proksi. Auto-prune dibatalkan agar "
+                "proksi yang belum diuji tidak ikut terhapus.</span>"
+            )
+
+        if getattr(self, "auto_prune_check", None) and self.auto_prune_check.isChecked() and full_test and self.target_ok and dead > 0:
             backup_file = PROXIES_PATH.parent / "proxies_backup.json"
             if not backup_file.exists() and PROXIES_PATH.exists():
                 try:
@@ -976,16 +1099,55 @@ class ProxyTestDialog(QDialog):
                 except Exception:
                     pass
             try:
-                with open(PROXIES_PATH, "w", encoding="utf-8") as f:
-                    json.dump(alive_list, f, indent=2)
+                merged = self._merge_proxy_test_results(getattr(self, "tested_snapshot", []), alive_list)
+                save_proxies_data(merged)
                 if self.parent_gui:
                     self.parent_gui.reload_proxies_ui()
-                self.result_text.append(f"<br><span style='color:#38bdf8;'><b>🧹 [AUTO-PRUNE]</b> {dead} proksi mati telah otomatis dihapus dari proxies.json. (Sisa: {len(alive_list)} proksi aktif). Salinan cadangan aman di proxies_backup.json.</span>")
+                self.result_text.append(f"<br><span style='color:#38bdf8;'><b>🧹 [AUTO-PRUNE]</b> {dead} proksi mati telah dihapus dari proxies.json. (Sisa: {len(merged)} proksi aktif). Salinan cadangan aman di proxies_backup.json.</span>")
             except Exception as e:
                 self.result_text.append(f"<br><span style='color:#f43f5e;'>[-] Gagal auto-prune file proksi: {e}</span>")
 
+        if not self.target_ok:
+            self.save_alive_btn.setEnabled(False)
+            self.summary_lbl.setText(
+                f"⚠️ Tes selesai, tetapi target tidak sehat. ✅ {alive} lolos | "
+                f"⚠️ {self.tested_count - alive} gagal (tidak dihitung mati)"
+            )
+            self.summary_lbl.setStyleSheet("color: #facc15; font-size: 11px; font-weight: bold;")
+            self.result_text.append(
+                "<br><b style='color:#facc15;'>[TARGET-GUARD] Hasil tidak valid untuk menghapus proxy. "
+                "Cek target/Cloudflare lalu tes ulang.</b>"
+            )
+            return
+
+        if not completed:
+            self.save_alive_btn.setEnabled(False)
+            self.summary_lbl.setText(
+                f"⏹️ Tes dihentikan: {self.tested_count}/{self.total_to_test} diuji | "
+                f"✅ {alive} Hidup | ❌ {dead} Mati"
+            )
+            self.summary_lbl.setStyleSheet("color: #facc15; font-size: 11px; font-weight: bold;")
+            if self.payment_error_count > 0:
+                self.result_text.append(
+                    "<br><b style='color:#facc15;'>[PROXY-BILLING] Sebagian proxy ditolak 402 "
+                    "Payment Required (saldo/akun provider habis).</b>"
+                )
+            return
+
+        if self.payment_error_count > 0 and self.payment_error_count == dead:
+            self.summary_lbl.setText(
+                f"⚠️ Semua {dead} proxy ditolak 402 Payment Required (saldo/akun provider habis)"
+            )
+            self.summary_lbl.setStyleSheet("color: #facc15; font-size: 11px; font-weight: bold;")
+            self.result_text.append(
+                "<br><b style='color:#facc15;'>[PROXY-BILLING] 402 bukan bug tes dan bukan target down. "
+                "Top up saldo/akun FloppyData, lalu tes ulang sebelum menghapus proxy.</b>"
+            )
+            self.save_alive_btn.setEnabled(completed and alive > 0)
+            return
+
         if alive > 0:
-            self.save_alive_btn.setEnabled(True)
+            self.save_alive_btn.setEnabled(completed)
             self.summary_lbl.setText(f"🎉 Pengujian Selesai: ✅ {alive} Hidup ({avg_lat:.0f}ms) | ❌ {dead} Mati")
             self.summary_lbl.setStyleSheet("color: #4ade80; font-size: 11px; font-weight: bold;")
         else:
@@ -994,22 +1156,55 @@ class ProxyTestDialog(QDialog):
             self.summary_lbl.setStyleSheet("color: #f43f5e; font-size: 11px; font-weight: bold;")
             self.result_text.append("<br><b style='color:#facc15;'>[PANDUAN] Server proksi tidak merespons (FloppyData down). Solusi: Hilangkan centang 'Gunakan Proksi Residensial' di Dashboard untuk menjalankan bot secara langsung tanpa hambatan.</b>")
 
+    def stop_testing(self):
+        if self.worker and self.worker.isRunning():
+            self.was_stopped = True
+            self.worker.stop()
+            self.stop_btn.setEnabled(False)
+            self.summary_lbl.setText(
+                f"Menghentikan tes... ({self.tested_count}/{self.total_to_test} selesai)"
+            )
+
     def save_alive_only(self):
         if not self.alive_proxies:
             return
+        if not getattr(self, "target_ok", False):
+            QMessageBox.warning(
+                self,
+                "Target Tidak Sehat",
+                "Hasil tes tidak valid karena target tidak merespons 200 OK. Tes ulang dulu.",
+            )
+            return
+        if getattr(self, "was_stopped", False) or self.tested_count < self.total_to_test:
+            QMessageBox.warning(
+                self,
+                "Tes Belum Selesai",
+                "Tes dihentikan sebelum semua proxy diuji. Jalankan tes penuh dulu agar "
+                "proxy yang belum diuji tidak ikut terhapus.",
+            )
+            return
         try:
-            with open(PROXIES_PATH, "w", encoding="utf-8") as f:
-                json.dump(self.alive_proxies, f, indent=2)
+            merged = self._merge_proxy_test_results(getattr(self, "tested_snapshot", []), self.alive_proxies)
+            save_proxies_data(merged)
             if self.parent_gui:
                 self.parent_gui.reload_proxies_ui()
-            QMessageBox.information(self, "Berhasil", f"Berhasil menyimpan {len(self.alive_proxies)} proksi aktif ke proxies.json!")
+            QMessageBox.information(self, "Berhasil", f"Berhasil menyimpan {len(merged)} proksi aktif ke proxies.json!")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Gagal menyimpan: {e}")
 
     def closeEvent(self, event):
         if self.worker and self.worker.isRunning():
+            self.was_stopped = True
+            self.auto_prune_check.setChecked(False)
             self.worker.stop()
-            self.worker.wait(1000)
+            if not self.worker.wait(15000):
+                QMessageBox.information(
+                    self,
+                    "Masih Menghentikan Tes",
+                    "Proxy yang sedang diuji belum selesai. Tunggu sebentar lalu tutup lagi.",
+                )
+                event.ignore()
+                return
         event.accept()
 
 
@@ -1165,6 +1360,7 @@ class WorkerCard(QFrame):
         self.is_dwelling = False
         self.dwell_end_time = 0.0
         self.dwell_label = "Dwell Time"
+        self._last_step_idx = -1  # Monotonic guard: stepper hanya maju, tidak mundur
         self.setObjectName("WorkerCard")
         self.init_ui()
 
@@ -1235,6 +1431,7 @@ class WorkerCard(QFrame):
     def reset_state(self):
         self.is_dwelling = False
         self.dwell_end_time = 0.0
+        self._last_step_idx = -1
         self.session_lbl.setText("🎯 Sesi: Menunggu")
         self.status_pill.setText("⚪ STANDBY (SIAP)")
         self.status_pill.setStyleSheet("background: #1e293b; color: #64748b; border: 1px solid #334155; border-radius: 4px; padding: 2px 8px;")
@@ -1312,9 +1509,20 @@ class WorkerCard(QFrame):
             self.detail_lbl.setText(f"🔗 {data['url']}")
 
         if step_key:
+            # Sesi baru dimulai → reset posisi stepper ke awal
+            if step_key == "START":
+                self._last_step_idx = -1
+                self.stepper.set_current_step(-1)
+
             idx = get_step_index(step_key, hop, self.max_pages, self.has_smartlink)
             if idx >= 0:
-                self.stepper.set_current_step(idx)
+                # Guard monotonis: stepper hanya boleh maju, tidak boleh mundur
+                if idx > self._last_step_idx:
+                    self._last_step_idx = idx
+                    self.stepper.set_current_step(idx)
+                elif idx == self._last_step_idx:
+                    pass  # Posisi sama, tidak perlu update
+                # idx < self._last_step_idx → diabaikan (bukan maju, buang)
 
 
 class TrafficBotGUI(QMainWindow):
@@ -1346,9 +1554,9 @@ class TrafficBotGUI(QMainWindow):
 
     def _cleanup_dead_proxies_on_startup(self):
         """
-        Saat GUI pertama kali dibuka, hapus semua proksi dengan flag "dead": true
-        dari proxies.json secara permanen. Ini adalah satu-satunya tempat proksi mati
-        benar-benar dihapus dari file.
+        Saat GUI pertama kali dibuka, bersihkan flag runtime lama ("dead", "fail_count",
+        dsb) agar semua proksi mendapat kesempatan diuji ulang. Daftar proksi TIDAK
+        pernah dihapus di sini, sehingga proxy baru/berharga tidak hilang.
         """
         raw_text = ""
         if PROXIES_PATH.exists():
@@ -1380,16 +1588,20 @@ class TrafficBotGUI(QMainWindow):
             if not isinstance(all_proxies, list):
                 return
 
-            dead_count = sum(1 for px in all_proxies if px.get("dead", False))
-            if dead_count == 0:
+            revived_count = 0
+            for px in all_proxies:
+                if px.pop("dead", None) is not None:
+                    revived_count += 1
+                px.pop("fail_count", None)
+                px.pop("fail_streak", None)
+                px.pop("dead_at", None)
+
+            if revived_count == 0:
                 return
 
-            alive_proxies = [px for px in all_proxies if not px.get("dead", False)]
+            save_proxies_data(all_proxies)
 
-            with open(PROXIES_PATH, "w", encoding="utf-8") as f:
-                json.dump(alive_proxies, f, indent=2)
-
-            print(f"[✓] [STARTUP-CLEANUP] {dead_count} proksi mati (dead) dari sesi sebelumnya telah dihapus permanen. Tersisa {len(alive_proxies)} proksi aktif.")
+            print(f"[✓] [STARTUP-CLEANUP] {revived_count} proksi ber-flag mati telah diaktifkan kembali untuk diuji ulang. Total daftar tetap {len(all_proxies)} proksi (tidak ada yang dihapus).")
         except Exception as e:
             # Jika JSON rusak, coba pulihkan dari backup
             if backup_path.exists() and backup_path.stat().st_size > 0:
@@ -1435,7 +1647,7 @@ class TrafficBotGUI(QMainWindow):
         title_lbl.setFont(QFont("Segoe UI", 13, QFont.Bold))
         title_lbl.setStyleSheet("color: #38bdf8; letter-spacing: 0.5px;")
 
-        desc_lbl = QLabel("Otomasi Tayangan Iklan dan Kunjungan Organik untuk blog.riztama.my.id")
+        desc_lbl = QLabel("Otomasi Tayangan Iklan dan Kunjungan Organik untuk read.riztama.my.id")
         desc_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
         desc_lbl.setWordWrap(True)
 
@@ -1487,7 +1699,7 @@ class TrafficBotGUI(QMainWindow):
         t_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
         self.target_url_combo = QComboBox()
         self.target_url_combo.setEditable(True)
-        self.target_url_combo.addItem("https://blog.riztama.my.id (Server Live)")
+        self.target_url_combo.addItem("https://read.riztama.my.id (Server Live)")
         self.target_url_combo.addItem("http://localhost:3000 (Uji Coba Komputer Sendiri)")
         t_layout.addWidget(t_lbl)
         t_layout.addWidget(self.target_url_combo)
@@ -1796,7 +2008,7 @@ class TrafficBotGUI(QMainWindow):
 
         # Target Metric
         metrics_grid.addWidget(QLabel("Target Saat Ini:"), 0, 0)
-        self.metric_target = QLabel("https://blog.riztama.my.id")
+        self.metric_target = QLabel("https://read.riztama.my.id")
         self.metric_target.setStyleSheet("color: #38bdf8; font-weight: bold;")
         metrics_grid.addWidget(self.metric_target, 0, 1)
 
@@ -1965,6 +2177,15 @@ class TrafficBotGUI(QMainWindow):
         dlg.exec()
 
     def open_proxy_test_dialog(self):
+        if self.worker and self.worker.isRunning():
+            QMessageBox.warning(
+                self,
+                "Bot Sedang Berjalan",
+                "Tes proksi tidak bisa dijalankan saat bot aktif.\n"
+                "Menguji proksi yang sedang dipakai dapat membuat hasil tes tidak valid.\n\n"
+                "Silakan hentikan bot terlebih dahulu.",
+            )
+            return
         dlg = ProxyTestDialog(self)
         dlg.exec()
 
@@ -2090,9 +2311,9 @@ class TrafficBotGUI(QMainWindow):
             hp_item.setForeground(QColor("#f43f5e") if is_dead else QColor("#cbd5e1"))
 
             if is_dead:
-                status_item = QTableWidgetItem("❌ Mati (Dead)")
+                status_item = QTableWidgetItem("❌ Mati (sesi ini)")
                 status_item.setForeground(QColor("#f43f5e"))
-                desc_item = QTableWidgetItem("Akan dihapus saat GUI di-restart")
+                desc_item = QTableWidgetItem("Dilewati sampai bot dijalankan ulang (tidak dihapus)")
                 desc_item.setForeground(QColor("#f43f5e"))
             else:
                 status_item = QTableWidgetItem("⚪ Standby")
@@ -2196,8 +2417,11 @@ class TrafficBotGUI(QMainWindow):
                     status_item.setText(f"🚀 Dipakai ({extra})")
                     status_item.setForeground(QColor("#38bdf8"))
                 elif status_type == "DEAD":
-                    status_item.setText("❌ Mati (Dead)")
+                    status_item.setText("❌ Mati (sesi ini)")
                     status_item.setForeground(QColor("#f43f5e"))
+                elif status_type == "COOLDOWN":
+                    status_item.setText("⚠️ Gagal, belum mati")
+                    status_item.setForeground(QColor("#facc15"))
                 elif status_type == "STANDBY":
                     status_item.setText("⚪ Standby")
                     status_item.setForeground(QColor("#94a3b8"))
@@ -2211,8 +2435,11 @@ class TrafficBotGUI(QMainWindow):
                     desc_item.setText(extra or "HTTP 200 OK")
                     desc_item.setForeground(QColor("#4ade80"))
                 elif status_type == "DEAD":
-                    desc_item.setText("Akan dihapus saat GUI di-restart")
+                    desc_item.setText("Dilewati sampai bot dijalankan ulang (tidak dihapus)")
                     desc_item.setForeground(QColor("#f43f5e"))
+                elif status_type == "COOLDOWN":
+                    desc_item.setText("Belum mati, akan dicoba lagi")
+                    desc_item.setForeground(QColor("#facc15"))
                 elif status_type == "IN_USE":
                     desc_item.setText("Aktif digunakan oleh browser")
                     desc_item.setForeground(QColor("#38bdf8"))
@@ -2231,7 +2458,7 @@ class TrafficBotGUI(QMainWindow):
                 if status_type in ("TESTING", "IN_USE"):
                     w_item.setText(extra if "Browser" in extra else f"Browser #{extra}")
                     w_item.setForeground(QColor("#38bdf8"))
-                elif status_type in ("STANDBY", "DEAD"):
+                elif status_type in ("STANDBY", "DEAD", "COOLDOWN"):
                     w_item.setText("-")
                     w_item.setForeground(QColor("#64748b"))
 
@@ -2425,10 +2652,11 @@ class TrafficBotGUI(QMainWindow):
 
     def start_bot(self):
         self.save_temporary_config()
+        self.proxies_data = load_proxies_data()
 
         args = []
         target_raw = self.target_url_combo.currentText().strip()
-        target_url = "http://localhost:3000" if "localhost" in target_raw else "https://blog.riztama.my.id"
+        target_url = "http://localhost:3000" if "localhost" in target_raw else "https://read.riztama.my.id"
         if "localhost" in target_raw:
             args.append("--local")
 
@@ -2492,7 +2720,7 @@ class TrafficBotGUI(QMainWindow):
 
     def run_quick_test(self):
         target_raw = self.target_url_combo.currentText().strip()
-        target_url = "http://localhost:3000" if "localhost" in target_raw else "https://blog.riztama.my.id"
+        target_url = "http://localhost:3000" if "localhost" in target_raw else "https://read.riztama.my.id"
 
         args = ["--sessions", "1"]
         if "localhost" in target_raw:
@@ -2536,6 +2764,9 @@ class TrafficBotGUI(QMainWindow):
 
     def run_worker(self, args, target_url, sessions, is_unlimited=False):
         self.is_unlimited = is_unlimited
+        # Bersihkan status "Dipakai" yang tertinggal dari run sebelumnya
+        if hasattr(self, "proxy_table"):
+            self.populate_proxy_table()
         self.start_btn.setEnabled(False)
         self.quick_test_btn.setEnabled(False)
         self.stop_btn.setEnabled(True)

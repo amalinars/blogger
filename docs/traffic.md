@@ -46,7 +46,7 @@ In digital advertising ecosystems (Adsterra, Google AdSense, PropellerAds, etc.)
   * Pass native Google Chrome binary (`channel="chrome"`).
   * Do NOT inject synthetic script overrides.
 
-### 2.2 Why Self-Hosted Domains (`blog.riztama.my.id`) are Superior
+### 2.2 Why Self-Hosted Domains (`read.riztama.my.id`) are Superior
 * **Direct Access**: Zero third-party Cloudflare challenge loops (`HTTP 200 OK` instant delivery).
 * **Full Profit Retention**: No commissions extracted by intermediary link shorteners.
 * **Flexible Ad Unit Control**: Freedom to combine multiple ad formats per pageview.
@@ -104,7 +104,7 @@ Instead of terminating a session on a single website, automated navigation can c
 ### 5.1 Architecture Workflow
 ```mermaid
 graph LR
-    P[Proxy Residential Tier-1] --> WA[Website A: blog.riztama.my.id]
+    P[Proxy Residential Tier-1] --> WA[Website A: read.riztama.my.id]
     WA -->|Dwell 20s + Impression A| L[Click Internal Link / Cross-Domain Backlink]
     L --> WB[Website B: tech.riztama.my.id]
     WB -->|Dwell 20s + Impression B| END[Clean Browser Close]

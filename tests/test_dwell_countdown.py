@@ -101,7 +101,7 @@ def test_is_target_domain():
 
     # Valid targets
     assert is_target_domain("https://read.riztama.my.id/post/in-defense-of-deliberate-slowness", target)
-    assert is_target_domain("https://blog.riztama.my.id", target)
+    assert is_target_domain("https://read.riztama.my.id", target)
     assert is_target_domain("https://riztama.my.id/about", target)
     assert is_target_domain("about:blank", target)
 
