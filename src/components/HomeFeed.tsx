@@ -7,8 +7,6 @@ import { PostCard } from './PostCard';
 import { FilterBar } from './FilterBar';
 import { Sidebar } from './Sidebar';
 import { BookOpen } from 'lucide-react';
-import { AdBanner, AD_CONFIG } from './ads/AdBanner';
-import { NativeBanner } from './ads/NativeBanner';
 
 interface HomeFeedProps {
   initialPosts: Post[];
@@ -94,18 +92,7 @@ export function HomeFeed({
         </section>
       )}
 
-      {/* Editorial Leaderboard Banner */}
-      <div className="w-full flex justify-center items-center py-2">
-        <div className="flex justify-center max-w-full overflow-x-auto">
-          <AdBanner
-            adKey={AD_CONFIG.leaderboard_728x90.key}
-            width={AD_CONFIG.leaderboard_728x90.width}
-            height={AD_CONFIG.leaderboard_728x90.height}
-            label="Sponsored Dispatch"
-            autoRefresh={false}
-          />
-        </div>
-      </div>
+
 
       {/* Main Grid & Classic Blogspot Sidebar Section */}
       <section id="topics" className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -182,19 +169,7 @@ export function HomeFeed({
               {filteredPosts.map((post, index) => (
                 <React.Fragment key={post.id}>
                   <PostCard post={post} viewMode="grid" />
-                  {(index + 1) % 6 === 0 && index < filteredPosts.length - 1 && (
-                    <div className="md:col-span-2 w-full flex justify-center items-center py-2">
-                      <div className="flex justify-center max-w-full overflow-x-auto">
-                        <AdBanner
-                          adKey={AD_CONFIG.leaderboard_728x90.key}
-                          width={AD_CONFIG.leaderboard_728x90.width}
-                          height={AD_CONFIG.leaderboard_728x90.height}
-                          label="Featured Dispatch"
-                          autoRefresh={false}
-                        />
-                      </div>
-                    </div>
-                  )}
+
                 </React.Fragment>
               ))}
             </div>
@@ -203,26 +178,13 @@ export function HomeFeed({
               {filteredPosts.map((post, index) => (
                 <React.Fragment key={post.id}>
                   <PostCard post={post} viewMode="list" />
-                  {(index + 1) % 5 === 0 && index < filteredPosts.length - 1 && (
-                    <div className="w-full flex justify-center items-center py-2">
-                      <div className="flex justify-center max-w-full overflow-x-auto">
-                        <AdBanner
-                          adKey={AD_CONFIG.leaderboard_728x90.key}
-                          width={AD_CONFIG.leaderboard_728x90.width}
-                          height={AD_CONFIG.leaderboard_728x90.height}
-                          label="Featured Dispatch"
-                          autoRefresh={false}
-                        />
-                      </div>
-                    </div>
-                  )}
+
                 </React.Fragment>
               ))}
             </div>
           )}
 
-          {/* Adsterra Native Banner Recommendations */}
-          <NativeBanner />
+
         </div>
 
         {/* Sidebar Column */}

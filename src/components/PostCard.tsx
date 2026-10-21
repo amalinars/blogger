@@ -30,12 +30,14 @@ export function PostCard({ post, viewMode = 'grid' }: PostCardProps) {
               {post.category}
             </span>
             <span>•</span>
-            <span>{formattedDate}</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+              4-Layer Gateway
+            </span>
             <span>•</span>
             <span>{post.readTimeMinutes}m read</span>
           </div>
 
-          <Link href={`/post/${post.slug}`} className="block group-hover:text-amber-600 transition-colors">
+          <Link href={`/post/${post.slug}?step=1`} className="block group-hover:text-amber-600 transition-colors">
             <h3
               className="font-serif text-xl sm:text-2xl font-bold leading-snug tracking-tight"
               style={{ color: 'var(--text-main)' }}
@@ -112,7 +114,9 @@ export function PostCard({ post, viewMode = 'grid' }: PostCardProps) {
         {/* Card Content */}
         <div className="p-5 space-y-3">
           <div className="flex items-center space-x-2 text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>
-            <span>{formattedDate}</span>
+            <span className="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+              Stage 1/4
+            </span>
             <span>•</span>
             <span className="flex items-center">
               <Clock className="w-2.5 h-2.5 mr-1 inline" />
@@ -120,7 +124,7 @@ export function PostCard({ post, viewMode = 'grid' }: PostCardProps) {
             </span>
           </div>
 
-          <Link href={`/post/${post.slug}`} className="block group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+          <Link href={`/post/${post.slug}?step=1`} className="block group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
             <h3
               className="font-serif text-lg sm:text-xl font-bold leading-snug tracking-tight line-clamp-2"
               style={{ color: 'var(--text-main)' }}
@@ -162,11 +166,12 @@ export function PostCard({ post, viewMode = 'grid' }: PostCardProps) {
           </span>
 
           <Link
-            href={`/post/${post.slug}`}
-            className="text-amber-700 dark:text-amber-400 hover:underline flex items-center"
-            title="Read entry"
+            href={`/post/${post.slug}?step=1`}
+            className="text-amber-700 dark:text-amber-400 hover:underline flex items-center font-semibold text-[11px]"
+            title="Start Step 1 Gateway"
           >
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span>Start</span>
+            <ArrowRight className="w-3.5 h-3.5 ml-1" />
           </Link>
         </div>
       </div>

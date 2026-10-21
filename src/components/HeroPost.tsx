@@ -48,7 +48,9 @@ export function HeroPost({ post }: { post: Post }) {
                 {post.category}
               </span>
               <span>•</span>
-              <span>{formattedDate}</span>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20">
+                4-Layer Verified Gateway
+              </span>
               <span>•</span>
               <span className="flex items-center">
                 <Clock className="w-3 h-3 mr-1 inline" />
@@ -56,7 +58,7 @@ export function HeroPost({ post }: { post: Post }) {
               </span>
             </div>
 
-            <Link href={`/post/${post.slug}`} className="block group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+            <Link href={`/post/${post.slug}?step=1`} className="block group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
               <h2
                 className="font-serif text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight tracking-tight"
                 style={{ color: 'var(--text-main)' }}
@@ -103,7 +105,7 @@ export function HeroPost({ post }: { post: Post }) {
               </div>
 
               <Link
-                href={`/post/${post.slug}`}
+                href={`/post/${post.slug}?step=1`}
                 className="p-2 rounded-full border transition-all duration-200 group-hover:bg-amber-600 group-hover:text-white group-hover:border-transparent flex items-center justify-center cursor-pointer"
                 style={{
                   borderColor: 'var(--border-subtle)',

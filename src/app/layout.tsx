@@ -1,13 +1,10 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import Script from 'next/script';
 import { Newsreader, Plus_Jakarta_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Navbar } from '@/components/Navbar';
-import { TopHeaderBanner } from '@/components/ads/TopHeaderBanner';
 import { Footer } from '@/components/Footer';
-import { AD_CONFIG } from '@/lib/ad-config';
 
 const newsreader = Newsreader({
   variable: '--font-serif',
@@ -45,24 +42,9 @@ export default function RootLayout({
       className={`${newsreader.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable} h-full scroll-smooth`}
       suppressHydrationWarning
     >
-      <head>
-        {/* Adsterra Popunder Script */}
-        <script
-          type="text/javascript"
-          src={AD_CONFIG.popunder.scriptSrc}
-        />
-        {/* Adsterra Social Bar */}
-        <Script
-          id="adsterra-socialbar"
-          strategy="afterInteractive"
-          src={AD_CONFIG.social_bar.scriptSrc}
-          data-cfasync="false"
-        />
-      </head>
+      <head />
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
         <ThemeProvider>
-          {/* Top Leaderboard / Mobile Banner */}
-          <TopHeaderBanner />
 
           <Suspense fallback={<div className="h-20 border-b" />}>
             <Navbar />

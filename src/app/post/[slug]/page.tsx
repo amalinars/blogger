@@ -12,36 +12,43 @@ import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { ClapButton } from '@/components/ClapButton';
 import { BookmarkButton } from '@/components/BookmarkButton';
 import { ShareButton } from '@/components/ShareButton';
-import { TableOfContents } from '@/components/TableOfContents';
 import { CommentsSection } from '@/components/CommentsSection';
-import { Clock, Calendar, ArrowLeft, Heart, Eye, ArrowUpRight } from 'lucide-react';
-import { AdBanner } from '@/components/ads/AdBanner';
-import { AD_CONFIG } from '@/lib/ad-config';
-import { NativeBanner } from '@/components/ads/NativeBanner';
-import { SmartlinkPromo } from '@/components/ads/SmartlinkPromo';
-
+import { Clock, Calendar, ArrowLeft, ShieldCheck, Terminal, Hash, Cpu, CheckCircle2 } from 'lucide-react';
+import { StepProgressBar } from '@/components/shortlink/StepProgressBar';
+import { CountdownGateway } from '@/components/shortlink/CountdownGateway';
+import { STEP_ARTICLES } from '@/lib/step-content';
 
 export async function generateMetadata({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ step?: string }>;
 }) {
   const { slug } = await params;
+  const { step: stepQuery } = await searchParams;
+  const step = Math.min(4, Math.max(1, parseInt(stepQuery || '1', 10) || 1));
   const post = getPostBySlug(slug);
   if (!post) return { title: 'Post Not Found — Chronicle' };
 
+  const stepData = STEP_ARTICLES[step] || STEP_ARTICLES[1];
+
   return {
-    title: `${post.title} — Chronicle`,
-    description: post.excerpt
+    title: `[Step ${step}/4] ${stepData.phaseTitle} — ${post.title}`,
+    description: stepData.summary
   };
 }
 
 export default async function PostPage({
-  params
+  params,
+  searchParams
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ step?: string }>;
 }) {
   const { slug } = await params;
+  const { step: stepQuery } = await searchParams;
+  const currentStep = Math.min(4, Math.max(1, parseInt(stepQuery || '1', 10) || 1));
   const post = getPostBySlug(slug);
 
   if (!post) {
@@ -52,37 +59,12 @@ export default async function PostPage({
   incrementViews(post.slug);
   const comments = getComments(post.id);
 
-  // Convert markdown to HTML
-  const contentHtml = await marked.parse(post.content);
+  // Load step-specific authentic technical article
+  const stepArticle = STEP_ARTICLES[currentStep] || STEP_ARTICLES[1];
+  const stepContentHtml = await marked.parse(stepArticle.markdownContent);
 
-  // Split HTML into multiple segments to inject high-density ad slots
-  const pTags = contentHtml.split('</p>');
-  let segment1 = contentHtml;
-  let segment2 = '';
-  let segment3 = '';
-  let segment4 = '';
-
-  if (pTags.length >= 8) {
-    const s1 = Math.max(2, Math.floor(pTags.length * 0.25));
-    const s2 = Math.max(s1 + 2, Math.floor(pTags.length * 0.5));
-    const s3 = Math.max(s2 + 2, Math.floor(pTags.length * 0.75));
-
-    segment1 = pTags.slice(0, s1).join('</p>') + '</p>';
-    segment2 = pTags.slice(s1, s2).join('</p>') + '</p>';
-    segment3 = pTags.slice(s2, s3).join('</p>') + '</p>';
-    segment4 = pTags.slice(s3).join('</p>');
-  } else if (pTags.length >= 4) {
-    const s1 = Math.max(1, Math.floor(pTags.length * 0.35));
-    const s2 = Math.max(s1 + 1, Math.floor(pTags.length * 0.7));
-
-    segment1 = pTags.slice(0, s1).join('</p>') + '</p>';
-    segment2 = pTags.slice(s1, s2).join('</p>') + '</p>';
-    segment3 = pTags.slice(s2).join('</p>');
-  } else if (pTags.length > 2) {
-    const splitIndex = Math.max(1, Math.floor(pTags.length / 2));
-    segment1 = pTags.slice(0, splitIndex).join('</p>') + '</p>';
-    segment2 = pTags.slice(splitIndex).join('</p>');
-  }
+  // Convert main post content
+  const postContentHtml = await marked.parse(post.content);
 
   // Recommended related posts
   const allPosts = getAllPosts({ status: 'published' });
@@ -101,23 +83,31 @@ export default async function PostPage({
     <article className="animate-fadeIn pb-16">
       <ReadingProgressBar />
 
-      {/* Back button & topical breadcrumb */}
-      <div className="mb-8 flex items-center justify-between text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+      {/* Back button & Gateway Breadcrumb */}
+      <div className="mb-6 flex flex-wrap items-center justify-between text-xs font-mono gap-2" style={{ color: 'var(--text-muted)' }}>
         <Link
           href="/"
           className="flex items-center space-x-1.5 hover:text-amber-600 transition-colors py-1 group"
         >
           <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
-          <span>Return to Journal Frontpage</span>
+          <span>Return to Frontpage</span>
         </Link>
 
-        <span className="uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-400">
-          [{post.category}]
-        </span>
+        <div className="flex items-center space-x-2">
+          <span className="px-2 py-0.5 rounded-sm bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/30 font-semibold uppercase text-[10px]">
+            Shortlink Protocol: Step {currentStep} of 4
+          </span>
+          <span className="uppercase tracking-wider font-semibold text-neutral-500">
+            [{post.category}]
+          </span>
+        </div>
       </div>
 
+      {/* 4-Layer Step Progress Bar Component */}
+      <StepProgressBar currentStep={currentStep} slug={slug} />
+
       {/* Header Editorial Block */}
-      <header className="max-w-4xl mx-auto space-y-6 text-center sm:text-left mb-10">
+      <header className="max-w-4xl mx-auto space-y-5 text-center sm:text-left mb-8">
         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
           <span
             className="px-2.5 py-1 rounded-full uppercase font-semibold text-amber-700 dark:text-amber-400 border"
@@ -126,169 +116,108 @@ export default async function PostPage({
               borderColor: 'var(--border-subtle)'
             }}
           >
-            {post.category}
+            {stepArticle.badge}
+          </span>
+          <span>•</span>
+          <span className="flex items-center">
+            <Clock className="w-3.5 h-3.5 mr-1 inline" />
+            {stepArticle.estimatedReadTime}
           </span>
           <span>•</span>
           <span className="flex items-center">
             <Calendar className="w-3.5 h-3.5 mr-1 inline" />
             {formattedDate}
           </span>
-          <span>•</span>
-          <span className="flex items-center">
-            <Clock className="w-3.5 h-3.5 mr-1 inline" />
-            {post.readTimeMinutes} min read
-          </span>
         </div>
 
         <h1
-          className="font-serif text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.15]"
+          className="font-serif text-2xl sm:text-4xl lg:text-5xl font-bold tracking-tight leading-[1.2]"
           style={{ color: 'var(--text-main)' }}
         >
-          {post.title}
+          {stepArticle.headline}
         </h1>
 
         <p
-          className="text-base sm:text-xl font-serif italic leading-relaxed"
+          className="text-sm sm:text-lg font-serif italic leading-relaxed"
           style={{ color: 'var(--text-muted)' }}
         >
-          "{post.excerpt}"
+          "{stepArticle.summary}"
         </p>
 
-        {/* Author Byline & Action Dock */}
+        {/* Technical Diagnostics Metadata Bar */}
         <div
-          className="pt-6 border-t flex flex-col sm:flex-row items-center justify-between gap-4"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          className="p-3.5 rounded-xl border grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px] font-mono text-left"
+          style={{
+            backgroundColor: 'var(--bg-subtle)',
+            borderColor: 'var(--border-subtle)'
+          }}
         >
-          <div className="flex items-center space-x-3.5">
-            <img
-              src={post.author.avatar}
-              alt={post.author.name}
-              className="w-12 h-12 rounded-full object-cover border"
-              style={{ borderColor: 'var(--border-subtle)' }}
-            />
-            <div className="text-left">
-              <h4 className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-                {post.author.name}
-              </h4>
-              <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                {post.author.role}
-              </p>
-            </div>
+          <div>
+            <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">Subsystem</span>
+            <span className="font-semibold text-amber-600 dark:text-amber-400 truncate block">
+              {stepArticle.technicalMetadata.protocol}
+            </span>
           </div>
-
-          {/* Action Dock */}
-          <div className="flex items-center space-x-2.5">
-            <ClapButton postId={post.id} initialClaps={post.claps} />
-            <BookmarkButton postId={post.id} />
-            <ShareButton />
+          <div>
+            <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">Target Runtime</span>
+            <span className="truncate block" style={{ color: 'var(--text-main)' }}>
+              {stepArticle.technicalMetadata.targetRuntime}
+            </span>
+          </div>
+          <div>
+            <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">Security State</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold truncate block">
+              ✓ {stepArticle.technicalMetadata.securityCheck}
+            </span>
+          </div>
+          <div>
+            <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">Payload Checksum</span>
+            <span className="truncate block opacity-75 font-mono text-[10px]">
+              {stepArticle.technicalMetadata.integrityHash.slice(0, 18)}...
+            </span>
           </div>
         </div>
       </header>
 
-      {/* Featured Cover Image */}
-      {post.coverImage && (
-        <div className="max-w-5xl mx-auto my-10 rounded-2xl overflow-hidden border shadow-lg" style={{ borderColor: 'var(--border-subtle)' }}>
-          <img
-            src={post.coverImage}
-            alt={post.title}
-            className="w-full max-h-[520px] object-cover"
-          />
-        </div>
-      )}
-
-      {/* Main Reading Grid */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 mt-10">
+      {/* Main Reading & Gateway Grid */}
+      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 mt-6">
         {/* Article Body Column */}
-        <div className="lg:col-span-8">
+        <div className="lg:col-span-8 space-y-6">
+          {/* Authentic Technical Article for the Current Step */}
           <div
             className="editorial-prose prose-drop-cap font-sans"
-            dangerouslySetInnerHTML={{ __html: segment1 }}
+            dangerouslySetInnerHTML={{ __html: stepContentHtml }}
           />
 
-          {/* Slot 1: Mid-article Clean Display Banner */}
-          {segment2 && (
-            <div className="my-8 flex justify-center items-center">
-              <div className="flex justify-center max-w-full overflow-x-auto">
-                <AdBanner
-                  adKey={AD_CONFIG.rectangle_300x250.key}
-                  width={AD_CONFIG.rectangle_300x250.width}
-                  height={AD_CONFIG.rectangle_300x250.height}
-                  label="Sponsored Content Break"
-                  autoRefresh={false}
-                />
-              </div>
-            </div>
-          )}
+          {/* Interactive 8-Second Countdown Gateway Controller */}
+          <CountdownGateway
+            currentStep={currentStep}
+            totalSteps={4}
+            slug={slug}
+            destinationUrl="https://modapk.org/"
+            durationSeconds={8}
+          />
 
-          {segment2 && (
+          {/* Contextual Context Post Intro (Step 1 only) */}
+          {currentStep === 1 && (
             <div
-              className="editorial-prose font-sans mt-4"
-              dangerouslySetInnerHTML={{ __html: segment2 }}
-            />
-          )}
-
-          {/* Slot 2: High-Converting Smartlink Promo Break */}
-          {segment3 && (
-            <div className="my-8">
-              <SmartlinkPromo />
+              className="mt-8 p-5 rounded-xl border border-dashed text-xs leading-relaxed"
+              style={{
+                backgroundColor: 'var(--bg-subtle)',
+                borderColor: 'var(--border-subtle)',
+                color: 'var(--text-muted)'
+              }}
+            >
+              <span className="font-mono uppercase font-semibold text-amber-700 dark:text-amber-400 block mb-1">
+                Contextual Host Dispatch: {post.title}
+              </span>
+              <p>{post.excerpt}</p>
             </div>
           )}
 
-          {segment3 && (
-            <div
-              className="editorial-prose font-sans mt-4"
-              dangerouslySetInnerHTML={{ __html: segment3 }}
-            />
-          )}
-
-          {/* Slot 3: Deep-Reading Display Banner */}
-          {segment4 && (
-            <div className="my-8 flex justify-center items-center">
-              <div className="flex justify-center max-w-full overflow-x-auto">
-                <AdBanner
-                  adKey={AD_CONFIG.leaderboard_728x90.key}
-                  width={AD_CONFIG.leaderboard_728x90.width}
-                  height={AD_CONFIG.leaderboard_728x90.height}
-                  label="Sponsored Dispatch"
-                  autoRefresh={false}
-                />
-              </div>
-            </div>
-          )}
-
-          {segment4 && (
-            <div
-              className="editorial-prose font-sans mt-4"
-              dangerouslySetInnerHTML={{ __html: segment4 }}
-            />
-          )}
-
-          {/* Tags Cloud */}
-          <div className="mt-12 pt-6 border-t space-y-2" style={{ borderColor: 'var(--border-subtle)' }}>
-            <span className="text-xs font-mono uppercase tracking-wider block" style={{ color: 'var(--text-faint)' }}>
-              Taxonomy Keys:
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {post.tags.map((tag) => (
-                <Link
-                  key={tag}
-                  href={`/?tag=${encodeURIComponent(tag)}`}
-                  className="px-3 py-1 rounded-md text-xs font-mono border hover:border-amber-500 transition-colors"
-                  style={{
-                    backgroundColor: 'var(--bg-subtle)',
-                    borderColor: 'var(--border-subtle)',
-                    color: 'var(--text-main)'
-                  }}
-                >
-                  #{tag}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Author Extended Profile Box */}
+          {/* Author Profile */}
           <div
-            className="mt-12 p-6 rounded-2xl border flex flex-col sm:flex-row items-center sm:items-start gap-5"
+            className="mt-10 p-5 rounded-xl border flex flex-col sm:flex-row items-center sm:items-start gap-4"
             style={{
               backgroundColor: 'var(--bg-card)',
               borderColor: 'var(--border-subtle)'
@@ -297,52 +226,82 @@ export default async function PostPage({
             <img
               src={post.author.avatar}
               alt={post.author.name}
-              className="w-16 h-16 rounded-full object-cover border flex-shrink-0"
+              className="w-14 h-14 rounded-full object-cover border flex-shrink-0"
               style={{ borderColor: 'var(--border-subtle)' }}
             />
-            <div className="space-y-2 text-center sm:text-left">
-              <span className="text-[11px] font-mono uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                Author Profile
+            <div className="space-y-1.5 text-center sm:text-left">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                Verified Cryptographic Author
               </span>
-              <h4 className="text-base font-serif font-bold" style={{ color: 'var(--text-main)' }}>
+              <h4 className="text-sm font-serif font-bold" style={{ color: 'var(--text-main)' }}>
                 {post.author.name}
               </h4>
-              <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                 {post.author.bio}
               </p>
             </div>
           </div>
-
-          {/* Adsterra Native Recommendations Banner */}
-          <NativeBanner />
 
           {/* Reader Comments Section */}
           <CommentsSection postId={post.id} initialComments={comments} />
         </div>
 
         {/* Aside Sidebar */}
-        <div className="lg:col-span-4 space-y-8">
-          <div className="sticky top-6 space-y-8">
-            {/* Table of Contents */}
-            <TableOfContents content={post.content} />
-
-            {/* Sidebar Ad Unit (300x250 Medium Rectangle) */}
+        <div className="lg:col-span-4 space-y-6">
+          <div className="sticky top-6 space-y-6">
+            {/* Step Navigation Quick Overview */}
             <div
-              className="p-4 rounded-xl border flex flex-col items-center justify-center overflow-hidden"
+              className="p-5 rounded-xl border space-y-3"
               style={{
                 backgroundColor: 'var(--bg-card)',
                 borderColor: 'var(--border-subtle)'
               }}
             >
-              <AdBanner
-                adKey={AD_CONFIG.rectangle_300x250.key}
-                width={AD_CONFIG.rectangle_300x250.width}
-                height={AD_CONFIG.rectangle_300x250.height}
-                label="Partner Dispatch"
-              />
+              <span className="text-xs font-mono uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-400 block">
+                Gateway Layers Overview
+              </span>
+
+              <div className="space-y-2 text-xs font-mono">
+                {[
+                  { num: 1, label: 'Manifest & Header Audit' },
+                  { num: 2, label: 'DEX Bytecode & Smali' },
+                  { num: 3, label: 'SELinux & Sandboxing' },
+                  { num: 4, label: 'Destination Clearance (modapk.org)' }
+                ].map((s) => {
+                  const isCurrent = s.num === currentStep;
+                  const isPast = s.num < currentStep;
+                  return (
+                    <div
+                      key={s.num}
+                      className={`p-2 rounded-lg border flex items-center justify-between transition-colors ${
+                        isCurrent
+                          ? 'border-amber-500 bg-amber-500/10 font-bold'
+                          : isPast
+                          ? 'border-emerald-500/40 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                          : 'opacity-50 border-transparent'
+                      }`}
+                      style={{
+                        borderColor: isCurrent ? 'var(--accent)' : undefined
+                      }}
+                    >
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] w-4 h-4 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/10">
+                          {s.num}
+                        </span>
+                        <span className="truncate">{s.label}</span>
+                      </div>
+                      {isPast ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                      ) : isCurrent ? (
+                        <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
-            {/* Next Dispatches */}
+            {/* Related Dispatches */}
             {relatedPosts.length > 0 && (
               <div
                 className="p-5 rounded-xl border space-y-4"
@@ -352,14 +311,14 @@ export default async function PostPage({
                 }}
               >
                 <span className="text-xs font-mono uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-400 block">
-                  Next in The Journal
+                  Related Architecture Dispatches
                 </span>
 
                 <div className="space-y-3">
                   {relatedPosts.map((rel) => (
                     <Link
                       key={rel.id}
-                      href={`/post/${rel.slug}`}
+                      href={`/post/${rel.slug}?step=1`}
                       className="group block space-y-1 transition-colors"
                     >
                       <h5
@@ -376,26 +335,6 @@ export default async function PostPage({
                 </div>
               </div>
             )}
-
-            {/* Smartlink Promo in reader sidebar */}
-            <SmartlinkPromo />
-
-            {/* Skyscraper Banner Slot (160x600) */}
-            <div
-              className="p-3 rounded-xl border flex flex-col items-center justify-center overflow-hidden"
-              style={{
-                backgroundColor: 'var(--bg-card)',
-                borderColor: 'var(--border-subtle)'
-              }}
-            >
-              <AdBanner
-                adKey={AD_CONFIG.skyscraper_160x600.key}
-                width={AD_CONFIG.skyscraper_160x600.width}
-                height={AD_CONFIG.skyscraper_160x600.height}
-                label="Partner Dispatch"
-                autoRefresh={false}
-              />
-            </div>
           </div>
         </div>
       </div>

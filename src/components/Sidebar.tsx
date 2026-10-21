@@ -4,8 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Post, ArchiveItem } from '@/lib/types';
 import { Tag, TrendingUp, Calendar, Feather, ArrowUpRight } from 'lucide-react';
-import { AdBanner, AD_CONFIG } from './ads/AdBanner';
-import { SmartlinkPromo } from './ads/SmartlinkPromo';
+
 
 interface SidebarProps {
   trendingPosts: Post[];
@@ -96,21 +95,7 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Adsterra 300x250 Rectangle Ad Slot */}
-      <div
-        className="p-4 rounded-xl border flex flex-col items-center justify-center overflow-hidden"
-        style={{
-          backgroundColor: 'var(--bg-card)',
-          borderColor: 'var(--border-subtle)'
-        }}
-      >
-        <AdBanner
-          adKey={AD_CONFIG.rectangle_300x250.key}
-          width={AD_CONFIG.rectangle_300x250.width}
-          height={AD_CONFIG.rectangle_300x250.height}
-          label="Partner Dispatch"
-        />
-      </div>
+
 
       {/* Widget 3: Taxonomy & Tag Cloud */}
       <div
@@ -194,27 +179,7 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Smartlink Partner Recommendation */}
-      <SmartlinkPromo />
 
-      {/* Sticky High-Viewability Skyscraper (Follows Reader Scroll) */}
-      <div className="sticky top-24 z-10 pt-2 flex flex-col items-center">
-        <div
-          className="p-3 rounded-xl border flex flex-col items-center justify-center overflow-hidden shadow-sm"
-          style={{
-            backgroundColor: 'var(--bg-card)',
-            borderColor: 'var(--border-subtle)'
-          }}
-        >
-          <AdBanner
-            adKey={AD_CONFIG.skyscraper_160x600.key}
-            width={AD_CONFIG.skyscraper_160x600.width}
-            height={AD_CONFIG.skyscraper_160x600.height}
-            label="Featured Columnist Dispatch"
-            autoRefresh={false}
-          />
-        </div>
-      </div>
     </aside>
   );
 }

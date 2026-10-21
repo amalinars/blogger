@@ -57,7 +57,7 @@
       0.1
     ]
   ],
-  "concurrency": 5,
+  "concurrency": 10,
   "session_delay_seconds": {
     "min": 8,
     "max": 20
