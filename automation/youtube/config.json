@@ -1,14 +1,13 @@
 {
   "search_keyword": "horrornologi",
   "target_channel": "horrornologi",
-  "concurrency": 5,
-  "watch_mode": "video_duration",
-  "watch_fallback": {
+  "concurrency": 8,
+  "headless": true,
+  "use_proxy": true,
+  "proxy_source": "/home/jovan/project/botshortlink/automation/proxies.json",
+  "watch_duration": {
     "min_seconds": 90,
     "max_seconds": 240
   },
-  "resolution": "144p",
-  "proxy_source": "automation/proxies.json",
-  "headless": false,
-  "unlimited": true
+  "resolution": "144p"
 }

@@ -596,18 +596,18 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]", event_c
     print(f"{tag} [✓] Selesai menonton video ({format_time(total_watched)}). View tercatat dengan retensi tinggi secara organik.")
 
 
-def test_proxy_youtube(proxy_info: Optional[Dict[str, Any]], timeout: float = 6.0) -> Tuple[bool, str, int]:
+def test_proxy_youtube(proxy_info: Optional[Dict[str, Any]], timeout: float = 6.0, fetch_exit_ip: bool = True) -> Tuple[bool, str, int, str]:
     """
-    Menguji koneksi proksi langsung ke YouTube sebelum browser dibuka.
-    Hanya proksi yang benar-benar responsif (HTTP 200/204) yang dinyatakan 'mantap'.
+    Menguji koneksi proksi langsung ke YouTube sebelum browser dibuka dan mengambil exit IP publik.
+    Returns: (is_ok: bool, msg: str, latency_ms: int, exit_ip: str)
     """
     if not proxy_info:
-        return True, "Direct Connection (Tanpa Proksi)", 0
+        return True, "Direct Connection (Tanpa Proksi)", 0, "Direct (Local IP)"
 
     host = proxy_info.get("host")
     port = proxy_info.get("port")
     if not host or not port:
-        return False, "Host/Port proksi tidak valid", 0
+        return False, "Host/Port proksi tidak valid", 0, ""
 
     user = proxy_info.get("username", "")
     pwd = proxy_info.get("password", "")
@@ -633,23 +633,33 @@ def test_proxy_youtube(proxy_info: Optional[Dict[str, Any]], timeout: float = 6.
             allow_redirects=True,
         )
         latency_ms = int((time.time() - start_t) * 1000)
+        exit_ip = proxy_info.get("exit_ip", "")
+
         if resp.status_code in [200, 204, 301, 302]:
-            return True, f"HTTP {resp.status_code} ({latency_ms}ms) Mantap! 🔥", latency_ms
-        return False, f"Status HTTP {resp.status_code} ({latency_ms}ms)", latency_ms
+            if fetch_exit_ip and not exit_ip:
+                try:
+                    ip_resp = requests.get("https://api.ipify.org?format=json", proxies=proxies_dict, timeout=4.0)
+                    if ip_resp.status_code == 200:
+                        exit_ip = ip_resp.json().get("ip", "")
+                        proxy_info["exit_ip"] = exit_ip
+                except Exception:
+                    pass
+            return True, f"HTTP {resp.status_code} ({latency_ms}ms) Mantap! 🔥", latency_ms, exit_ip
+        return False, f"Status HTTP {resp.status_code} ({latency_ms}ms)", latency_ms, ""
     except requests.exceptions.ProxyError as pe:
         pe_str = str(pe)
         if "402" in pe_str:
-            return False, "402 Payment Required (Akun/kuota proksi habis)", 0
+            return False, "402 Payment Required (Akun/kuota proksi habis)", 0, ""
         if "407" in pe_str:
-            return False, "407 Proxy Unauthorized (Password proksi salah)", 0
-        return False, f"Tunneling Proksi Gagal: {pe_str[:40]}", 0
+            return False, "407 Proxy Unauthorized (Password proksi salah)", 0, ""
+        return False, f"Tunneling Proksi Gagal: {pe_str[:40]}", 0, ""
     except requests.exceptions.ConnectTimeout:
-        return False, f"Koneksi Timeout (> {timeout}s)", 0
+        return False, f"Koneksi Timeout (> {timeout}s)", 0, ""
     except requests.exceptions.ReadTimeout:
-        return False, f"Respon Timeout (> {timeout}s)", 0
+        return False, f"Respon Timeout (> {timeout}s)", 0, ""
     except Exception as e:
         err_msg = str(e).splitlines()[0] if str(e) else "Error koneksi"
-        return False, f"Koneksi Gagal: {err_msg[:45]}", 0
+        return False, f"Koneksi Gagal: {err_msg[:45]}", 0, ""
 
 
 class UniqueProxyPool:
@@ -662,7 +672,11 @@ class UniqueProxyPool:
     """
     def __init__(self, proxies: List[Dict[str, Any]]):
         self._lock = threading.Lock()
-        self._pool = list(proxies)
+        self._pool = []
+        for idx, p in enumerate(proxies):
+            cp = dict(p)
+            cp["_idx"] = idx
+            self._pool.append(cp)
         self._total_initial = len(proxies)
         self._used_count = 0
         self._failed_count = 0
@@ -679,30 +693,37 @@ class UniqueProxyPool:
             host = candidate.get("host")
             port = candidate.get("port")
             geo = candidate.get("country", "Global")
+            p_idx = candidate.get("_idx", -1)
+
             print(f"{tag} 🔎 Menguji proksi {host}:{port} ({geo}) ke YouTube...")
             if event_callback:
                 event_callback("proxy_testing", {
                     "worker_id": worker_id,
+                    "proxy_idx": p_idx,
                     "host": host,
                     "port": port,
                     "country": geo
                 })
 
-            is_ok, msg, lat = test_proxy_youtube(candidate, timeout=6.0)
+            is_ok, msg, lat, exit_ip = test_proxy_youtube(candidate, timeout=6.0, fetch_exit_ip=True)
+            candidate["latency"] = lat
+            candidate["exit_ip"] = exit_ip
 
             with self._lock:
                 remaining = len(self._pool)
                 if is_ok:
                     self._used_count += 1
                     used_num = self._used_count
-                    print(f"{tag} [✓] 🎉 Proksi Lolos Uji ({msg})! Dipakai untuk sesi ini (Sisa belum dipakai: {remaining})\n")
+                    print(f"{tag} [✓] 🎉 Proksi Lolos Uji ({msg})! Exit IP: {exit_ip or 'OK'}. Dipakai untuk sesi ini (Sisa belum dipakai: {remaining})\n")
                     if event_callback:
                         event_callback("proxy_assigned", {
                             "worker_id": worker_id,
+                            "proxy_idx": p_idx,
                             "host": host,
                             "port": port,
                             "country": geo,
                             "latency": lat,
+                            "exit_ip": exit_ip or f"{host}:{port}",
                             "status": "Lolos Uji"
                         })
                     return candidate
@@ -712,6 +733,7 @@ class UniqueProxyPool:
                     if event_callback:
                         event_callback("proxy_failed", {
                             "worker_id": worker_id,
+                            "proxy_idx": p_idx,
                             "host": host,
                             "port": port,
                             "country": geo,
@@ -722,6 +744,7 @@ class UniqueProxyPool:
     def get_stats(self) -> Tuple[int, int, int]:
         with self._lock:
             return self._used_count, self._failed_count, len(self._pool)
+
 
 
 def run_single_youtube_session(

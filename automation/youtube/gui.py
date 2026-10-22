@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 YouTube Organic Search & View Suite — Dashboard GUI Modern
-Dilengkapi Real-time IP Tracker, Status Ads/Iklan YouTube, & Multi-Worker Monitor.
+Dilengkapi Real-time IP Tracker, Output IP Publik, Status Ads YouTube, & Multi-Worker Monitor.
 """
 
 import os
@@ -38,6 +38,40 @@ BASE_DIR = Path(__file__).resolve().parent
 CONFIG_PATH = BASE_DIR / "config.json"
 PROXIES_PATH = PROJECT_ROOT / "automation" / "proxies.json"
 
+COUNTRY_FLAGS = {
+    "united states": "🇺🇸",
+    "usa": "🇺🇸",
+    "us": "🇺🇸",
+    "united kingdom": "🇬🇧",
+    "uk": "🇬🇧",
+    "great britain": "🇬🇧",
+    "gb": "🇬🇧",
+    "canada": "🇨🇦",
+    "ca": "🇨🇦",
+    "australia": "🇦🇺",
+    "au": "🇦🇺",
+    "france": "🇫🇷",
+    "fr": "🇫🇷",
+    "germany": "🇩🇪",
+    "de": "🇩🇪",
+    "japan": "🇯🇵",
+    "jp": "🇯🇵",
+    "singapore": "🇸🇬",
+    "sg": "🇸🇬",
+    "indonesia": "🇮🇩",
+    "id": "🇮🇩",
+    "netherlands": "🇳🇱",
+    "nl": "🇳🇱",
+}
+
+
+def get_country_badge(country_name: str) -> str:
+    clean = (country_name or "").strip().lower()
+    for k, flag in COUNTRY_FLAGS.items():
+        if k in clean:
+            return f"{flag} {country_name}"
+    return f"🌍 {country_name}"
+
 
 class NoWheelComboBox(QComboBox):
     """Mencegah perubahan dropdown secara tidak sengaja saat mouse wheel scrolling."""
@@ -58,8 +92,8 @@ class NoWheelSlider(QSlider):
 
 
 class ProxyTesterThread(QThread):
-    """Thread mandiri untuk menguji daftar proksi di latar belakang tanpa freeze UI."""
-    proxy_result_signal = Signal(int, bool, str, int)  # row, is_ok, msg, lat
+    """Thread mandiri untuk menguji daftar proksi di latar belakang dan membaca exit IP publik."""
+    proxy_result_signal = Signal(int, bool, str, int, str)  # row, is_ok, msg, lat, exit_ip
     finished_signal = Signal(int, int)  # total_ok, total_tested
 
     def __init__(self, proxies: List[Dict[str, Any]]):
@@ -71,7 +105,7 @@ class ProxyTesterThread(QThread):
         total_ok = 0
         with ThreadPoolExecutor(max_workers=8) as executor:
             future_to_idx = {
-                executor.submit(test_proxy_youtube, p, 5.0): idx
+                executor.submit(test_proxy_youtube, p, 5.0, True): idx
                 for idx, p in enumerate(self.proxies)
             }
             for fut in as_completed(future_to_idx):
@@ -79,12 +113,12 @@ class ProxyTesterThread(QThread):
                     break
                 idx = future_to_idx[fut]
                 try:
-                    is_ok, msg, lat = fut.result()
+                    is_ok, msg, lat, exit_ip = fut.result()
                     if is_ok:
                         total_ok += 1
-                    self.proxy_result_signal.emit(idx, is_ok, msg, lat)
+                    self.proxy_result_signal.emit(idx, is_ok, msg, lat, exit_ip)
                 except Exception as e:
-                    self.proxy_result_signal.emit(idx, False, str(e), 0)
+                    self.proxy_result_signal.emit(idx, False, str(e), 0, "")
         self.finished_signal.emit(total_ok, len(self.proxies))
 
     def cancel(self):
@@ -120,7 +154,6 @@ class YouTubeBotThread(QThread):
 
         def event_dispatcher(event_type: str, data: dict):
             self.worker_event_signal.emit(event_type, data)
-            # Log event penting ke terminal
             w_id = data.get("worker_id", 1)
             tag = f"[W{w_id}]"
             if event_type == "ad_event":
@@ -131,11 +164,18 @@ class YouTubeBotThread(QThread):
                 title = data.get("title", "")
                 self.log_signal.emit(f"{tag} 🎬 [VIDEO] {title}", "#38bdf8")
             elif event_type == "proxy_assigned":
+                exit_ip = data.get("exit_ip", "")
                 h = data.get("host", "")
                 p = data.get("port", "")
                 c = data.get("country", "")
                 lat = data.get("latency", 0)
-                self.log_signal.emit(f"{tag} 🛡️ [IP ASSIGNED] {h}:{p} ({c}) - {lat}ms", "#10b981")
+                flag_c = get_country_badge(c)
+                self.log_signal.emit(f"{tag} 🛡️ [IP ASSIGNED] Exit: {exit_ip} | Gateway: {h}:{p} ({flag_c}) - {lat}ms", "#10b981")
+            elif event_type == "proxy_failed":
+                h = data.get("host", "")
+                p = data.get("port", "")
+                c = data.get("country", "")
+                self.log_signal.emit(f"{tag} ❌ [IP FAILED] {h}:{p} ({c}) gagal ping. Dibuang.", "#ef4444")
 
         try:
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
@@ -207,23 +247,29 @@ class WorkerCardWidget(QFrame):
         h_layout.addWidget(self.status_pill)
         layout.addLayout(h_layout)
 
-        # IP Tracker Info Box
+        # IP Tracker Info Box (Menampilkan Real Output IP Publik & Bendera Negara)
         self.ip_box = QFrame()
         self.ip_box.setStyleSheet("background-color: #0b0f19; border: 1px dashed #374151; border-radius: 8px; padding: 6px;")
         ip_layout = QVBoxLayout(self.ip_box)
-        ip_layout.setContentsMargins(6, 4, 6, 4)
-        ip_layout.setSpacing(2)
+        ip_layout.setContentsMargins(8, 6, 8, 6)
+        ip_layout.setSpacing(3)
 
-        self.ip_lbl = QLabel("🛡️ IP Proksi: Menunggu tugas...")
-        self.ip_lbl.setStyleSheet("font-family: monospace; font-size: 11px; color: #38bdf8;")
-        self.geo_lbl = QLabel("🌍 Lokasi: - | Ping: -")
+        self.ip_lbl = QLabel("🛡️ IP Publik: Menunggu tugas...")
+        self.ip_lbl.setStyleSheet("font-family: monospace; font-size: 11px; color: #38bdf8; font-weight: bold;")
+        
+        self.geo_lbl = QLabel("🌍 Lokasi: - | Gateway: -")
         self.geo_lbl.setStyleSheet("font-size: 10px; color: #9ca3af;")
+
+        self.lat_lbl = QLabel("⚡ Latency Ping: -")
+        self.lat_lbl.setStyleSheet("font-size: 10px; color: #10b981; font-weight: 600;")
+
         ip_layout.addWidget(self.ip_lbl)
         ip_layout.addWidget(self.geo_lbl)
+        ip_layout.addWidget(self.lat_lbl)
         layout.addWidget(self.ip_box)
 
         # Video Target Title
-        self.video_lbl = QLabel("🎬 Video: Menunggu pencarian...")
+        self.video_lbl = QLabel("🎬 Video: Menunggu pencarian channel...")
         self.video_lbl.setStyleSheet("color: #e5e7eb; font-size: 11px;")
         self.video_lbl.setWordWrap(True)
         layout.addWidget(self.video_lbl)
@@ -264,10 +310,20 @@ class WorkerCardWidget(QFrame):
         self.status_pill.setText(text.upper())
         self.status_pill.setStyleSheet(f"background-color: {bg}; color: {color}; font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 6px;")
 
-    def set_proxy(self, host: str, port: str, country: str, latency: int = 0):
-        self.ip_lbl.setText(f"🛡️ IP: {host}:{port}")
-        self.geo_lbl.setText(f"🌍 {country} | Latency: {latency}ms")
+    def set_proxy(self, host: str, port: str, country: str, latency: int = 0, exit_ip: str = ""):
+        flag_c = get_country_badge(country)
+        disp_ip = exit_ip if exit_ip else f"{host}:{port}"
+        self.ip_lbl.setText(f"🛡️ IP Publik: {disp_ip}")
         self.ip_lbl.setStyleSheet("font-family: monospace; font-size: 11px; color: #10b981; font-weight: bold;")
+        self.geo_lbl.setText(f"{flag_c} • Gateway: {host}:{port}")
+        self.lat_lbl.setText(f"⚡ Latency Ping: {latency}ms (🟢 Responsif)")
+
+    def set_testing_proxy(self, host: str, port: str, country: str):
+        flag_c = get_country_badge(country)
+        self.ip_lbl.setText(f"🛡️ Menguji: {host}:{port}")
+        self.ip_lbl.setStyleSheet("font-family: monospace; font-size: 11px; color: #f59e0b; font-weight: bold;")
+        self.geo_lbl.setText(f"{flag_c} • Sedang verifikasi...")
+        self.lat_lbl.setText("⚡ Menghubungi server YouTube...")
 
     def set_video(self, title: str):
         disp_title = (title[:45] + "...") if len(title) > 45 else title
@@ -293,8 +349,8 @@ class YouTubeSuiteWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("YouTube Organic Retention & Ad Viewer Suite — Fast Dashboard")
-        self.resize(1180, 840)
-        self.setMinimumSize(960, 680)
+        self.resize(1200, 860)
+        self.setMinimumSize(980, 700)
 
         self.bot_thread: Optional[YouTubeBotThread] = None
         self.proxy_tester_thread: Optional[ProxyTesterThread] = None
@@ -373,7 +429,7 @@ class YouTubeSuiteWindow(QMainWindow):
         title_box.setSpacing(2)
         h_title = QLabel("YouTube Organic Retention & Ad Viewer Suite")
         h_title.setStyleSheet("font-size: 18px; font-weight: bold; color: #f8fafc;")
-        h_sub = QLabel("1 Video 1 Proxy Residential • 144p Ultra-Lite • Real-Time Ads & IP Tracker")
+        h_sub = QLabel("1 Video 1 Proxy Residential • 144p Ultra-Lite • Real-Time Ads & Exit IP Tracker")
         h_sub.setStyleSheet("font-size: 11px; color: #94a3b8;")
         title_box.addWidget(h_title)
         title_box.addWidget(h_sub)
@@ -511,7 +567,7 @@ class YouTubeSuiteWindow(QMainWindow):
         g1_l.addWidget(self.channel_input)
         cfg_layout.addWidget(g1)
 
-        # Group 2: Mode Browser & Concurrency
+        # Group 2: Performa & Concurrency
         g2 = QGroupBox("Performa & Batch Concurrency")
         g2.setStyleSheet("QGroupBox { font-weight: bold; color: #f8fafc; border: 1px solid #334155; border-radius: 8px; margin-top: 10px; padding-top: 12px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 4px; }")
         g2_l = QVBoxLayout(g2)
@@ -599,7 +655,7 @@ class YouTubeSuiteWindow(QMainWindow):
                 w.setParent(None)
         self.worker_cards.clear()
 
-        concurrency = self.concurrency_spin.value()
+        concurrency = max(1, self.concurrency_spin.value())
         cols = 2 if concurrency > 1 else 1
 
         for w_id in range(1, concurrency + 1):
@@ -641,15 +697,20 @@ class YouTubeSuiteWindow(QMainWindow):
         top_bar.addWidget(self.proxy_status_lbl)
         layout.addLayout(top_bar)
 
-        # Proxy Table
+        # Proxy Table: Lengkap dengan Exit IP Publik & Status Penggunaan Worker
         self.proxy_table = QTableWidget()
-        self.proxy_table.setColumnCount(5)
-        self.proxy_table.setHorizontalHeaderLabels(["No", "Host : Port", "Negara", "Status YouTube", "Latency (Ping)"])
+        self.proxy_table.setColumnCount(7)
+        self.proxy_table.setHorizontalHeaderLabels([
+            "No", "Host : Port Gateway", "Exit IP Publik", "Negara", "Status YouTube", "Latency", "Dipakai Oleh"
+        ])
         self.proxy_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.proxy_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.proxy_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.proxy_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeToContents)
-        self.proxy_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
-        self.proxy_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeToContents)
+        self.proxy_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeToContents)
+        self.proxy_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.Stretch)
+        self.proxy_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeToContents)
+        self.proxy_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeToContents)
+
         self.proxy_table.setStyleSheet("""
             QTableWidget {
                 background-color: #0b0f19;
@@ -734,19 +795,27 @@ class YouTubeSuiteWindow(QMainWindow):
             host = p.get("host", "")
             port = p.get("port", "")
             geo = p.get("country", "Global")
+            flag_c = get_country_badge(geo)
+            exit_ip = p.get("exit_ip", "-")
 
             item_no = QTableWidgetItem(str(idx + 1))
             item_host = QTableWidgetItem(f"{host}:{port}")
-            item_geo = QTableWidgetItem(f"🌍 {geo}")
+            item_exit = QTableWidgetItem(exit_ip)
+            item_exit.setForeground(QColor("#38bdf8"))
+            item_geo = QTableWidgetItem(flag_c)
             item_status = QTableWidgetItem("Belum Diuji")
             item_status.setForeground(QColor("#94a3b8"))
             item_lat = QTableWidgetItem("-")
+            item_worker = QTableWidgetItem("-")
+            item_worker.setForeground(QColor("#94a3b8"))
 
             self.proxy_table.setItem(idx, 0, item_no)
             self.proxy_table.setItem(idx, 1, item_host)
-            self.proxy_table.setItem(idx, 2, item_geo)
-            self.proxy_table.setItem(idx, 3, item_status)
-            self.proxy_table.setItem(idx, 4, item_lat)
+            self.proxy_table.setItem(idx, 2, item_exit)
+            self.proxy_table.setItem(idx, 3, item_geo)
+            self.proxy_table.setItem(idx, 4, item_status)
+            self.proxy_table.setItem(idx, 5, item_lat)
+            self.proxy_table.setItem(idx, 6, item_worker)
 
     def test_all_proxies(self):
         proxies = load_proxies(str(PROXIES_PATH))
@@ -755,7 +824,7 @@ class YouTubeSuiteWindow(QMainWindow):
             return
 
         self.test_proxies_btn.setEnabled(False)
-        self.test_proxies_btn.setText("⏳ Menguji Proksi...")
+        self.test_proxies_btn.setText("⏳ Menguji Proksi & Membaca Exit IP...")
         self.append_log(f"🔎 Memulai pengujian {len(proxies)} proksi ke server YouTube...", "#38bdf8")
 
         self.proxy_tester_thread = ProxyTesterThread(proxies)
@@ -763,13 +832,20 @@ class YouTubeSuiteWindow(QMainWindow):
         self.proxy_tester_thread.finished_signal.connect(self.on_proxy_test_finished)
         self.proxy_tester_thread.start()
 
-    def on_proxy_test_result(self, row: int, is_ok: bool, msg: str, lat: int):
-        item_status = QTableWidgetItem("🟢 Lolos (200 OK)" if is_ok else f"🔴 Gagal ({msg[:25]})")
-        item_status.setForeground(QColor("#10b981" if is_ok else "#ef4444"))
-        item_lat = QTableWidgetItem(f"{lat} ms" if is_ok else "-")
+    def on_proxy_test_result(self, row: int, is_ok: bool, msg: str, lat: int, exit_ip: str):
+        if row < self.proxy_table.rowCount():
+            item_status = QTableWidgetItem("🟢 Lolos (200 OK)" if is_ok else f"🔴 Gagal ({msg[:25]})")
+            item_status.setForeground(QColor("#10b981" if is_ok else "#ef4444"))
+            item_lat = QTableWidgetItem(f"{lat} ms" if is_ok else "-")
 
-        self.proxy_table.setItem(row, 3, item_status)
-        self.proxy_table.setItem(row, 4, item_lat)
+            if exit_ip:
+                item_exit = QTableWidgetItem(exit_ip)
+                item_exit.setForeground(QColor("#10b981"))
+                item_exit.setFont(QFont("Monospace", 9, QFont.Bold))
+                self.proxy_table.setItem(row, 2, item_exit)
+
+            self.proxy_table.setItem(row, 4, item_status)
+            self.proxy_table.setItem(row, 5, item_lat)
 
     def on_proxy_test_finished(self, total_ok: int, total_tested: int):
         self.test_proxies_btn.setEnabled(True)
@@ -779,10 +855,14 @@ class YouTubeSuiteWindow(QMainWindow):
         QMessageBox.information(self, "Hasil Uji Proksi", f"Pengujian selesai!\n{total_ok} dari {total_tested} proksi berfungsi lancar.")
 
     def start_bot(self):
+        concurrency = self.concurrency_spin.value()
+        # Pastikan jumlah kartu monitor worker ter-generate lengkap
+        self.rebuild_worker_cards()
+
         cfg = {
             "search_keyword": self.search_input.text().strip() or "horrornologi",
             "target_channel": self.channel_input.text().strip() or "horrornologi",
-            "concurrency": self.concurrency_spin.value(),
+            "concurrency": concurrency,
             "headless": self.headless_cb.isChecked(),
             "use_proxy": self.proxy_cb.isChecked(),
             "proxy_source": str(PROXIES_PATH),
@@ -826,21 +906,76 @@ class YouTubeSuiteWindow(QMainWindow):
 
     def on_worker_event(self, event_type: str, data: dict):
         w_id = data.get("worker_id", 1)
+        p_idx = data.get("proxy_idx", -1)
+
+        # Pastikan card ada (jika belum ada, buat dinamis)
         card = self.worker_cards.get(w_id)
         if not card:
-            return
+            card = WorkerCardWidget(w_id)
+            self.worker_cards[w_id] = card
+            row = (w_id - 1) // 2
+            col = (w_id - 1) % 2
+            self.cards_grid.addWidget(card, row, col)
 
         if event_type == "status_update":
             status = data.get("status", "")
             card.set_status(status, color="#38bdf8", bg="#1e293b")
+
+        elif event_type == "proxy_testing":
+            host = data.get("host", "")
+            port = data.get("port", "")
+            country = data.get("country", "")
+            card.set_testing_proxy(host, port, country)
+            card.set_status("Menguji Proksi", color="#f59e0b", bg="#78350f")
+
+            # Update status di tabel proksi secara real-time!
+            if 0 <= p_idx < self.proxy_table.rowCount():
+                it_st = QTableWidgetItem(f"🟡 Menguji (Worker #{w_id})...")
+                it_st.setForeground(QColor("#f59e0b"))
+                self.proxy_table.setItem(p_idx, 4, it_st)
+                it_w = QTableWidgetItem(f"Worker #{w_id} (Testing)")
+                it_w.setForeground(QColor("#f59e0b"))
+                self.proxy_table.setItem(p_idx, 6, it_w)
 
         elif event_type == "proxy_assigned":
             host = data.get("host", "")
             port = data.get("port", "")
             country = data.get("country", "")
             lat = data.get("latency", 0)
-            card.set_proxy(host, port, country, lat)
+            exit_ip = data.get("exit_ip", "")
+
+            # Update kartu worker: Exit IP Publik & Bendera Negara
+            card.set_proxy(host, port, country, lat, exit_ip=exit_ip)
             card.set_status("Proksi Aktif", color="#10b981", bg="#064e3b")
+
+            # Update baris di tabel proksi: Lolos dan Dipakai Worker
+            if 0 <= p_idx < self.proxy_table.rowCount():
+                if exit_ip:
+                    it_exit = QTableWidgetItem(exit_ip)
+                    it_exit.setForeground(QColor("#10b981"))
+                    it_exit.setFont(QFont("Monospace", 9, QFont.Bold))
+                    self.proxy_table.setItem(p_idx, 2, it_exit)
+
+                it_st = QTableWidgetItem("🟢 Lolos (200 OK)")
+                it_st.setForeground(QColor("#10b981"))
+                self.proxy_table.setItem(p_idx, 4, it_st)
+
+                it_lat = QTableWidgetItem(f"{lat} ms")
+                self.proxy_table.setItem(p_idx, 5, it_lat)
+
+                it_w = QTableWidgetItem(f"Worker #{w_id} ⚡ (Aktif)")
+                it_w.setForeground(QColor("#10b981"))
+                it_w.setFont(QFont("sans-serif", 9, QFont.Bold))
+                self.proxy_table.setItem(p_idx, 6, it_w)
+
+        elif event_type == "proxy_failed":
+            if 0 <= p_idx < self.proxy_table.rowCount():
+                it_st = QTableWidgetItem("🔴 Gagal / Timeout")
+                it_st.setForeground(QColor("#ef4444"))
+                self.proxy_table.setItem(p_idx, 4, it_st)
+                it_w = QTableWidgetItem("Dibuang (Mati)")
+                it_w.setForeground(QColor("#64748b"))
+                self.proxy_table.setItem(p_idx, 6, it_w)
 
         elif event_type == "video_picked":
             title = data.get("title", "")
@@ -867,6 +1002,22 @@ class YouTubeSuiteWindow(QMainWindow):
                 self.stat_views_completed += 1
                 self.kpi_views.val_label.setText(str(self.stat_views_completed))
                 card.set_status("Selesai (View Valid)", color="#10b981", bg="#064e3b")
+            else:
+                card.set_status("Selesai", color="#94a3b8", bg="#1f2937")
+
+            if 0 <= p_idx < self.proxy_table.rowCount():
+                it_w = QTableWidgetItem(f"Worker #{w_id} (✅ Selesai)")
+                it_w.setForeground(QColor("#94a3b8"))
+                self.proxy_table.setItem(p_idx, 6, it_w)
+
+    def closeEvent(self, event):
+        if self.bot_thread and self.bot_thread.isRunning():
+            self.bot_thread.stop()
+            self.bot_thread.wait(2000)
+        if self.proxy_tester_thread and self.proxy_tester_thread.isRunning():
+            self.proxy_tester_thread.cancel()
+            self.proxy_tester_thread.wait(1000)
+        event.accept()
 
 
 def main():
