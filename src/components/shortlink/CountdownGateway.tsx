@@ -15,7 +15,7 @@ import {
   Download,
   Zap
 } from 'lucide-react';
-import { MONETAG_CONFIG, getStepDirectLink } from '@/lib/ad-config';
+import { MONETAG_CONFIG, HILLTOPADS_CONFIG } from '@/lib/ad-config';
 import { HilltopBanner } from '@/components/ads/HilltopBanner';
 
 interface CountdownGatewayProps {
@@ -24,6 +24,8 @@ interface CountdownGatewayProps {
   slug: string;
   destinationUrl?: string;
   durationSeconds?: number;
+  basePath?: string;
+  channel?: 'monetag' | 'hilltop';
 }
 
 export function CountdownGateway({
@@ -31,10 +33,18 @@ export function CountdownGateway({
   totalSteps = 4,
   slug,
   destinationUrl = 'https://modapk.org/',
-  durationSeconds = 8
+  durationSeconds = 8,
+  basePath = '/read',
+  channel = 'monetag'
 }: CountdownGatewayProps) {
   const router = useRouter();
-  const directLinkData = getStepDirectLink(currentStep);
+  const directLinkUrl = channel === 'hilltop'
+    ? HILLTOPADS_CONFIG.directLinkUrl
+    : MONETAG_CONFIG.directLinkUrl;
+  const directLinkLabel = channel === 'hilltop'
+    ? 'Hilltop High-Speed Sponsor Mirror'
+    : 'Monetag Fast Direct Mirror';
+  const showHilltopBanner = channel === 'hilltop';
   const [secondsLeft, setSecondsLeft] = useState<number>(durationSeconds);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -197,7 +207,7 @@ export function CountdownGateway({
             </a>
           ) : (
             <Link
-              href={`/post/${slug}?step=${nextStep}`}
+              href={`${basePath}/${slug}?step=${nextStep}`}
               className="w-full sm:w-auto px-8 py-3.5 rounded-xl font-mono text-sm font-bold text-white transition-all transform hover:scale-105 active:scale-95 shadow-md flex items-center justify-center space-x-2 mx-auto cursor-pointer"
               style={{
                 background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
@@ -210,11 +220,11 @@ export function CountdownGateway({
           )}
         </div>
 
-        {/* Direct Fast Mirror (Alternates Monetag / HilltopAds per Layer) */}
-        {directLinkData.url && (
+        {/* Direct Fast Mirror (Specific to Channel) */}
+        {directLinkUrl && (
           <div className="w-full max-w-sm pt-1 mx-auto">
             <a
-              href={directLinkData.url}
+              href={directLinkUrl}
               target="_blank"
               rel="noopener noreferrer"
               data-directlink="true"
@@ -231,15 +241,15 @@ export function CountdownGateway({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                 </span>
                 <span className="text-amber-600 dark:text-amber-400 font-bold">⚡ Fast Direct Mirror:</span>
-                <span className="opacity-80">{directLinkData.label}</span>
+                <span className="opacity-80">{directLinkLabel}</span>
               </div>
               <ExternalLink className="w-3.5 h-3.5 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
             </a>
           </div>
         )}
 
-        {/* HilltopAds 300x250 Sponsored Banner */}
-        <HilltopBanner className="my-2" />
+        {/* HilltopAds 300x250 Sponsored Banner (Hilltop channel only) */}
+        {showHilltopBanner && <HilltopBanner className="my-2" />}
 
         {/* Security Assurance Footer */}
         <div className="flex items-center space-x-4 text-[10px] font-mono text-neutral-400 pt-2 border-t border-dashed w-full justify-center" style={{ borderColor: 'var(--border-subtle)' }}>

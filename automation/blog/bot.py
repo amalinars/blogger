@@ -535,7 +535,8 @@ def is_shortlink_gateway_present(page) -> bool:
     try:
         if not page or page.is_closed():
             return False
-        if "/post/" not in (page.url or ""):
+        url_lower = page.url or ""
+        if not any(k in url_lower for k in ["/read/", "/dispatch/", "/post/"]):
             return False
         gateway = page.query_selector(
             "button:has-text('Please Wait'), a[href*='step='], a[href*='modapk.org'], "
@@ -837,12 +838,14 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
             except Exception:
                 pass
             # Direct Shortlink Routing:
-            # Jika target_url belum mengarah ke link artikel shortlink (/post/...), arahkan langsung!
-            if "/post/" not in target_url:
+            # Jika target_url belum mengarah ke link artikel shortlink (/read/, /dispatch/, /post/), arahkan langsung!
+            url_clean = target_url.strip()
+            if not any(k in url_clean for k in ["/read/", "/dispatch/", "/post/"]):
+                chosen_channel = random.choice(["read", "dispatch"])
                 chosen_slug = random.choice(DEFAULT_SHORTLINK_SLUGS)
-                clean_base = target_url.rstrip("/")
-                target_url = f"{clean_base}/post/{chosen_slug}?step=1"
-                print(f"{tag} 🎯 [SHORTLINK MODE] Navigasi langsung ke link Gateway Shortlink: {target_url}")
+                clean_base = url_clean.rstrip("/")
+                target_url = f"{clean_base}/{chosen_channel}/{chosen_slug}?step=1"
+                print(f"{tag} 🎯 [SHORTLINK MODE] Navigasi langsung ke link Gateway ({chosen_channel.upper()}): {target_url}")
             elif "?step=" not in target_url:
                 target_url = f"{target_url}?step=1"
 
@@ -883,14 +886,16 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 if page.is_closed():
                     break
 
-                # Jika hop > 1 atau halaman belum di /post/, navigasi ke slug shortlink berikutnya
-                if hop > 1 or "/post/" not in page.url:
-                    known_slugs = [f"/post/{s}?step=1" for s in DEFAULT_SHORTLINK_SLUGS]
+                # Jika hop > 1 atau halaman belum di shortlink path, navigasi ke slug shortlink berikutnya
+                url_now = page.url or ""
+                if hop > 1 or not any(k in url_now for k in ["/read/", "/dispatch/", "/post/"]):
+                    active_prefix = "dispatch" if "/dispatch/" in url_now else "read"
+                    known_slugs = [f"/{active_prefix}/{s}?step=1" for s in DEFAULT_SHORTLINK_SLUGS]
                     unvisited = [s for s in known_slugs if s not in visited_urls]
                     chosen_slug_url = random.choice(unvisited if unvisited else known_slugs)
                     visited_urls.add(chosen_slug_url)
                     full_article_url = urljoin(target_url, chosen_slug_url)
-                    print(f"\n{tag} [*] ➡️ [SHORTLINK HOP #{hop}] Memuat URL Gateway Shortlink berikutnya: {full_article_url}...")
+                    print(f"\n{tag} [*] ➡️ [SHORTLINK HOP #{hop}] Memuat URL Gateway Shortlink ({active_prefix.upper()}): {full_article_url}...")
                     try:
                         page.goto(full_article_url, wait_until="domcontentloaded", timeout=25000)
                     except Exception as nav_e:
@@ -985,10 +990,13 @@ def main():
     clean_base = base_url.rstrip("/")
     if args.slug:
         slug_clean = args.slug.strip()
-        target_url = f"{clean_base}/post/{slug_clean}" + ("" if "?step=" in slug_clean else "?step=1")
+        channel = "dispatch" if "dispatch" in slug_clean else "read"
+        slug_only = slug_clean.split("/")[-1]
+        target_url = f"{clean_base}/{channel}/{slug_only}" + ("" if "?step=" in slug_clean else "?step=1")
     else:
+        chosen_channel = random.choice(["read", "dispatch"])
         chosen_slug = random.choice(DEFAULT_SHORTLINK_SLUGS)
-        target_url = f"{clean_base}/post/{chosen_slug}?step=1"
+        target_url = f"{clean_base}/{chosen_channel}/{chosen_slug}?step=1"
 
     proxy_file = resolve_proxy_path(config.get("proxy_source", "automation/proxies.json"))
     raw_proxies = [] if args.no_proxy else load_proxies(proxy_file)

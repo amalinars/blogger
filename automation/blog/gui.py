@@ -1756,8 +1756,10 @@ class TrafficBotGUI(QMainWindow):
         t_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
         self.target_url_combo = QComboBox()
         self.target_url_combo.setEditable(True)
-        self.target_url_combo.addItem("https://read.riztama.my.id (Server Live - Shortlink Gateway)")
-        self.target_url_combo.addItem("http://localhost:3000 (Uji Coba Komputer Sendiri - Shortlink Gateway)")
+        self.target_url_combo.addItem("https://read.riztama.my.id (Otomatis Acak Jalur Alpha & Beta)")
+        self.target_url_combo.addItem("https://read.riztama.my.id/read/ (Khusus Jalur Alpha - Direct Stream)")
+        self.target_url_combo.addItem("https://read.riztama.my.id/dispatch/ (Khusus Jalur Beta - Encrypted Mirror)")
+        self.target_url_combo.addItem("http://localhost:3000 (Uji Coba Komputer Sendiri - Local Gateway)")
         t_layout.addWidget(t_lbl)
         t_layout.addWidget(self.target_url_combo)
 
@@ -2713,7 +2715,14 @@ class TrafficBotGUI(QMainWindow):
 
         args = []
         target_raw = self.target_url_combo.currentText().strip()
-        target_url = "http://localhost:3000" if "localhost" in target_raw else "https://read.riztama.my.id"
+        if "localhost" in target_raw:
+            target_url = "http://localhost:3000"
+        elif "/dispatch" in target_raw:
+            target_url = "https://read.riztama.my.id/dispatch"
+        elif "/read" in target_raw:
+            target_url = "https://read.riztama.my.id/read"
+        else:
+            target_url = "https://read.riztama.my.id"
         if "localhost" in target_raw:
             args.append("--local")
 
@@ -2777,7 +2786,14 @@ class TrafficBotGUI(QMainWindow):
 
     def run_quick_test(self):
         target_raw = self.target_url_combo.currentText().strip()
-        target_url = "http://localhost:3000" if "localhost" in target_raw else "https://read.riztama.my.id"
+        if "localhost" in target_raw:
+            target_url = "http://localhost:3000"
+        elif "/dispatch" in target_raw:
+            target_url = "https://read.riztama.my.id/dispatch"
+        elif "/read" in target_raw:
+            target_url = "https://read.riztama.my.id/read"
+        else:
+            target_url = "https://read.riztama.my.id"
 
         args = ["--sessions", "1"]
         if "localhost" in target_raw:
