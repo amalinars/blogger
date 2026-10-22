@@ -18,9 +18,18 @@ export const MONETAG_CONFIG = {
   scriptSrc: 'https://3nbf4.com/act/files/service-worker.min.js?r=sw',
   // In-Page Push / Vignette / OnClick zone settings
   zones: {
-    inPagePush: '',
-    vignette: '',
-    popunder: '',
+    popunder: {
+      zone: '12092686',
+      scriptSrc: 'https://al5sm.com/tag.min.js'
+    },
+    inPagePush: {
+      zone: '12093786',
+      scriptSrc: 'https://nap5k.com/tag.min.js'
+    },
+    vignette: {
+      zone: '12093787',
+      scriptSrc: 'https://n6wxm.com/vignette.min.js'
+    },
     directLink: '12092846'
   }
 } as const;

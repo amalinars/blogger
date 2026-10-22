@@ -43,10 +43,24 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Monetag Multitag (All-in-One) */}
+        {/* Monetag Popunder / OnClick */}
         <script
-          src="https://quge5.com/88/tag.min.js"
-          data-zone="299712"
+          src="https://al5sm.com/tag.min.js"
+          data-zone="12092686"
+          async
+          data-cfasync="false"
+        />
+        {/* Monetag In-Page Push (IPP) */}
+        <script
+          src="https://nap5k.com/tag.min.js"
+          data-zone="12093786"
+          async
+          data-cfasync="false"
+        />
+        {/* Monetag Vignette */}
+        <script
+          src="https://n6wxm.com/vignette.min.js"
+          data-zone="12093787"
           async
           data-cfasync="false"
         />
