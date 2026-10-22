@@ -229,9 +229,11 @@ def search_and_open_channel(page: Page, search_query: str, target_channel: str, 
     return True
 
 
-def pick_and_play_random_video(page: Page, tag: str = "[YT]") -> bool:
+def pick_and_play_random_video(page: Page, tag: str = "[YT]", event_callback=None, worker_id: int = 1) -> bool:
     """Memilih salah satu video di channel secara acak dan memutarnya."""
     print(f"{tag} 🎲 Memindai daftar video di channel...")
+    if event_callback:
+        event_callback("status_update", {"worker_id": worker_id, "status": "Memindai Daftar Video..."})
     time.sleep(random.uniform(2.0, 3.5))
 
     # Sedikit scroll agar video ter-render lengkap
@@ -273,6 +275,15 @@ def pick_and_play_random_video(page: Page, tag: str = "[YT]") -> bool:
     chosen_elem, chosen_title, chosen_href = random.choice(pool)
     print(f"{tag} 🎬 [VIDEO TERPILIH] '{chosen_title}' ({chosen_href})")
 
+    if event_callback:
+        full_url = f"https://www.youtube.com{chosen_href}" if chosen_href.startswith("/") else chosen_href
+        event_callback("video_picked", {
+            "worker_id": worker_id,
+            "title": chosen_title,
+            "url": full_url,
+            "status": "Video Dipilih: " + chosen_title[:35] + "..."
+        })
+
     clicked = safe_click(page, chosen_elem, tag=tag, timeout=6000)
     if not clicked:
         clean_url = f"https://www.youtube.com{chosen_href}" if chosen_href.startswith("/") else chosen_href
@@ -280,6 +291,7 @@ def pick_and_play_random_video(page: Page, tag: str = "[YT]") -> bool:
 
     time.sleep(random.uniform(3.0, 5.0))
     return True
+
 
 
 def set_playback_quality_144p(page: Page, tag: str = "[YT]"):
@@ -353,25 +365,46 @@ def format_time(seconds: float) -> str:
     return f"{m:02d}:{sec:02d}"
 
 
-def check_and_skip_ad(page: Page, tag: str = "[YT]"):
+def check_and_skip_ad(page: Page, tag: str = "[YT]", event_callback=None, worker_id: int = 1):
     """Mendeteksi dan otomatis menekan tombol Skip Ad jika iklan YouTube muncul."""
     try:
-        skip_selectors = [
-            "button.ytp-ad-skip-button",
-            "button.ytp-ad-skip-button-modern",
-            "button.ytp-skip-ad-button",
-            ".ytp-ad-skip-button-container button",
-            "div.ytp-ad-text.ytp-ad-skip-button-text"
-        ]
-        for sel in skip_selectors:
-            btn = page.query_selector(sel)
-            if btn and btn.is_visible():
-                print(f"{tag} ⏩ Terdeteksi iklan YouTube. Menekan tombol Skip Ad...")
-                btn.click()
-                time.sleep(1.0)
-                break
+        is_ad = page.evaluate("""
+            () => {
+                const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
+                if (player && (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting'))) {
+                    return true;
+                }
+                const adOverlay = document.querySelector('.ytp-ad-player-overlay, .ytp-ad-text, .ytp-ad-preview-text');
+                return !!adOverlay;
+            }
+        """)
+
+        if is_ad:
+            skip_selectors = [
+                "button.ytp-ad-skip-button",
+                "button.ytp-ad-skip-button-modern",
+                "button.ytp-skip-ad-button",
+                ".ytp-ad-skip-button-container button",
+                "div.ytp-ad-text.ytp-ad-skip-button-text"
+            ]
+            for sel in skip_selectors:
+                btn = page.query_selector(sel)
+                if btn and btn.is_visible():
+                    print(f"{tag} ⏩ Terdeteksi iklan YouTube. Menekan tombol Skip Ad...")
+                    btn.click()
+                    if event_callback:
+                        event_callback("ad_event", {"worker_id": worker_id, "status": "⏩ Iklan Di-skip", "action": "skipped"})
+                    time.sleep(1.0)
+                    return True
+            if event_callback:
+                event_callback("ad_event", {"worker_id": worker_id, "status": "🟡 Sedang Tayang Iklan", "action": "playing"})
+            return True
+        else:
+            if event_callback:
+                event_callback("ad_event", {"worker_id": worker_id, "status": "🟢 Konten Normal (Tanpa Iklan)", "action": "clean"})
+            return False
     except Exception:
-        pass
+        return False
 
 
 def get_video_duration(page: Page, tag: str = "[YT]") -> Optional[float]:
@@ -404,7 +437,7 @@ def get_video_duration(page: Page, tag: str = "[YT]") -> Optional[float]:
     return None
 
 
-def watch_video_organically(page: Page, config: dict, tag: str = "[YT]"):
+def watch_video_organically(page: Page, config: dict, tag: str = "[YT]", event_callback=None, worker_id: int = 1):
     """
     Simulasi menonton video yang sah & anti-fraud:
     - Durasi tonton menyesuaikan durasi asli video secara dinamis (85% s/d 98% atau full jika video pendek).
@@ -431,6 +464,8 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]"):
 
     # 3. Deteksi durasi asli video
     print(f"{tag} ⏳ Mendeteksi durasi asli video dari YouTube player...")
+    if event_callback:
+        event_callback("status_update", {"worker_id": worker_id, "status": "Mendeteksi Durasi Video..."})
     detected_dur = get_video_duration(page, tag=tag)
 
     if detected_dur and detected_dur > 10:
@@ -450,7 +485,11 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]"):
         w_min = config.get("watch_duration", {}).get("min_seconds", 90)
         w_max = config.get("watch_duration", {}).get("max_seconds", 240)
         target_watch = random.randint(w_min, w_max)
+        detected_dur = target_watch
         print(f"{tag} [!] Durasi video tidak terbaca, menggunakan durasi fallback: {format_time(target_watch)} ({target_watch}s)")
+
+    if event_callback:
+        event_callback("status_update", {"worker_id": worker_id, "status": f"Menonton: {format_time(target_watch)} (144p)"})
 
     # 4. Loop penayangan video
     start_time = time.time()
@@ -462,7 +501,7 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]"):
         now = time.time()
 
         # Otomatis lewati iklan jika tombol skip muncul saat menonton
-        check_and_skip_ad(page, tag=tag)
+        check_and_skip_ad(page, tag=tag, event_callback=event_callback, worker_id=worker_id)
 
         # Cek apakah koneksi proksi terputus / kuota habis (muncul layar 'Connect to the internet')
         try:
@@ -517,9 +556,23 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]"):
         except Exception:
             pass
 
+        elapsed_sec = int(now - start_time)
+        pct = min(100.0, max(0.0, (elapsed_sec / target_watch) * 100)) if target_watch else 0.0
+
+        if event_callback:
+            event_callback("playback_progress", {
+                "worker_id": worker_id,
+                "current_seconds": elapsed_sec,
+                "target_seconds": target_watch,
+                "percent": pct,
+                "formatted_current": format_time(elapsed_sec),
+                "formatted_target": format_time(target_watch)
+            })
+
         # Log countdown setiap 15 detik
         if now - last_log >= 15.0:
             remaining = max(0, int(end_time - now))
+
             pos_str = f"Posisi: {format_time(cur_pos)} / " if cur_pos else ""
             tot_str = format_time(detected_dur) if detected_dur else format_time(target_watch)
             print(f"{tag} ⏱️ Sedang menonton... {pos_str}{tot_str} (Sisa tonton: {format_time(remaining)}) [144p]")
@@ -614,7 +667,7 @@ class UniqueProxyPool:
         self._used_count = 0
         self._failed_count = 0
 
-    def get_tested_working_proxy(self, worker_id: int) -> Optional[Dict[str, Any]]:
+    def get_tested_working_proxy(self, worker_id: int, event_callback=None) -> Optional[Dict[str, Any]]:
         tag = f"[W{worker_id}]"
         while True:
             candidate = None
@@ -627,6 +680,13 @@ class UniqueProxyPool:
             port = candidate.get("port")
             geo = candidate.get("country", "Global")
             print(f"{tag} 🔎 Menguji proksi {host}:{port} ({geo}) ke YouTube...")
+            if event_callback:
+                event_callback("proxy_testing", {
+                    "worker_id": worker_id,
+                    "host": host,
+                    "port": port,
+                    "country": geo
+                })
 
             is_ok, msg, lat = test_proxy_youtube(candidate, timeout=6.0)
 
@@ -636,10 +696,28 @@ class UniqueProxyPool:
                     self._used_count += 1
                     used_num = self._used_count
                     print(f"{tag} [✓] 🎉 Proksi Lolos Uji ({msg})! Dipakai untuk sesi ini (Sisa belum dipakai: {remaining})\n")
+                    if event_callback:
+                        event_callback("proxy_assigned", {
+                            "worker_id": worker_id,
+                            "host": host,
+                            "port": port,
+                            "country": geo,
+                            "latency": lat,
+                            "status": "Lolos Uji"
+                        })
                     return candidate
                 else:
                     self._failed_count += 1
                     print(f"{tag} [-] ❌ Proksi Gagal ({msg}). Dibuang permanen (Sisa antrean: {remaining})\n")
+                    if event_callback:
+                        event_callback("proxy_failed", {
+                            "worker_id": worker_id,
+                            "host": host,
+                            "port": port,
+                            "country": geo,
+                            "latency": lat,
+                            "status": "Gagal"
+                        })
 
     def get_stats(self) -> Tuple[int, int, int]:
         with self._lock:
@@ -651,7 +729,8 @@ def run_single_youtube_session(
     config: dict,
     worker_id: int = 1,
     session_num: int = 1,
-    total_concurrency: int = 1
+    total_concurrency: int = 1,
+    event_callback=None
 ) -> bool:
     """Menjalankan 1 sesi tontonan video YouTube dengan 1 proksi unik."""
     tag = f"[W{worker_id}-Sesi#{session_num}]"
@@ -668,6 +747,9 @@ def run_single_youtube_session(
         print(f"{tag} 🛡️ Proksi: Direct Connection (Tanpa Proksi)")
     print(f"{tag} ⏱️ Durasi Nonton: Otomatis Menyesuaikan Durasi Asli Video | Resolusi: 144p")
     print("=" * 65)
+
+    if event_callback:
+        event_callback("status_update", {"worker_id": worker_id, "status": "Membuka Browser YouTube..."})
 
     with sync_playwright() as p:
         # Atur tata letak jendela (tiling) agar 5 batch terlihat rapi di layar
@@ -725,20 +807,28 @@ def run_single_youtube_session(
 
         try:
             # 1. Buka YouTube dan cari channel
+            if event_callback:
+                event_callback("status_update", {"worker_id": worker_id, "status": f"Mencari @{target_channel}..."})
             search_and_open_channel(page, search_query=search_query, target_channel=target_channel, tag=tag)
 
             # 2. Pilih video acak
-            found_video = pick_and_play_random_video(page, tag=tag)
+            found_video = pick_and_play_random_video(page, tag=tag, event_callback=event_callback, worker_id=worker_id)
             if not found_video:
                 print(f"{tag} [-] Gagal menemukan video untuk diputar. Mengakhiri sesi.")
+                if event_callback:
+                    event_callback("status_update", {"worker_id": worker_id, "status": "Video Tidak Ditemukan"})
                 return False
 
             # 3. Tonton video secara organik dengan durasi menyesuaikan panjang video (144p)
-            watch_video_organically(page, config=config, tag=tag)
-            return True
+            success = watch_video_organically(page, config=config, tag=tag, event_callback=event_callback, worker_id=worker_id)
+            if event_callback:
+                event_callback("session_finished", {"worker_id": worker_id, "success": bool(success)})
+            return bool(success)
 
         except Exception as e:
             print(f"{tag} [-] Kendala selama sesi YouTube: {e}")
+            if event_callback:
+                event_callback("status_update", {"worker_id": worker_id, "status": f"Error: {str(e)[:30]}"})
             return False
         finally:
             print(f"{tag} 🧹 Menutup browser & membersihkan sesi...")
@@ -757,17 +847,22 @@ def worker_loop(
     proxy_pool: UniqueProxyPool,
     config: dict,
     stop_event: threading.Event,
-    total_concurrency: int = 5
+    total_concurrency: int = 5,
+    event_callback=None
 ):
     """Loop pekerjaan per worker batch: ambil 1 proksi unik -> tonton video -> ulangi."""
     tag = f"[W{worker_id}]"
     session_count = 0
 
     while not stop_event.is_set():
+        if event_callback:
+            event_callback("status_update", {"worker_id": worker_id, "status": "Menyiapkan Proksi..."})
         # Dapatkan proksi baru yang lolos uji (proksi yang sudah dipakai tidak akan keluar lagi)
-        proxy = proxy_pool.get_tested_working_proxy(worker_id=worker_id)
+        proxy = proxy_pool.get_tested_working_proxy(worker_id=worker_id, event_callback=event_callback)
         if not proxy:
             print(f"{tag} [!] Semua proksi unik di proxies.json telah habis terpakai. Worker selesai.")
+            if event_callback:
+                event_callback("status_update", {"worker_id": worker_id, "status": "Proksi Habis / Selesai"})
             break
 
         session_count += 1
@@ -777,7 +872,8 @@ def worker_loop(
                 config=config,
                 worker_id=worker_id,
                 session_num=session_count,
-                total_concurrency=total_concurrency
+                total_concurrency=total_concurrency,
+                event_callback=event_callback
             )
         except Exception as e:
             print(f"{tag} [-] Kendala sesi worker: {e}")
@@ -787,6 +883,8 @@ def worker_loop(
 
         cooldown = random.uniform(3.5, 7.0)
         print(f"{tag} 💤 Pendinginan {cooldown:.1f}s sebelum mengambil video & proksi berikutnya...")
+        if event_callback:
+            event_callback("status_update", {"worker_id": worker_id, "status": f"Cooldown {cooldown:.0f}s..."})
         time.sleep(cooldown)
 
 
