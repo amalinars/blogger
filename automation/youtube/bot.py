@@ -924,7 +924,13 @@ def main():
     parser.add_argument("--concurrency", "-c", type=int, default=0, help="Jumlah batch / jendela berjalan bersamaan (default: 5)")
     parser.add_argument("--headless", action="store_true", help="Jalankan di balik layar tanpa jendela")
     parser.add_argument("--no-proxy", action="store_true", help="Gunakan koneksi internet langsung tanpa proksi")
+    parser.add_argument("--tui", action="store_true", help="Jalankan dalam mode Terminal UI Dashboard (Rich Live TUI)")
     args = parser.parse_args()
+
+    if args.tui:
+        from tui import main as tui_main
+        tui_main()
+        return
 
     cfg = load_config()
     if args.search:
