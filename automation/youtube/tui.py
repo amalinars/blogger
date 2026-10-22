@@ -105,11 +105,17 @@ class TUIManager:
                 st = data.get("status", "")
                 w["status"] = st
                 if "Mencari" in st:
-                    w["status_style"] = "yellow"
+                    w["status_style"] = "bold yellow"
+                    self.add_log(f"[W{w_id}] 🔎 {st}", "yellow")
+                elif "Browser" in st:
+                    w["status_style"] = "cyan"
+                    self.add_log(f"[W{w_id}] 🌐 {st}", "cyan")
                 elif "Cooldown" in st:
                     w["status_style"] = "dim cyan"
+                    self.add_log(f"[W{w_id}] 💤 {st}", "dim cyan")
                 elif "Error" in st:
                     w["status_style"] = "bold red"
+                    self.add_log(f"[W{w_id}] ⚠️ {st}", "red")
                 else:
                     w["status_style"] = "cyan"
 
