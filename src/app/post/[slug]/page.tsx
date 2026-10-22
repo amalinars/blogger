@@ -17,6 +17,7 @@ import { Clock, Calendar, ArrowLeft, ShieldCheck, Terminal, Hash, Cpu, CheckCirc
 import { StepProgressBar } from '@/components/shortlink/StepProgressBar';
 import { CountdownGateway } from '@/components/shortlink/CountdownGateway';
 import { STEP_ARTICLES } from '@/lib/step-content';
+import { HilltopBanner } from '@/components/ads/HilltopBanner';
 
 export async function generateMetadata({
   params,
@@ -335,6 +336,9 @@ export default async function PostPage({
                 </div>
               </div>
             )}
+
+            {/* HilltopAds 300x250 Sponsored Banner */}
+            <HilltopBanner className="sticky top-24" />
           </div>
         </div>
       </div>

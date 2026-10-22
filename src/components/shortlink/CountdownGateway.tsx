@@ -15,7 +15,8 @@ import {
   Download,
   Zap
 } from 'lucide-react';
-import { MONETAG_CONFIG } from '@/lib/ad-config';
+import { MONETAG_CONFIG, getStepDirectLink } from '@/lib/ad-config';
+import { HilltopBanner } from '@/components/ads/HilltopBanner';
 
 interface CountdownGatewayProps {
   currentStep: number;
@@ -33,6 +34,7 @@ export function CountdownGateway({
   durationSeconds = 8
 }: CountdownGatewayProps) {
   const router = useRouter();
+  const directLinkData = getStepDirectLink(currentStep);
   const [secondsLeft, setSecondsLeft] = useState<number>(durationSeconds);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
   const buttonRef = useRef<HTMLDivElement>(null);
@@ -208,11 +210,11 @@ export function CountdownGateway({
           )}
         </div>
 
-        {/* Direct Fast Mirror (Monetag Direct Link) */}
-        {MONETAG_CONFIG.directLinkUrl && (
+        {/* Direct Fast Mirror (Alternates Monetag / HilltopAds per Layer) */}
+        {directLinkData.url && (
           <div className="w-full max-w-sm pt-1 mx-auto">
             <a
-              href={MONETAG_CONFIG.directLinkUrl}
+              href={directLinkData.url}
               target="_blank"
               rel="noopener noreferrer"
               data-directlink="true"
@@ -229,12 +231,15 @@ export function CountdownGateway({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                 </span>
                 <span className="text-amber-600 dark:text-amber-400 font-bold">⚡ Fast Direct Mirror:</span>
-                <span className="opacity-80">Instant Sponsor Server</span>
+                <span className="opacity-80">{directLinkData.label}</span>
               </div>
               <ExternalLink className="w-3.5 h-3.5 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
             </a>
           </div>
         )}
+
+        {/* HilltopAds 300x250 Sponsored Banner */}
+        <HilltopBanner className="my-2" />
 
         {/* Security Assurance Footer */}
         <div className="flex items-center space-x-4 text-[10px] font-mono text-neutral-400 pt-2 border-t border-dashed w-full justify-center" style={{ borderColor: 'var(--border-subtle)' }}>

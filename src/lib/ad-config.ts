@@ -34,6 +34,33 @@ export const MONETAG_CONFIG = {
   }
 } as const;
 
+export const HILLTOPADS_CONFIG = {
+  banner_300x250: {
+    scriptSrc: '//simplistic-walk.com/bSXRV.sLd/GTlM0mYfWDcH/Oe-m/9iuPZ/U/l/kwPKTVcF1yNPDBEFwHMCDYEBt/NBzCUt0EMBTzAywuNYQB',
+    referrerPolicy: 'no-referrer-when-downgrade'
+  },
+  popunder: {
+    scriptSrc: '//direct-league.com/crDU9D6Mb.2k5XliSEWGQB9sNPzKU_0/MhT/AQyGNKS/0x3JNCT-Q-xMM/D/Is5c',
+    referrerPolicy: 'no-referrer-when-downgrade'
+  },
+  directLinkUrl: 'https://gullible-thanks.com/O8pqAQ'
+} as const;
+
+export function getStepDirectLink(step: number = 1): { url: string; label: string } {
+  // Odd steps (1, 3): Monetag
+  // Even steps (2, 4): HilltopAds
+  if (step % 2 === 0 && HILLTOPADS_CONFIG.directLinkUrl) {
+    return {
+      url: HILLTOPADS_CONFIG.directLinkUrl,
+      label: 'Hilltop High-Speed Sponsor Mirror'
+    };
+  }
+  return {
+    url: MONETAG_CONFIG.directLinkUrl || HILLTOPADS_CONFIG.directLinkUrl,
+    label: 'Monetag Fast Direct Mirror'
+  };
+}
+
 // Backward-compatible structure
 export const AD_CONFIG = {
   leaderboard_728x90: { key: '', width: 728, height: 90 },

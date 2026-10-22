@@ -5,6 +5,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { SmartPopunder } from '@/components/ads/SmartPopunder';
 
 const newsreader = Newsreader({
   variable: '--font-serif',
@@ -43,13 +44,6 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Monetag Popunder / OnClick */}
-        <script
-          src="https://al5sm.com/tag.min.js"
-          data-zone="12092686"
-          async
-          data-cfasync="false"
-        />
         {/* Monetag In-Page Push (IPP) */}
         <script
           src="https://nap5k.com/tag.min.js"
@@ -69,9 +63,15 @@ export default function RootLayout({
           name="72c7af1256ac05236eaa49980a667d48e07b8033"
           content="72c7af1256ac05236eaa49980a667d48e07b8033"
         />
+        {/* Referrer Policy for Maximum Ad Network Revenue (HilltopAds & Monetag) */}
+        <meta name="referrer" content="no-referrer-when-downgrade" />
       </head>
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
         <ThemeProvider>
+          {/* Smart Popunder Rotator (Odd steps: Monetag, Even steps: HilltopAds) */}
+          <Suspense fallback={null}>
+            <SmartPopunder />
+          </Suspense>
 
           <Suspense fallback={<div className="h-20 border-b" />}>
             <Navbar />

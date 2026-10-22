@@ -12,13 +12,13 @@ interface AdBannerProps {
   refreshInterval?: number; // in seconds
 }
 
+import { HilltopBanner } from './HilltopBanner';
+
 export function AdBanner({
-  adKey,
   className = '',
   label = 'Advertisement'
-}: AdBannerProps) {
-  // Adsterra disabled — ready for Monetag integration
-  return null;
+}: Partial<AdBannerProps>) {
+  return <HilltopBanner className={className} label={label} />;
 }
 
 export { AD_CONFIG } from '@/lib/ad-config';
