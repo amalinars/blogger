@@ -23,6 +23,41 @@ from playwright.sync_api import sync_playwright, Page, BrowserContext
 
 BASE_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_DIR.parent.parent
+CONFIG_PATH = BASE_DIR / "config.json"
+PROXIES_PATH = PROJECT_ROOT / "automation" / "proxies.json"
+
+COUNTRY_FLAGS = {
+    "united states": "🇺🇸",
+    "usa": "🇺🇸",
+    "us": "🇺🇸",
+    "united kingdom": "🇬🇧",
+    "uk": "🇬🇧",
+    "great britain": "🇬🇧",
+    "gb": "🇬🇧",
+    "canada": "🇨🇦",
+    "ca": "🇨🇦",
+    "australia": "🇦🇺",
+    "au": "🇦🇺",
+    "france": "🇫🇷",
+    "fr": "🇫🇷",
+    "germany": "🇩🇪",
+    "de": "🇩🇪",
+    "japan": "🇯🇵",
+    "jp": "🇯🇵",
+    "singapore": "🇸🇬",
+    "sg": "🇸🇬",
+    "indonesia": "🇮🇩",
+    "id": "🇮🇩",
+    "netherlands": "🇳🇱",
+    "nl": "🇳🇱",
+}
+
+def get_country_badge(country_name: str) -> str:
+    clean = (country_name or "").strip().lower()
+    for k, flag in COUNTRY_FLAGS.items():
+        if k in clean:
+            return f"{flag} {country_name}"
+    return f"🌍 {country_name}"
 
 try:
     from automation.core.browser import build_browser_args, format_proxy_dict, launch_browser, create_stealth_context
