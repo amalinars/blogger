@@ -60,14 +60,16 @@ def get_country_badge(country_name: str) -> str:
     return f"🌍 {country_name}"
 
 try:
-    from automation.core.browser import build_browser_args, format_proxy_dict, launch_browser, create_stealth_context
+    from automation.core.browser import format_proxy_dict
     from automation.core.proxy_manager import ProxyManager, load_proxies
     from automation.core.human import smooth_scroll, natural_mouse_move, physical_click, random_pause
+    from automation.youtube.yt_core import build_yt_browser_args, launch_yt_browser, create_yt_context
 except ImportError:
     sys.path.insert(0, str(PROJECT_ROOT))
-    from automation.core.browser import build_browser_args, format_proxy_dict, launch_browser, create_stealth_context
+    from automation.core.browser import format_proxy_dict
     from automation.core.proxy_manager import ProxyManager, load_proxies
     from automation.core.human import smooth_scroll, natural_mouse_move, physical_click, random_pause
+    from automation.youtube.yt_core import build_yt_browser_args, launch_yt_browser, create_yt_context
 
 
 def load_config() -> dict:
@@ -275,20 +277,24 @@ def pick_and_play_random_video(page: Page, tag: str = "[YT]", event_callback=Non
     smooth_scroll(page, distance=random.randint(250, 450), steps=8)
     time.sleep(random.uniform(1.0, 2.0))
 
-    # Ambil elemen video
+    # Ambil elemen video di tab Videos
     video_elements = page.query_selector_all(
+        "ytd-rich-grid-media a#video-title-link, "
         "ytd-rich-item-renderer a#video-title-link, "
         "ytd-grid-video-renderer a#video-title, "
+        "ytd-video-renderer a#video-title, "
         "a#video-title-link, "
-        "a#video-title"
+        "a#video-title, "
+        "ytd-rich-grid-media a#thumbnail, "
+        "ytd-rich-item-renderer a#thumbnail"
     )
 
     valid_videos = []
     for v in video_elements:
         href = v.get_attribute("href") or ""
         title = v.get_attribute("title") or v.inner_text().strip()
-        if "/watch?v=" in href and title:
-            valid_videos.append((v, title, href))
+        if "/watch?v=" in href:
+            valid_videos.append((v, title or "YouTube Video", href))
 
     if not valid_videos:
         try:
@@ -331,40 +337,14 @@ def pick_and_play_random_video(page: Page, tag: str = "[YT]", event_callback=Non
 
 def set_playback_quality_144p(page: Page, tag: str = "[YT]"):
     """
-    Mengatur resolusi video ke 144p:
-    1. Menggunakan YouTube HTML5 Player JS API ('tiny' = 144p)
-    2. Fallback via UI Gear Settings -> Quality -> 144p
+    Mengatur resolusi video ke 144p secara alami via UI Menu Gear.
+    (Menghindari injeksi JS API internal player yang memicu deteksi bot anti-fraud YouTube).
     """
-    print(f"{tag} ⚙️ Mengatur resolusi pemutaran video ke 144p...")
-
-    # Cara 1: Injeksi langsung ke JavaScript YouTube Player API
-    try:
-        api_success = page.evaluate("""
-            () => {
-                const player = document.getElementById('movie_player') || document.querySelector('.html5-video-player');
-                if (player) {
-                    if (typeof player.setPlaybackQualityRange === 'function') {
-                        player.setPlaybackQualityRange('tiny', 'tiny');
-                    }
-                    if (typeof player.setPlaybackQuality === 'function') {
-                        player.setPlaybackQuality('tiny');
-                    }
-                    return true;
-                }
-                return false;
-            }
-        """)
-        if api_success:
-            print(f"{tag} [✓] Player API: Berhasil meminta resolusi 'tiny' (144p).")
-    except Exception as e:
-        print(f"{tag} [-] Player API notice: {e}")
-
-    # Cara 2: Menu Gear YouTube Player (UI fallback)
     try:
         settings_btn = page.query_selector("button.ytp-settings-button")
         if settings_btn and settings_btn.is_visible():
             settings_btn.click()
-            time.sleep(random.uniform(0.6, 1.0))
+            time.sleep(random.uniform(0.5, 0.8))
 
             # Cari menu Kualitas / Quality
             quality_item = page.query_selector(
@@ -373,7 +353,7 @@ def set_playback_quality_144p(page: Page, tag: str = "[YT]"):
             )
             if quality_item:
                 quality_item.click()
-                time.sleep(random.uniform(0.5, 0.9))
+                time.sleep(random.uniform(0.4, 0.7))
 
                 # Klik opsi 144p
                 p144 = page.query_selector(".ytp-menuitem:has-text('144p')")
@@ -381,7 +361,6 @@ def set_playback_quality_144p(page: Page, tag: str = "[YT]"):
                     p144.click()
                     print(f"{tag} [✓] UI Settings: Resolusi 144p berhasil dipilih secara fisik.")
                 else:
-                    # Tutup menu gear jika opsi 144p tidak ditemukan
                     settings_btn.click()
             else:
                 settings_btn.click()
@@ -827,19 +806,14 @@ def run_single_youtube_session(
             pos = None
             win_size = (1280, 820)
 
-        browser_args = build_browser_args(
+        browser_args = build_yt_browser_args(
             window_position=pos,
             window_size=win_size,
-            extra_args=[
-                "--disable-quic",
-                "--disable-http2",
-                "--autoplay-policy=no-user-gesture-required",
-                "--disable-features=PreloadMediaEngagementData,MediaEngagementBypassAutoplayPolicies"
-            ]
+            headless=headless,
         )
         proxy_dict = format_proxy_dict(proxy)
 
-        browser = launch_browser(
+        browser = launch_yt_browser(
             p,
             proxy_dict=proxy_dict,
             headless=headless,
@@ -848,20 +822,11 @@ def run_single_youtube_session(
         )
 
         proxy_country = proxy.get("country", "") if proxy else ""
-        context, meta = create_stealth_context(
+        context, meta = create_yt_context(
             browser,
             proxy_country=proxy_country,
             tag=tag,
         )
-
-        # Pre-inject cookies persetujuan YouTube/Google agar popup 'Before you continue' tidak pernah muncul
-        try:
-            context.add_cookies([
-                {"name": "SOCS", "value": "CAISNQgDEitib3FfaWRlbnRpdHlmcm9udGVuZHVpc2VydmVyXzIwMjMwODI5LjA3X3AwGgJlbhACGgYIgP-8mgY", "domain": ".youtube.com", "path": "/"},
-                {"name": "CONSENT", "value": "PENDING+999", "domain": ".youtube.com", "path": "/"}
-            ])
-        except Exception:
-            pass
 
         page = context.new_page()
 
