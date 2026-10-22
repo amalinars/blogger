@@ -64,6 +64,11 @@ export default function RootLayout({
           async
           data-cfasync="false"
         />
+        {/* HilltopAds Verification */}
+        <meta
+          name="72c7af1256ac05236eaa49980a667d48e07b8033"
+          content="72c7af1256ac05236eaa49980a667d48e07b8033"
+        />
       </head>
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
         <ThemeProvider>
