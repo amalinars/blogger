@@ -355,6 +355,7 @@ class YouTubeSuiteWindow(QMainWindow):
         self.bot_thread: Optional[YouTubeBotThread] = None
         self.proxy_tester_thread: Optional[ProxyTesterThread] = None
         self.worker_cards: Dict[int, WorkerCardWidget] = {}
+        self.worker_active_proxies: Dict[int, int] = {}  # worker_id -> proxy_idx
 
         # Counter stats
         self.stat_views_completed = 0
@@ -884,6 +885,7 @@ class YouTubeSuiteWindow(QMainWindow):
         self.stop_btn.setEnabled(True)
         self.status_footer_lbl.setText("Status: Bot YouTube Sedang Berjalan (Multi-Worker)")
         self.status_footer_lbl.setStyleSheet("color: #10b981; font-weight: bold;")
+        self.worker_active_proxies.clear()
 
         self.bot_thread = YouTubeBotThread(cfg)
         self.bot_thread.log_signal.connect(self.append_log)
@@ -903,6 +905,19 @@ class YouTubeSuiteWindow(QMainWindow):
         self.stop_btn.setEnabled(False)
         self.status_footer_lbl.setText("Status: Bot Berhenti")
         self.status_footer_lbl.setStyleSheet("color: #94a3b8; font-size: 12px;")
+
+        # Setel seluruh proksi yang sedang aktif menjadi Idle
+        for w_id, p_idx in list(self.worker_active_proxies.items()):
+            if 0 <= p_idx < self.proxy_table.rowCount():
+                it_w = QTableWidgetItem("Idle")
+                it_w.setForeground(QColor("#64748b"))
+                it_w.setFont(QFont("sans-serif", 9, QFont.Normal))
+                self.proxy_table.setItem(p_idx, 6, it_w)
+        self.worker_active_proxies.clear()
+
+        # Reset kartu worker ke status IDLE
+        for card in self.worker_cards.values():
+            card.set_status("IDLE", color="#94a3b8", bg="#1f2937")
 
     def on_worker_event(self, event_type: str, data: dict):
         w_id = data.get("worker_id", 1)
@@ -944,6 +959,16 @@ class YouTubeSuiteWindow(QMainWindow):
             lat = data.get("latency", 0)
             exit_ip = data.get("exit_ip", "")
 
+            # Jika worker ini sebelumnya sedang memakai proksi lain, ubah proksi sebelumnya jadi Idle
+            prev_idx = self.worker_active_proxies.get(w_id)
+            if prev_idx is not None and prev_idx != p_idx and 0 <= prev_idx < self.proxy_table.rowCount():
+                it_idle = QTableWidgetItem("Idle")
+                it_idle.setForeground(QColor("#64748b"))
+                it_idle.setFont(QFont("sans-serif", 9, QFont.Normal))
+                self.proxy_table.setItem(prev_idx, 6, it_idle)
+
+            self.worker_active_proxies[w_id] = p_idx
+
             # Update kartu worker: Exit IP Publik & Bendera Negara
             card.set_proxy(host, port, country, lat, exit_ip=exit_ip)
             card.set_status("Proksi Aktif", color="#10b981", bg="#064e3b")
@@ -973,9 +998,13 @@ class YouTubeSuiteWindow(QMainWindow):
                 it_st = QTableWidgetItem("🔴 Gagal / Timeout")
                 it_st.setForeground(QColor("#ef4444"))
                 self.proxy_table.setItem(p_idx, 4, it_st)
-                it_w = QTableWidgetItem("Dibuang (Mati)")
+                it_w = QTableWidgetItem("Idle")
                 it_w.setForeground(QColor("#64748b"))
+                it_w.setFont(QFont("sans-serif", 9, QFont.Normal))
                 self.proxy_table.setItem(p_idx, 6, it_w)
+
+            if w_id in self.worker_active_proxies and self.worker_active_proxies[w_id] == p_idx:
+                del self.worker_active_proxies[w_id]
 
         elif event_type == "video_picked":
             title = data.get("title", "")
@@ -1001,14 +1030,19 @@ class YouTubeSuiteWindow(QMainWindow):
             if success:
                 self.stat_views_completed += 1
                 self.kpi_views.val_label.setText(str(self.stat_views_completed))
-                card.set_status("Selesai (View Valid)", color="#10b981", bg="#064e3b")
+                card.set_status("Idle (Selesai)", color="#10b981", bg="#064e3b")
             else:
-                card.set_status("Selesai", color="#94a3b8", bg="#1f2937")
+                card.set_status("Idle", color="#94a3b8", bg="#1f2937")
 
-            if 0 <= p_idx < self.proxy_table.rowCount():
-                it_w = QTableWidgetItem(f"Worker #{w_id} (✅ Selesai)")
-                it_w.setForeground(QColor("#94a3b8"))
-                self.proxy_table.setItem(p_idx, 6, it_w)
+            target_idx = p_idx if p_idx >= 0 else self.worker_active_proxies.get(w_id, -1)
+            if 0 <= target_idx < self.proxy_table.rowCount():
+                it_w = QTableWidgetItem("Idle")
+                it_w.setForeground(QColor("#64748b"))
+                it_w.setFont(QFont("sans-serif", 9, QFont.Normal))
+                self.proxy_table.setItem(target_idx, 6, it_w)
+
+            if w_id in self.worker_active_proxies and self.worker_active_proxies[w_id] == target_idx:
+                del self.worker_active_proxies[w_id]
 
     def closeEvent(self, event):
         if self.bot_thread and self.bot_thread.isRunning():

@@ -835,23 +835,27 @@ def run_single_youtube_session(
             search_and_open_channel(page, search_query=search_query, target_channel=target_channel, tag=tag)
 
             # 2. Pilih video acak
+            p_idx = proxy.get("_idx", -1) if proxy else -1
             found_video = pick_and_play_random_video(page, tag=tag, event_callback=event_callback, worker_id=worker_id)
             if not found_video:
                 print(f"{tag} [-] Gagal menemukan video untuk diputar. Mengakhiri sesi.")
                 if event_callback:
                     event_callback("status_update", {"worker_id": worker_id, "status": "Video Tidak Ditemukan"})
+                    event_callback("session_finished", {"worker_id": worker_id, "success": False, "proxy_idx": p_idx})
                 return False
 
             # 3. Tonton video secara organik dengan durasi menyesuaikan panjang video (144p)
             success = watch_video_organically(page, config=config, tag=tag, event_callback=event_callback, worker_id=worker_id)
             if event_callback:
-                event_callback("session_finished", {"worker_id": worker_id, "success": bool(success)})
+                event_callback("session_finished", {"worker_id": worker_id, "success": bool(success), "proxy_idx": p_idx})
             return bool(success)
 
         except Exception as e:
             print(f"{tag} [-] Kendala selama sesi YouTube: {e}")
             if event_callback:
+                p_idx = proxy.get("_idx", -1) if proxy else -1
                 event_callback("status_update", {"worker_id": worker_id, "status": f"Error: {str(e)[:30]}"})
+                event_callback("session_finished", {"worker_id": worker_id, "success": False, "proxy_idx": p_idx})
             return False
         finally:
             print(f"{tag} 🧹 Menutup browser & membersihkan sesi...")
