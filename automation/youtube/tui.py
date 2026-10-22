@@ -51,6 +51,8 @@ class TUIManager:
         self.total_initial_proxies = total_proxies
         self.config = config
         self.console = Console()
+        self.lock = threading.Lock()
+        self.is_stopping = False
 
         # State Worker
         self.workers: Dict[int, Dict[str, Any]] = {}
@@ -83,10 +85,6 @@ class TUIManager:
 
         # Proksi Tracker (Menyimpan riwayat status proksi terbaru)
         self.active_proxy_map: Dict[int, int] = {}  # worker_id -> proxy_idx
-
-        # Flag stop
-        self.is_stopping = False
-        self.lock = threading.Lock()
 
     def add_log(self, text: str, style: str = "white"):
         timestamp = datetime.now().strftime("%H:%M:%S")
