@@ -162,11 +162,11 @@ def search_and_open_channel(page: Page, search_query: str, target_channel: str, 
     """
     print(f"{tag} 🌐 Membuka beranda YouTube untuk pencarian organik...")
     try:
-        page.goto("https://www.youtube.com", wait_until="commit", timeout=40000)
+        page.goto("https://www.youtube.com", wait_until="domcontentloaded", timeout=25000)
     except Exception as nav_e:
         if "ERR_ABORTED" not in str(nav_e):
             print(f"{tag} [-] Notice navigasi YouTube: {nav_e}")
-    time.sleep(random.uniform(2.5, 4.0))
+    time.sleep(random.uniform(2.0, 3.5))
     handle_consent_dialog(page, tag=tag)
 
     # 1. Cari search input box
@@ -174,7 +174,7 @@ def search_and_open_channel(page: Page, search_query: str, target_channel: str, 
     try:
         search_input = page.wait_for_selector(
             "input#search, input[name='search_query'], input.ytd-searchbox",
-            timeout=10000
+            timeout=8000
         )
     except Exception:
         search_input = page.query_selector("input#search, input[name='search_query'], input.ytd-searchbox")
@@ -190,7 +190,7 @@ def search_and_open_channel(page: Page, search_query: str, target_channel: str, 
     if not search_input:
         print(f"{tag} [-] Input pencarian YouTube tidak ditemukan. Navigasi langsung ke search URL...")
         try:
-            page.goto(f"https://www.youtube.com/results?search_query={search_query}", wait_until="commit", timeout=35000)
+            page.goto(f"https://www.youtube.com/results?search_query={search_query}", wait_until="domcontentloaded", timeout=25000)
         except Exception:
             pass
     else:

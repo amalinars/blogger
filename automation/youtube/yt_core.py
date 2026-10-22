@@ -34,18 +34,20 @@ def build_yt_browser_args(
     extra_args: Optional[List[str]] = None,
 ) -> List[str]:
     """
-    Argumen Chromium murni untuk YouTube.
-    CATATAN: HTTP/2 dan QUIC TIDAK PERNAH DIMATIKAN di sini karena YouTube
-    memerlukan HTTP/2 untuk memvalidasi sesi streaming video yang sah.
+    Argumen Chromium untuk YouTube melalui Residential Forward Proxy:
+    - --disable-quic & --disable-http2: Wajib aktif untuk forward proxy HTTP/1.1 (seperti FloppyData).
+      Tanpa flag ini, Chromium mencoba handshake QUIC/HTTP2 yang tidak didukung forward proxy,
+      menyebabkan page.goto timeout / blank page (about:blank).
     """
     args = [
         "--disable-blink-features=AutomationControlled",
         "--no-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-quic",
+        "--disable-http2",
         "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
         "--enforce-webrtc-ip-permission-check",
         "--autoplay-policy=no-user-gesture-required",
-        # Izinkan rendering grafis wajar agar video player berjalan mulus
         "--enable-features=NetworkService,NetworkServiceInProcess",
     ]
 
