@@ -5,6 +5,7 @@ import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
+import { AAdsStickyUnits } from '@/components/ads/AAdsStickyUnits';
 
 const newsreader = Newsreader({
   variable: '--font-serif',
@@ -64,6 +65,9 @@ export default function RootLayout({
           </main>
 
           <Footer />
+
+          {/* A-Ads Multi-Unit Sticky Stream (Top, Left, Right, Bottom) */}
+          <AAdsStickyUnits />
         </ThemeProvider>
       </body>
     </html>

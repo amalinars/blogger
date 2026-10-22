@@ -4,6 +4,27 @@
  */
 
 export const AADS_CONFIG = {
+  fixedCenter: {
+    unitId: '2459425',
+    iframeSrc: '//acceptable.a-ads.com/2459425/?size=Adaptive'
+  },
+  stickyTop: {
+    unitId: '2459431',
+    iframeSrc: '//acceptable.a-ads.com/2459431/?size=Adaptive'
+  },
+  stickyLeft: {
+    unitId: '2459432',
+    iframeSrc: '//acceptable.a-ads.com/2459432/?size=Adaptive'
+  },
+  stickyRight: {
+    unitId: '2459433',
+    iframeSrc: '//acceptable.a-ads.com/2459433/?size=Adaptive'
+  },
+  stickyBottom: {
+    unitId: '2459434',
+    iframeSrc: '//acceptable.a-ads.com/2459434/?size=Adaptive'
+  },
+  // Legacy alias for single unit
   unitId: '2459425',
   iframeSrc: '//acceptable.a-ads.com/2459425/?size=Adaptive'
 } as const;
