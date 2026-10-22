@@ -17,7 +17,6 @@ import { Clock, Calendar, ArrowLeft, ShieldCheck, Terminal, Hash, Cpu, CheckCirc
 import { StepProgressBar } from '@/components/shortlink/StepProgressBar';
 import { CountdownGateway } from '@/components/shortlink/CountdownGateway';
 import { STEP_ARTICLES } from '@/lib/step-content';
-import { MonetagScripts } from '@/components/ads/MonetagScripts';
 
 export async function generateMetadata({
   params,
@@ -82,9 +81,6 @@ export default async function ReadPage({
 
   return (
     <article className="animate-fadeIn pb-16">
-      {/* Dedicated Monetag Ad Scripts (Popunder, IPP, Vignette) */}
-      <MonetagScripts />
-
       <ReadingProgressBar />
 
       {/* Back button & Gateway Breadcrumb */}
@@ -194,7 +190,7 @@ export default async function ReadPage({
               destinationUrl="https://modapk.org/"
               durationSeconds={8}
               basePath="/read"
-              channel="monetag"
+              channel="aads"
             />
           </div>
 

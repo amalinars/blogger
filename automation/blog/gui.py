@@ -31,6 +31,26 @@ CONFIG_PATH = BASE_DIR / "config.json"
 PROXIES_PATH = BASE_DIR / "proxies.json" if (BASE_DIR / "proxies.json").exists() else BASE_DIR.parent / "proxies.json"
 
 
+class NoWheelComboBox(QComboBox):
+    """QComboBox yang mengabaikan event scroll mouse wheel saat kursor melintas,
+    sehingga area panel pengaturan bisa di-scroll tanpa sengaja mengubah pilihan dropdown."""
+    def wheelEvent(self, event):
+        event.ignore()
+
+
+class NoWheelSpinBox(QSpinBox):
+    """QSpinBox yang mengabaikan event scroll mouse wheel agar nilainya tidak bergeser
+    saat user men-scroll panel pengaturan."""
+    def wheelEvent(self, event):
+        event.ignore()
+
+
+class NoWheelSlider(QSlider):
+    """QSlider yang mengabaikan event scroll mouse wheel agar slider tidak bergeser saat scrolling."""
+    def wheelEvent(self, event):
+        event.ignore()
+
+
 def load_config_data():
     if CONFIG_PATH.exists():
         try:
@@ -960,7 +980,7 @@ class ProxyTestDialog(QDialog):
         speed_lbl = QLabel("Parallel:")
         speed_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
         speed_row.addWidget(speed_lbl)
-        self.threads_spin = QSpinBox()
+        self.threads_spin = NoWheelSpinBox()
         self.threads_spin.setRange(1, 10)
         self.threads_spin.setValue(4)
         self.threads_spin.setSuffix(" worker")
@@ -1754,7 +1774,7 @@ class TrafficBotGUI(QMainWindow):
 
         t_lbl = QLabel("Pilih Alamat Web:")
         t_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
-        self.target_url_combo = QComboBox()
+        self.target_url_combo = NoWheelComboBox()
         self.target_url_combo.setEditable(True)
         self.target_url_combo.addItem("https://read.riztama.my.id (Otomatis Acak Jalur Alpha & Beta)")
         self.target_url_combo.addItem("https://read.riztama.my.id/read/ (Khusus Jalur Alpha - Direct Stream)")
@@ -1786,7 +1806,7 @@ class TrafficBotGUI(QMainWindow):
         s_header_layout.addWidget(s_lbl)
 
         s_input_row = QHBoxLayout()
-        self.session_combo = QComboBox()
+        self.session_combo = NoWheelComboBox()
         self.session_combo.addItem("♾️ Mode Unlimited (Berputar Terus 24 Jam Non-Stop)")
         self.session_combo.addItem(f"🎯 {total_proxies_init} Sesi (1x Putar Seluruh Proksi)")
         self.session_combo.addItem(f"🔄 {total_proxies_init * 2} Sesi (2x Putar Seluruh Proksi)")
@@ -1797,7 +1817,7 @@ class TrafficBotGUI(QMainWindow):
         self.session_combo.setCurrentIndex(0)  # Default: Mode Unlimited sesuai permintaan
         s_input_row.addWidget(self.session_combo, stretch=2)
 
-        self.custom_session_spin = QSpinBox()
+        self.custom_session_spin = NoWheelSpinBox()
         self.custom_session_spin.setRange(1, 50000)
         self.custom_session_spin.setValue(total_proxies_init)
         self.custom_session_spin.setSuffix(" Sesi Kustom")
@@ -1848,7 +1868,7 @@ class TrafficBotGUI(QMainWindow):
         s_grid.setSpacing(8)
 
         s_grid.addWidget(QLabel("Jumlah Worker (Browser Paralel):"), 0, 0)
-        self.concurrency_combo = QComboBox()
+        self.concurrency_combo = NoWheelComboBox()
         self.concurrency_combo.addItem("1 Worker (1 Browser — Ringan RAM)")
         self.concurrency_combo.addItem("2 Worker (2 Browser Bersamaan)")
         self.concurrency_combo.addItem("3 Worker (3 Browser — Cepat & Stabil)")
@@ -1895,7 +1915,7 @@ class TrafficBotGUI(QMainWindow):
 
         s_grid.addWidget(QLabel("Lama Diam di Web:"), 3, 0)
         dwell_layout = QHBoxLayout()
-        self.min_dwell_spin = QSpinBox()
+        self.min_dwell_spin = NoWheelSpinBox()
         self.min_dwell_spin.setRange(10, 180)
         self.min_dwell_spin.setValue(self.config_data.get("dwell_time", {}).get("min_seconds", 20))
         self.min_dwell_spin.setSuffix("s Min")
@@ -1903,7 +1923,7 @@ class TrafficBotGUI(QMainWindow):
         dwell_sep = QLabel("s/d")
         dwell_sep.setStyleSheet("color: #64748b; font-size: 11px;")
 
-        self.max_dwell_spin = QSpinBox()
+        self.max_dwell_spin = NoWheelSpinBox()
         self.max_dwell_spin.setRange(15, 300)
         self.max_dwell_spin.setValue(self.config_data.get("dwell_time", {}).get("max_seconds", 32))
         self.max_dwell_spin.setSuffix("s Max")
@@ -1914,7 +1934,7 @@ class TrafficBotGUI(QMainWindow):
         s_grid.addLayout(dwell_layout, 3, 1)
 
         s_grid.addWidget(QLabel("Artikel Dijelajahi:"), 4, 0)
-        self.pages_combo = QComboBox()
+        self.pages_combo = NoWheelComboBox()
         self.pages_combo.addItem("2 Artikel (Rekomendasi Cepat & High eCPM)")
         self.pages_combo.addItem("1 Artikel Saja (Ultra Speed)")
         self.pages_combo.addItem("3 Artikel (Eksplorasi Santai)")
@@ -1959,7 +1979,7 @@ class TrafficBotGUI(QMainWindow):
         self.use_proxy_check.setChecked(total_px > 0)
         p_layout.addWidget(self.use_proxy_check)
 
-        self.proxy_combo = QComboBox()
+        self.proxy_combo = NoWheelComboBox()
         self.proxy_combo.addItem("🎲 Rotasi Acak Otomatis (Setiap Sesi Berganti Negara)")
         for i, px in enumerate(self.proxies_data):
             country = px.get("country", "Unknown")
@@ -1997,7 +2017,7 @@ class TrafficBotGUI(QMainWindow):
         self.sl_chance_label.setStyleSheet("color: #38bdf8; font-weight: bold;")
         sl_layout.addWidget(self.sl_chance_label)
 
-        self.sl_slider = QSlider(Qt.Horizontal)
+        self.sl_slider = NoWheelSlider(Qt.Horizontal)
         self.sl_slider.setRange(0, 100)
         self.sl_slider.setValue(init_sl)
         self.sl_slider.valueChanged.connect(self.on_slider_changed)

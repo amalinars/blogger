@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { ShieldCheck, Zap, Server, ArrowRight, Sparkles, CheckCircle2, Lock, Cpu } from 'lucide-react';
 import { getAllPosts } from '@/lib/db';
+import { AAdsBanner } from '@/components/ads/AAdsBanner';
 
 export default function HomePage() {
   const posts = getAllPosts({ status: 'published' });
@@ -151,6 +152,11 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* A-Ads Adaptive Banner Unit #2459425 */}
+      <div className="max-w-md mx-auto my-6">
+        <AAdsBanner />
       </div>
 
       {/* Security Assurance Badge */}

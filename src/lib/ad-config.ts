@@ -46,6 +46,12 @@ export const HILLTOPADS_CONFIG = {
   directLinkUrl: 'https://gullible-thanks.com/O8pqAQ'
 } as const;
 
+export const AADS_CONFIG = {
+  unitId: '2459425',
+  iframeSrc: '//acceptable.a-ads.com/2459425/?size=Adaptive'
+} as const;
+
+
 export function getStepDirectLink(step: number = 1): { url: string; label: string } {
   // Odd steps (1, 3): Monetag
   // Even steps (2, 4): HilltopAds

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { MONETAG_CONFIG, HILLTOPADS_CONFIG } from '@/lib/ad-config';
 import { HilltopBanner } from '@/components/ads/HilltopBanner';
+import { AAdsBanner } from '@/components/ads/AAdsBanner';
 
 interface CountdownGatewayProps {
   currentStep: number;
@@ -25,7 +26,7 @@ interface CountdownGatewayProps {
   destinationUrl?: string;
   durationSeconds?: number;
   basePath?: string;
-  channel?: 'monetag' | 'hilltop';
+  channel?: 'aads' | 'hilltop' | 'monetag';
 }
 
 export function CountdownGateway({
@@ -35,15 +36,13 @@ export function CountdownGateway({
   destinationUrl = 'https://modapk.org/',
   durationSeconds = 8,
   basePath = '/read',
-  channel = 'monetag'
+  channel = 'aads'
 }: CountdownGatewayProps) {
   const router = useRouter();
-  const directLinkUrl = channel === 'hilltop'
-    ? HILLTOPADS_CONFIG.directLinkUrl
-    : MONETAG_CONFIG.directLinkUrl;
+  const directLinkUrl = HILLTOPADS_CONFIG.directLinkUrl;
   const directLinkLabel = channel === 'hilltop'
     ? 'Hilltop High-Speed Sponsor Mirror'
-    : 'Monetag Fast Direct Mirror';
+    : 'High-Speed Fast Sponsor Mirror';
   const showHilltopBanner = channel === 'hilltop';
   const [secondsLeft, setSecondsLeft] = useState<number>(durationSeconds);
   const [isUnlocked, setIsUnlocked] = useState<boolean>(false);
@@ -250,6 +249,9 @@ export function CountdownGateway({
 
         {/* HilltopAds 300x250 Sponsored Banner (Hilltop channel only) */}
         {showHilltopBanner && <HilltopBanner className="my-2" />}
+
+        {/* A-Ads Adaptive Banner (Crypto CPM on every step) */}
+        <AAdsBanner className="my-2" />
 
         {/* Security Assurance Footer */}
         <div className="flex items-center space-x-4 text-[10px] font-mono text-neutral-400 pt-2 border-t border-dashed w-full justify-center" style={{ borderColor: 'var(--border-subtle)' }}>
