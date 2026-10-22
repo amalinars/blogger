@@ -51,7 +51,7 @@ class TUIManager:
         self.total_initial_proxies = total_proxies
         self.config = config
         self.console = Console()
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.is_stopping = False
 
         # State Worker

@@ -748,33 +748,35 @@ class UniqueProxyPool:
                 remaining = len(self._pool)
                 if is_ok:
                     self._used_count += 1
-                    used_num = self._used_count
-                    print(f"{tag} [✓] 🎉 Proksi Lolos Uji ({msg})! Exit IP: {exit_ip or 'OK'}. Dipakai untuk sesi ini (Sisa belum dipakai: {remaining})\n")
-                    if event_callback:
-                        event_callback("proxy_assigned", {
-                            "worker_id": worker_id,
-                            "proxy_idx": p_idx,
-                            "host": host,
-                            "port": port,
-                            "country": geo,
-                            "latency": lat,
-                            "exit_ip": exit_ip or f"{host}:{port}",
-                            "status": "Lolos Uji"
-                        })
-                    return candidate
                 else:
                     self._failed_count += 1
-                    print(f"{tag} [-] ❌ Proksi Gagal ({msg}). Dibuang permanen (Sisa antrean: {remaining})\n")
-                    if event_callback:
-                        event_callback("proxy_failed", {
-                            "worker_id": worker_id,
-                            "proxy_idx": p_idx,
-                            "host": host,
-                            "port": port,
-                            "country": geo,
-                            "latency": lat,
-                            "status": "Gagal"
-                        })
+
+            if is_ok:
+                print(f"{tag} [✓] 🎉 Proksi Lolos Uji ({msg})! Exit IP: {exit_ip or 'OK'}. Dipakai untuk sesi ini (Sisa belum dipakai: {remaining})\n")
+                if event_callback:
+                    event_callback("proxy_assigned", {
+                        "worker_id": worker_id,
+                        "proxy_idx": p_idx,
+                        "host": host,
+                        "port": port,
+                        "country": geo,
+                        "latency": lat,
+                        "exit_ip": exit_ip or f"{host}:{port}",
+                        "status": "Lolos Uji"
+                    })
+                return candidate
+            else:
+                print(f"{tag} [-] ❌ Proksi Gagal ({msg}). Dibuang permanen (Sisa antrean: {remaining})\n")
+                if event_callback:
+                    event_callback("proxy_failed", {
+                        "worker_id": worker_id,
+                        "proxy_idx": p_idx,
+                        "host": host,
+                        "port": port,
+                        "country": geo,
+                        "latency": lat,
+                        "status": "Gagal"
+                    })
 
     def get_stats(self) -> Tuple[int, int, int]:
         with self._lock:
