@@ -404,7 +404,8 @@ def check_and_skip_ad(page: Page, tag: str = "[YT]", event_callback=None, worker
             for sel in skip_selectors:
                 btn = page.query_selector(sel)
                 if btn and btn.is_visible():
-                    print(f"{tag} ⏩ Terdeteksi iklan YouTube. Menekan tombol Skip Ad...")
+                    print(f"{tag} ⏩ Terdeteksi iklan YouTube. Menonton beberapa saat lalu menekan Skip Ad...")
+                    time.sleep(random.uniform(1.5, 3.2))
                     btn.click()
                     if event_callback:
                         event_callback("ad_event", {"worker_id": worker_id, "status": "⏩ Iklan Di-skip", "action": "skipped"})
@@ -482,8 +483,11 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]", event_c
         event_callback("status_update", {"worker_id": worker_id, "status": "Mendeteksi Durasi Video..."})
     detected_dur = get_video_duration(page, tag=tag)
 
-    if detected_dur and detected_dur > 10:
-        # Menyesuaikan dengan durasi video: tonton 85% - 98% durasi (atau full jika durasi < 120s)
+    w_min = config.get("watch_duration", {}).get("min_seconds", 60)
+    w_max = config.get("watch_duration", {}).get("max_seconds", 120)
+    mode = config.get("mode", "fast_ads")
+
+    if mode == "full_retention" and detected_dur and detected_dur > 10:
         if detected_dur < 120:
             target_watch = int(detected_dur)
             ratio_label = "100% (Full)"
@@ -491,16 +495,16 @@ def watch_video_organically(page: Page, config: dict, tag: str = "[YT]", event_c
             ratio = random.uniform(0.85, 0.98)
             target_watch = int(detected_dur * ratio)
             ratio_label = f"{int(ratio * 100)}% (Near-Full Retention)"
-
         print(f"{tag} 🎯 [DURASI ASLI] Total Panjang Video : {format_time(detected_dur)} ({int(detected_dur)}s)")
         print(f"{tag} 🎬 [TARGET NONTON] Disesuaikan ke : {format_time(target_watch)} ({target_watch}s | {ratio_label})")
     else:
-        # Fallback jika durasi player tidak terbaca
-        w_min = config.get("watch_duration", {}).get("min_seconds", 90)
-        w_max = config.get("watch_duration", {}).get("max_seconds", 240)
+        # Mode fast_ads: tonton 60-120s (sangat ideal untuk validasi view 30s+ & tayangan iklan Monetisasi)
         target_watch = random.randint(w_min, w_max)
-        detected_dur = target_watch
-        print(f"{tag} [!] Durasi video tidak terbaca, menggunakan durasi fallback: {format_time(target_watch)} ({target_watch}s)")
+        if detected_dur and detected_dur > 0 and detected_dur < target_watch:
+            target_watch = int(detected_dur)
+        if detected_dur:
+            print(f"{tag} 🎯 [DURASI ASLI] Total Panjang Video : {format_time(detected_dur)} ({int(detected_dur)}s)")
+        print(f"{tag} 🚀 [MODE FAST ADS] Durasi Nonton : {format_time(target_watch)} ({target_watch}s) | Fokus Tayangan Iklan & Rotasi Cepat")
 
     if event_callback:
         event_callback("status_update", {"worker_id": worker_id, "status": f"Menonton: {format_time(target_watch)} (144p)"})
@@ -923,6 +927,7 @@ def main():
     parser.add_argument("--channel", type=str, default="", help="Nama channel target (default: horrornologi)")
     parser.add_argument("--watch-min", type=int, default=0, help="Durasi minimal tonton (detik)")
     parser.add_argument("--watch-max", type=int, default=0, help="Durasi maksimal tonton (detik)")
+    parser.add_argument("--mode", type=str, choices=["fast_ads", "full_retention"], default="", help="Mode tonton: fast_ads (fokus iklan & cepat 60-120s) atau full_retention (85-98 persen durasi asli)")
     parser.add_argument("--concurrency", "-c", type=int, default=0, help="Jumlah batch / jendela berjalan bersamaan (default: 5)")
     parser.add_argument("--headless", action="store_true", help="Jalankan di balik layar tanpa jendela")
     parser.add_argument("--no-proxy", action="store_true", help="Gunakan koneksi internet langsung tanpa proksi")
@@ -939,6 +944,8 @@ def main():
         cfg["search_keyword"] = args.search
     if args.channel:
         cfg["target_channel"] = args.channel
+    if args.mode:
+        cfg["mode"] = args.mode
     if args.watch_min > 0:
         cfg["watch_duration"]["min_seconds"] = args.watch_min
     if args.watch_max > 0:
@@ -959,13 +966,19 @@ def main():
 
     proxy_pool = UniqueProxyPool(raw_proxies)
 
+    mode_name = cfg.get("mode", "fast_ads")
+    if mode_name == "fast_ads":
+        dur_label = f"🚀 Fast Ads ({cfg['watch_duration']['min_seconds']}s - {cfg['watch_duration']['max_seconds']}s per video, rotasi cepat)"
+    else:
+        dur_label = "🎬 Full Retention (85%-98% durasi asli video)"
+
     print("\n" + "🔥" * 33)
-    print("🎬 YOUTUBE ORGANIC VIEW ENGINE (5-BATCH CONCURRENT)")
+    print("🎬 YOUTUBE ORGANIC VIEW ENGINE (MULTI-BATCH CONCURRENT)")
     print(f"📌 Search Query     : {cfg['search_keyword']}")
     print(f"📌 Target Channel   : {cfg['target_channel']}")
+    print(f"📌 Mode Penayangan  : {dur_label}")
     print(f"📌 Batch Concurrency: {concurrency} Jendela / Worker Berjalan Bersamaan")
     print(f"📌 Aturan Proksi    : 1 Video = 1 Proksi Berbeda (Yang Sudah Dipakai DIBUANG / Tidak Dipakai Lagi)")
-    print(f"📌 Durasi Nonton    : Otomatis Menyesuaikan Durasi Asli Video (High Retention)")
     print(f"📌 Resolusi Video   : 144p (Hemat kuota & performa ringan)")
     print(f"📌 Total Proksi Awal: {len(raw_proxies)} proksi dimuat")
     print("🔥" * 33 + "\n")
