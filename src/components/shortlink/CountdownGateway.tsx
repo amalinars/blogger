@@ -15,7 +15,7 @@ import {
   Download,
   Zap
 } from 'lucide-react';
-import { MONETAG_CONFIG, HILLTOPADS_CONFIG } from '@/lib/ad-config';
+import { HILLTOPADS_CONFIG } from '@/lib/ad-config';
 import { HilltopBanner } from '@/components/ads/HilltopBanner';
 import { AAdsBanner } from '@/components/ads/AAdsBanner';
 
@@ -26,7 +26,7 @@ interface CountdownGatewayProps {
   destinationUrl?: string;
   durationSeconds?: number;
   basePath?: string;
-  channel?: 'aads' | 'hilltop' | 'monetag';
+  channel?: 'aads' | 'hilltop';
 }
 
 export function CountdownGateway({

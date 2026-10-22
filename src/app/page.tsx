@@ -25,7 +25,7 @@ export default function HomePage() {
 
       {/* Two Dedicated Channel Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
-        {/* Channel 1: Server Alpha (Monetag Flow) */}
+        {/* Channel 1: Server Alpha (A-Ads Flow) */}
         <div
           className="p-6 sm:p-8 rounded-2xl border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 relative flex flex-col justify-between group"
           style={{

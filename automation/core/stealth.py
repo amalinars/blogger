@@ -167,7 +167,7 @@ def get_fingerprint_profile(prefer_os: str = None) -> dict:
     """
     Menghasilkan profil fingerprint yang konsisten:
     - User-Agent selaras dengan versi Chromium sistem (mencegah bentrok dengan header Sec-CH-UA).
-    - Menghindari penimpaan palsu yang memicu deteksi bot Monetag/anti-fraud.
+    - Menghindari penimpaan palsu yang memicu deteksi bot anti-fraud jaringan iklan.
     """
     chrome_ver = get_installed_chrome_version()
     is_mac = False
@@ -215,7 +215,7 @@ def get_stealth_init_script(profile: dict) -> str:
     Menghasilkan kode JavaScript untuk diinjeksi via context.add_init_script()
     sebelum script halaman dieksekusi.
     
-    PERBAIKAN KRUSIAL UNTUK MONETAG & AD NETWORKS:
+    PERBAIKAN KRUSIAL UNTUK AD NETWORKS:
     - Hapus navigator.webdriver secara bersih dari prototype.
     - JANGAN menimpa window.chrome dengan objek tiruan (karena fungsi C++ native Chrome
       menghasilkan [native code]; fungsi tiruan JS langsung terdeteksi fraud).

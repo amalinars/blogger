@@ -1,37 +1,11 @@
 /**
  * Ad & Monetization Configuration
- * Prepared for Monetag (PropellerAds) integration.
+ * Dedicated to A-Ads (Anonymous Ads) & HilltopAds
  */
 
-export const MONETAG_CONFIG = {
-  // Zone ID Service Worker dari sw.js
-  zoneId: '12088388',
-  domain: '3nbf4.com',
-  // Multitag All-in-One
-  multitag: {
-    scriptSrc: 'https://quge5.com/88/tag.min.js',
-    zone: '299712'
-  },
-  // Direct Link / Smartlink dari Monetag
-  directLinkUrl: 'https://uplcm.com/4/12092846',
-  // URL script Monetag Service Worker
-  scriptSrc: 'https://3nbf4.com/act/files/service-worker.min.js?r=sw',
-  // In-Page Push / Vignette / OnClick zone settings
-  zones: {
-    popunder: {
-      zone: '12092686',
-      scriptSrc: 'https://al5sm.com/tag.min.js'
-    },
-    inPagePush: {
-      zone: '12093786',
-      scriptSrc: 'https://nap5k.com/tag.min.js'
-    },
-    vignette: {
-      zone: '12093787',
-      scriptSrc: 'https://n6wxm.com/vignette.min.js'
-    },
-    directLink: '12092846'
-  }
+export const AADS_CONFIG = {
+  unitId: '2459425',
+  iframeSrc: '//acceptable.a-ads.com/2459425/?size=Adaptive'
 } as const;
 
 export const HILLTOPADS_CONFIG = {
@@ -46,24 +20,10 @@ export const HILLTOPADS_CONFIG = {
   directLinkUrl: 'https://gullible-thanks.com/O8pqAQ'
 } as const;
 
-export const AADS_CONFIG = {
-  unitId: '2459425',
-  iframeSrc: '//acceptable.a-ads.com/2459425/?size=Adaptive'
-} as const;
-
-
 export function getStepDirectLink(step: number = 1): { url: string; label: string } {
-  // Odd steps (1, 3): Monetag
-  // Even steps (2, 4): HilltopAds
-  if (step % 2 === 0 && HILLTOPADS_CONFIG.directLinkUrl) {
-    return {
-      url: HILLTOPADS_CONFIG.directLinkUrl,
-      label: 'Hilltop High-Speed Sponsor Mirror'
-    };
-  }
   return {
-    url: MONETAG_CONFIG.directLinkUrl || HILLTOPADS_CONFIG.directLinkUrl,
-    label: 'Monetag Fast Direct Mirror'
+    url: HILLTOPADS_CONFIG.directLinkUrl,
+    label: 'High-Speed Sponsor Mirror'
   };
 }
 
@@ -76,12 +36,11 @@ export const AD_CONFIG = {
   skyscraper_160x600: { key: '', width: 160, height: 600 },
   vertical_160x300: { key: '', width: 160, height: 300 },
   native_banner: { scriptSrc: '', containerId: '' },
-  smartlink: { url: 'https://uplcm.com/4/12092846', pool: ['https://uplcm.com/4/12092846'] },
+  smartlink: { url: HILLTOPADS_CONFIG.directLinkUrl, pool: [HILLTOPADS_CONFIG.directLinkUrl] },
   social_bar: { scriptSrc: '' },
   popunder: { scriptSrc: '' }
 } as const;
 
 export function getRandomSmartlink(): string {
-  return MONETAG_CONFIG.directLinkUrl || '';
+  return HILLTOPADS_CONFIG.directLinkUrl;
 }
-

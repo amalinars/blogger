@@ -173,14 +173,14 @@ def enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=
         is_repeated = (now - last_detect) < 15
         _last_tab_guard_detection[worker_id] = now
 
-        # Tutup semua tab iklan dengan jeda wajar agar impresi Monetag tercatat
+        # Tutup semua tab iklan dengan jeda wajar agar impresi popunder tercatat
         if ad_pages:
             if not is_repeated:
                 print(f"{tag} [*] [TAB-GUARD] Terdeteksi {len(ad_pages)} tab iklan di luar domain target!")
 
             dwell_ad = max(wait_seconds, 4.5)
             if not is_repeated:
-                print(f"{tag} 💰 [MONETAG POPUNDER] Menahan tab iklan selama {dwell_ad:.1f}s agar impresi sah tercatat...")
+                print(f"{tag} 💰 [AD POPUNDER] Menahan tab iklan selama {dwell_ad:.1f}s agar impresi sah tercatat...")
             time.sleep(dwell_ad)
 
             for ap, ap_url in ad_pages:
@@ -229,10 +229,10 @@ def enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=
 
 def dismiss_vignette_if_present(page, dwell_seconds=5, worker_id=1):
     """
-    Menangani iklan Monetag Vignette/Interstitial secara pintar:
+    Menangani iklan Vignette/Interstitial secara pintar:
     1. Memberikan waktu tayang wajar (dwell_seconds, default 4-6 detik) agar impresi sah
-       tercatat di server Monetag (tidak terdeteksi sebagai misclick/adblocker).
-    2. Mencoba mengklik tombol 'Close' di dalam frame Monetag.
+       tercatat di server iklan (tidak terdeteksi sebagai misclick/adblocker).
+    2. Mencoba mengklik tombol 'Close' di dalam frame iklan.
     3. Jika overlay masih menutupi layar setelah waktu jeda, sembunyikan layer agar
        tidak memblokir klik tombol Shortlink Gateway ('Continue' / 'Next Step').
     """
@@ -253,17 +253,17 @@ def dismiss_vignette_if_present(page, dwell_seconds=5, worker_id=1):
         }""")
 
         if has_vignette:
-            print(f"{tag} 📢 [MONETAG VIGNETTE] Terdeteksi iklan interstitial overlay. Memberikan waktu tayang {dwell_seconds}s (impresi sah)...")
+            print(f"{tag} 📢 [AD VIGNETTE] Terdeteksi iklan interstitial overlay. Memberikan waktu tayang {dwell_seconds}s (impresi sah)...")
             time.sleep(dwell_seconds)
 
-            # Coba klik tombol Close di dalam frame Monetag
+            # Coba klik tombol Close di dalam frame iklan
             for f in page.frames:
                 if f != page.main_frame:
                     try:
                         btn = f.locator("text='Close'")
                         if btn.count() > 0:
                             btn.first.click(timeout=2000)
-                            print(f"{tag} [✓] [MONETAG VIGNETTE] Tombol 'Close' di dalam frame berhasil diklik.")
+                            print(f"{tag} [✓] [AD VIGNETTE] Tombol 'Close' di dalam frame berhasil diklik.")
                             break
                     except Exception:
                         pass
@@ -554,7 +554,7 @@ def traverse_shortlink_flow(page, context, target_base_url, config, worker_id: i
     1. Membaca artikel teknis pada setiap layer (Step 1 s/d 4) dengan scroll bertahap & pergerakan mouse alami.
     2. Menunggu countdown timer (8 detik) sampai tombol unlock aktif.
     3. Memberikan jeda reaksi manusiawi (1.5 - 3.5 detik).
-    4. Mengklik tombol unlock secara fisik alami (memicu impresi/onclick Monetag).
+    4. Mengklik tombol unlock secara fisik alami (memicu impresi/onclick iklan).
     5. Menjaga tab dari popunder yang terbuka (memberi dwell sejenak lalu menutup bersih).
     6. Pada Layer 4 (final), mengklik link ke tujuan akhir 'modapk.org', melakukan authentic engagement di landing page, lalu menyelesaikan alur.
     """
@@ -590,7 +590,7 @@ def traverse_shortlink_flow(page, context, target_base_url, config, worker_id: i
         print(f"\n{tag} 📖 [SHORTLINK] Membaca artikel {layer_desc} pada: {page.url}...")
 
         # 1. Authentic Reading & Scrolling di Layer ini
-        # Scroll bertahap membaca artikel teknis (dan memicu inisialisasi tag Monetag / in-page push / vignette)
+        # Scroll bertahap membaca artikel teknis (dan memicu inisialisasi tag iklan & banner)
         try:
             scroll_count = random.randint(3, 5)
             for _ in range(scroll_count):
@@ -607,13 +607,13 @@ def traverse_shortlink_flow(page, context, target_base_url, config, worker_id: i
         except Exception as sc_err:
             print(f"{tag} [-] [SHORTLINK-NOTICE] Scroll step {step}: {sc_err}")
 
-        # 1b. Interaksi Monetag Direct Link Sponsor Mirror jika tersedia dan peluang aktif
+        # 1b. Interaksi Direct Link Sponsor Mirror jika tersedia dan peluang aktif
         if not smartlink_clicked_in_flow and random.random() < smartlink_chance:
             try:
-                dl_selector = "a[data-directlink='true'], a[href*='uplcm.com']"
+                dl_selector = "a[data-directlink='true']"
                 direct_btn = page.query_selector(dl_selector)
                 if direct_btn and direct_btn.is_visible():
-                    print(f"\n{tag} ⚡ [DIRECT-LINK] Menemukan Monetag Direct Link Sponsor Mirror pada Layer {step} (Peluang {smartlink_chance*100:.0f}%). Memulai interaksi landing page...")
+                    print(f"\n{tag} ⚡ [DIRECT-LINK] Menemukan Sponsor Direct Link Mirror pada Layer {step} (Peluang {smartlink_chance*100:.0f}%). Memulai interaksi landing page...")
                     page = handle_smartlink_click(context, page, direct_btn, target_base_url, worker_id=worker_id)
                     smartlink_clicked_in_flow = True
                     time.sleep(1.5)
@@ -670,7 +670,7 @@ def traverse_shortlink_flow(page, context, target_base_url, config, worker_id: i
         print(f"{tag} [✓] [SHORTLINK] Tombol Layer {step} telah aktif! Jeda reaksi membaca: {reaction_delay:.1f}s...")
         time.sleep(reaction_delay)
 
-        # 3b. Pastikan jika ada Monetag Vignette overlay, beri waktu tayang lalu tutup agar tidak memblokir tombol
+        # 3b. Pastikan jika ada Vignette overlay, beri waktu tayang lalu tutup agar tidak memblokir tombol
         page = dismiss_vignette_if_present(page, dwell_seconds=4, worker_id=worker_id)
 
         # 4. Klik Alami ke Tombol
@@ -678,10 +678,10 @@ def traverse_shortlink_flow(page, context, target_base_url, config, worker_id: i
             print(f"{tag} 👆 [SHORTLINK] Mengklik tombol navigasi ke Layer {step + 1}...")
             click_element_naturally(page, unlocked_btn, worker_id=worker_id)
 
-            # Jeda agar event click & popunder Monetag terpicu jika ada
+            # Jeda agar event click & popunder terpicu jika ada
             time.sleep(1.5)
 
-            # Jaga tab: jika Monetag memicu popunder, biarkan tercatat lalu tutup bersih
+            # Jaga tab: jika memicu popunder, biarkan tercatat lalu tutup bersih
             page = enforce_single_target_tab(context, page, target_base_url, wait_seconds=2, worker_id=worker_id)
 
             # Pastikan halaman sudah pindah ke step berikutnya
@@ -862,7 +862,7 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
             time.sleep(random.uniform(2.0, 3.5))
 
-            # Trigger klik fisik koordinat awal (memicu popunder/ad overlay Monetag jika ada)
+            # Trigger klik fisik koordinat awal (memicu popunder/ad overlay jika ada)
             print(f"{tag} [*] Performing physical mouse click at coordinates (Hits ad overlay/popunder)...")
             try:
                 cx = random.randint(250, 650)

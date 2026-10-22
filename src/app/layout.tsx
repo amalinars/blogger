@@ -48,7 +48,7 @@ export default function RootLayout({
           name="72c7af1256ac05236eaa49980a667d48e07b8033"
           content="72c7af1256ac05236eaa49980a667d48e07b8033"
         />
-        {/* Referrer Policy for Maximum Ad Network Revenue (HilltopAds & Monetag) */}
+        {/* Referrer Policy for Maximum Ad Network Revenue (HilltopAds & A-Ads) */}
         <meta name="referrer" content="no-referrer-when-downgrade" />
       </head>
       <body className="min-h-full flex flex-col font-sans transition-colors duration-200">
