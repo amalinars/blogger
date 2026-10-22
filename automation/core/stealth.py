@@ -150,29 +150,51 @@ MAC_USER_AGENTS = [
 ]
 
 
+def get_installed_chrome_version() -> str:
+    """Mendeteksi versi Google Chrome yang terpasang di sistem untuk mencegah ketidaksinkronan Client Hints."""
+    try:
+        import subprocess
+        out = subprocess.check_output(["google-chrome", "--version"], text=True)
+        for part in out.strip().split():
+            if "." in part and part[0].isdigit():
+                return part.split(".")[0]
+    except Exception:
+        pass
+    return "143"
+
+
 def get_fingerprint_profile(prefer_os: str = None) -> dict:
     """
     Menghasilkan profil fingerprint yang konsisten:
-    - User-Agent selaras dengan platform (Win32 vs MacIntel).
-    - WebGL vendor & renderer yang konsisten dengan OS.
-    - Resolusi viewport dan screen realistis.
+    - User-Agent selaras dengan versi Chromium sistem (mencegah bentrok dengan header Sec-CH-UA).
+    - Menghindari penimpaan palsu yang memicu deteksi bot Monetag/anti-fraud.
     """
+    chrome_ver = get_installed_chrome_version()
     is_mac = False
+    is_windows = False
+
     if prefer_os:
-        is_mac = (prefer_os.lower() == "mac")
-    else:
-        is_mac = (random.random() < 0.20)  # 20% Mac, 80% Windows
+        if prefer_os.lower() == "mac":
+            is_mac = True
+        elif prefer_os.lower() == "windows":
+            is_windows = True
 
     if is_mac:
-        ua = random.choice(MAC_USER_AGENTS)
+        ua = f"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_ver}.0.0.0 Safari/537.36"
         platform = "MacIntel"
         webgl_vendor = "Apple"
         webgl_renderer = "Apple M2 / Apple GPU"
-    else:
-        ua = random.choice(WINDOWS_USER_AGENTS)
+    elif is_windows:
+        ua = f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_ver}.0.0.0 Safari/537.36"
         platform = "Win32"
         webgl_vendor = "Google Inc. (Intel)"
-        webgl_renderer = "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)"
+        webgl_renderer = "ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)"
+    else:
+        # Gunakan profil bawaan sistem (Linux native Chrome) agar 100% konsisten dengan Sec-CH-UA
+        ua = None
+        platform = "Linux x86_64"
+        webgl_vendor = "Google Inc. (Intel)"
+        webgl_renderer = "ANGLE (Intel, Mesa Intel(R) HD Graphics 530 (SKL GT2), OpenGL 4.6)"
 
     vp = random.choice(DESKTOP_VIEWPORTS)
 
@@ -183,7 +205,8 @@ def get_fingerprint_profile(prefer_os: str = None) -> dict:
         "device_memory": random.choice([8, 16]),
         "hardware_concurrency": random.choice([4, 8, 12, 16]),
         "webgl_vendor": webgl_vendor,
-        "webgl_renderer": webgl_renderer
+        "webgl_renderer": webgl_renderer,
+        "chrome_version": chrome_ver
     }
 
 
@@ -191,25 +214,36 @@ def get_stealth_init_script(profile: dict) -> str:
     """
     Menghasilkan kode JavaScript untuk diinjeksi via context.add_init_script()
     sebelum script halaman dieksekusi.
+    
+    PERBAIKAN KRUSIAL UNTUK MONETAG & AD NETWORKS:
+    - Hapus navigator.webdriver secara bersih dari prototype.
+    - JANGAN menimpa window.chrome dengan objek tiruan (karena fungsi C++ native Chrome
+      menghasilkan [native code]; fungsi tiruan JS langsung terdeteksi fraud).
+    - JANGAN menimpa navigator.plugins dengan array biasa (karena anti-bot mengecek
+      'plugins instanceof PluginArray'). Native Chrome sudah memiliki PluginArray yang sah.
+    - Selaraskan WebRTC IP leak defense tanpa merusak network streaming.
     """
-    platform = profile.get("platform", "Win32")
-    webgl_vendor = profile.get("webgl_vendor", "Google Inc. (Intel)")
-    webgl_renderer = profile.get("webgl_renderer", "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics Direct3D11 vs_5_0 ps_5_0, D3D11)")
-    mem = profile.get("device_memory", 8)
-    hw = profile.get("hardware_concurrency", 8)
+    platform = profile.get("platform", "Linux x86_64")
+    chrome_ver = profile.get("chrome_version", "143")
+    uadata_platform = "macOS" if "Mac" in platform else ("Windows" if "Win" in platform else "Linux")
 
-    return f"""
-    (() => {{
-        // 1. Hapus navigator.webdriver
-        try {{
-            Object.defineProperty(navigator, 'webdriver', {{
+    script_parts = [
+        """
+        // 1. Hapus indikator otomatisasi navigator.webdriver secara bersih
+        try {
+            Object.defineProperty(navigator, 'webdriver', {
                 get: () => undefined,
                 configurable: true
-            }});
+            });
             delete Object.getPrototypeOf(navigator).webdriver;
-        }} catch (e) {{}}
+        } catch (e) {}
+        """
+    ]
 
-        // 2. Selaraskan navigator.platform
+    # Jika platform dipalsukan (Windows/Mac) saat prefer_os aktif
+    if profile.get("user_agent"):
+        script_parts.append(f"""
+        // 2. Selaraskan navigator.platform & userAgentData jika User-Agent di-override
         try {{
             Object.defineProperty(navigator, 'platform', {{
                 get: () => '{platform}',
@@ -217,136 +251,61 @@ def get_stealth_init_script(profile: dict) -> str:
             }});
         }} catch (e) {{}}
 
-        // 3. Selaraskan hardware concurrency & device memory
         try {{
-            Object.defineProperty(navigator, 'hardwareConcurrency', {{
-                get: () => {hw},
-                configurable: true
-            }});
-            Object.defineProperty(navigator, 'deviceMemory', {{
-                get: () => {mem},
-                configurable: true
-            }});
-        }} catch (e) {{}}
-
-        // 4. Injeksi window.chrome objek yang lengkap
-        try {{
-            if (!window.chrome) {{
-                window.chrome = {{}};
-            }}
-            window.chrome.app = {{
-                InstallState: {{ DISABLED: 'Disabled', INSTALLED: 'Installed', NOT_INSTALLED: 'NotInstalled' }},
-                RunningState: {{ CANNOT_RUN: 'CannotRun', READY_TO_RUN: 'ReadyToRun', RUNNING: 'Running' }},
-                getDetails: function() {{}},
-                getIsInstalled: function() {{ return false; }},
-                installState: function() {{ return 'NotInstalled'; }},
-                isInstalled: false,
-                runningState: function() {{ return 'CannotRun'; }}
-            }};
-            window.chrome.csi = function() {{ return {{ onloadT: 0, pageT: 0, startE: 0, tran: 0 }}; }};
-            window.chrome.loadTimes = function() {{
-                return {{
-                    commitLoadTime: 0,
-                    connectionInfo: 'http/1.1',
-                    finishDocumentLoadTime: 0,
-                    finishLoadTime: 0,
-                    firstPaintAfterLoadTime: 0,
-                    firstPaintTime: 0,
-                    navigationType: 'Other',
-                    npnNegotiatedProtocol: 'http/1.1',
-                    requestTime: 0,
-                    startLoadTime: 0,
-                    wasAlternateProtocolAvailable: false,
-                    wasFetchedViaSpdy: false,
-                    wasNpnNegotiated: false
-                }};
-            }};
-            window.chrome.runtime = {{
-                OnInstalledReason: {{ CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' }},
-                OnRestartRequiredReason: {{ APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' }},
-                PlatformArch: {{ ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' }},
-                PlatformNaclArch: {{ ARM: 'arm', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' }},
-                PlatformOs: {{ ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' }},
-                RequestUpdateCheckStatus: {{ NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' }}
-            }};
-        }} catch (e) {{}}
-
-        // 5. Spoofing Plugins & MimeTypes agar tidak terbaca browser kosongan
-        try {{
-            const fakePlugins = [
-                {{ name: 'PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' }},
-                {{ name: 'Chrome PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' }},
-                {{ name: 'Chromium PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' }},
-                {{ name: 'Microsoft Edge PDF Viewer', filename: 'internal-pdf-viewer', description: 'Portable Document Format' }},
-                {{ name: 'WebKit built-in PDF', filename: 'internal-pdf-viewer', description: 'Portable Document Format' }}
-            ];
-            Object.defineProperty(navigator, 'plugins', {{
-                get: () => fakePlugins,
-                configurable: true
-            }});
-        }} catch (e) {{}}
-
-        // 6. WebGL Vendor & Renderer Spoofing
-        try {{
-            const getParameterProto = WebGLRenderingContext.prototype.getParameter;
-            WebGLRenderingContext.prototype.getParameter = function(parameter) {{
-                if (parameter === 37445) {{
-                    return '{webgl_vendor}';
-                }}
-                if (parameter === 37446) {{
-                    return '{webgl_renderer}';
-                }}
-                return getParameterProto.apply(this, arguments);
-            }};
-
-            if (typeof WebGL2RenderingContext !== 'undefined') {{
-                const getParameterProto2 = WebGL2RenderingContext.prototype.getParameter;
-                WebGL2RenderingContext.prototype.getParameter = function(parameter) {{
-                    if (parameter === 37445) {{
-                        return '{webgl_vendor}';
-                    }}
-                    if (parameter === 37446) {{
-                        return '{webgl_renderer}';
-                    }}
-                    return getParameterProto2.apply(this, arguments);
-                }};
-            }}
-        }} catch (e) {{}}
-
-        // 7. Notification & Permissions state
-        try {{
-            if (window.Notification) {{
-                Object.defineProperty(Notification, 'permission', {{
-                    get: () => 'default',
+            if (navigator.userAgentData) {{
+                Object.defineProperty(navigator, 'userAgentData', {{
+                    get: () => ({{
+                        brands: [
+                            {{ brand: 'Google Chrome', version: '{chrome_ver}' }},
+                            {{ brand: 'Chromium', version: '{chrome_ver}' }},
+                            {{ brand: 'Not_A Brand', version: '24' }}
+                        ],
+                        mobile: false,
+                        platform: '{uadata_platform}',
+                        getHighEntropyValues: async () => ({{
+                            platform: '{uadata_platform}',
+                            platformVersion: '15.0.0',
+                            architecture: 'x86',
+                            model: '',
+                            uaFullVersion: '{chrome_ver}.0.0.0'
+                        }})
+                    }}),
                     configurable: true
                 }});
             }}
         }} catch (e) {{}}
+        """)
 
-        // 8. MediaDevices & Audio/Video device emulation (cegah deteksi VM headless kosong)
-        try {{
-            if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {{
-                const origEnumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
-                navigator.mediaDevices.enumerateDevices = async function() {{
-                    const devices = await origEnumerate().catch(() => []);
-                    if (devices && devices.length > 0) return devices;
-                    return [
-                        {{ deviceId: "default", kind: "audioinput", label: "Default - Internal Microphone", groupId: "group-audio-1" }},
-                        {{ deviceId: "default", kind: "audiooutput", label: "Default - Internal Speakers", groupId: "group-audio-1" }},
-                        {{ deviceId: "default", kind: "videoinput", label: "Integrated Webcam (04f2:b6d9)", groupId: "group-video-1" }}
-                    ];
-                }};
-            }}
-        }} catch (e) {{}}
+    # Proteksi dasar Notification & WebRTC
+    script_parts.append("""
+        // 3. Pastikan permission notifikasi bernilai default (wajar untuk pengunjung baru)
+        try {
+            if (window.Notification) {
+                Object.defineProperty(Notification, 'permission', {
+                    get: () => 'default',
+                    configurable: true
+                });
+            }
+        } catch (e) {}
 
-        // 9. WebRTC IP Leak Defense di layer JavaScript
-        try {{
-            if (window.RTCPeerConnection) {{
+        // 4. Pastikan window.chrome eksis secara alami tanpa merusak fungsi native
+        try {
+            if (!window.chrome) {
+                window.chrome = { runtime: {} };
+            }
+        } catch (e) {}
+
+        // 5. WebRTC leak defense di layer JavaScript
+        try {
+            if (window.RTCPeerConnection) {
                 const origCreateDataChannel = RTCPeerConnection.prototype.createDataChannel;
-                RTCPeerConnection.prototype.createDataChannel = function() {{
+                RTCPeerConnection.prototype.createDataChannel = function() {
                     return origCreateDataChannel.apply(this, arguments);
-                }};
-            }}
-        }} catch (e) {{}}
-    }})();
-    """
+                };
+            }
+        } catch (e) {}
+    """)
+
+    combined = "\n".join(script_parts)
+    return f"(() => {{\n{combined}\n}})();"
+

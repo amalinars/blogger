@@ -3,8 +3,8 @@
   "local_test_url": "http://localhost:3000",
   "use_local": false,
   "dwell_time": {
-    "min_seconds": 25,
-    "max_seconds": 45
+    "min_seconds": 15,
+    "max_seconds": 30
   },
   "scroll_settings": {
     "step_pixels": 320,
@@ -16,12 +16,15 @@
   "multi_page_navigation": true,
   "max_pages_per_session": 2,
   "return_home_between_posts": true,
-  "smartlink_click_chance": 0.04,
-  "smartlink_pool": [
-    "https://www.profitableratecpmnetwork.com/wfbxac2hpn?key=49e072f6e7743835ebfbaa0961eff226",
-    "https://www.profitableratecpmnetwork.com/qwc4w81bj?key=c70e184404d856cce251b250f3c58bbc",
-    "https://www.profitableratecpmnetwork.com/app4z7qd9?key=49c7cec8999e07745020694cb2ce20e2"
-  ],
+  "shortlink_settings": {
+    "traverse_all_steps": true,
+    "max_steps": 4,
+    "step_dwell_buffer_seconds": {
+      "min": 1.5,
+      "max": 3.5
+    },
+    "click_final_destination": true
+  },
   "use_organic_referers": true,
   "organic_referer_pool": [
     [
@@ -57,10 +60,9 @@
       0.1
     ]
   ],
-  "concurrency": 5,
+  "concurrency": 2,
   "session_delay_seconds": {
-    "min": 8,
-    "max": 20
-  },
-  "adsterra_api_key": "7d39be5f85b5b39359c2bf852e7b702b"
+    "min": 10,
+    "max": 25
+  }
 }

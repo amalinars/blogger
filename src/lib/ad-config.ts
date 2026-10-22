@@ -13,7 +13,7 @@ export const MONETAG_CONFIG = {
     zone: '299712'
   },
   // Direct Link / Smartlink dari Monetag
-  directLinkUrl: '',
+  directLinkUrl: 'https://uplcm.com/4/12092846',
   // URL script Monetag Service Worker
   scriptSrc: 'https://3nbf4.com/act/files/service-worker.min.js?r=sw',
   // In-Page Push / Vignette / OnClick zone settings
@@ -21,7 +21,7 @@ export const MONETAG_CONFIG = {
     inPagePush: '',
     vignette: '',
     popunder: '',
-    directLink: ''
+    directLink: '12092846'
   }
 } as const;
 
@@ -34,7 +34,7 @@ export const AD_CONFIG = {
   skyscraper_160x600: { key: '', width: 160, height: 600 },
   vertical_160x300: { key: '', width: 160, height: 300 },
   native_banner: { scriptSrc: '', containerId: '' },
-  smartlink: { url: '', pool: [] },
+  smartlink: { url: 'https://uplcm.com/4/12092846', pool: ['https://uplcm.com/4/12092846'] },
   social_bar: { scriptSrc: '' },
   popunder: { scriptSrc: '' }
 } as const;
@@ -42,3 +42,4 @@ export const AD_CONFIG = {
 export function getRandomSmartlink(): string {
   return MONETAG_CONFIG.directLinkUrl || '';
 }
+

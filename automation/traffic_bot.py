@@ -22,6 +22,8 @@ from automation.blog.bot import (
     resolve_proxy_path,
     ProxyManager,
     ProxyUnavailableError,
+    is_shortlink_gateway_present,
+    traverse_shortlink_flow,
 )
 
 __all__ = [
@@ -35,6 +37,8 @@ __all__ = [
     "resolve_proxy_path",
     "ProxyManager",
     "ProxyUnavailableError",
+    "is_shortlink_gateway_present",
+    "traverse_shortlink_flow",
 ]
 
 if __name__ == "__main__":

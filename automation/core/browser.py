@@ -25,6 +25,8 @@ def build_browser_args(
         "--disable-blink-features=AutomationControlled",
         "--no-sandbox",
         "--disable-dev-shm-usage",
+        "--disable-quic",
+        "--disable-http2",
         "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
         "--enforce-webrtc-ip-permission-check",
     ]
@@ -73,6 +75,7 @@ def launch_browser(
             channel="chrome",
             headless=headless,
             args=browser_args,
+            ignore_default_args=["--enable-automation"],
             proxy=proxy_dict,
         )
     except Exception as e:
@@ -80,6 +83,7 @@ def launch_browser(
         return playwright_instance.chromium.launch(
             headless=headless,
             args=browser_args,
+            ignore_default_args=["--enable-automation"],
             proxy=proxy_dict,
         )
 
@@ -107,14 +111,18 @@ def create_stealth_context(
         f"Timezone={geo_profile['timezone']} | Locale={geo_profile['locale']}"
     )
 
-    context = browser.new_context(
-        viewport=vp,
-        user_agent=fp_profile["user_agent"],
-        locale=geo_profile["locale"],
-        timezone_id=geo_profile["timezone"],
-        geolocation=geo_profile["coords"],
-        permissions=["geolocation"],
-    )
+    context_kwargs: Dict[str, Any] = {
+        "viewport": vp,
+        "locale": geo_profile["locale"],
+        "timezone_id": geo_profile["timezone"],
+        "geolocation": geo_profile["coords"],
+        "permissions": ["geolocation", "notifications"],
+    }
+    if fp_profile.get("user_agent"):
+        context_kwargs["user_agent"] = fp_profile["user_agent"]
+
+    context = browser.new_context(**context_kwargs)
+
 
     # Injeksi stealth script (penghapusan navigator.webdriver, WebGL, MediaDevices, runtime mock)
     stealth_script = get_stealth_init_script(fp_profile)

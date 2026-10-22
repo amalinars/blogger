@@ -1,15 +1,14 @@
 {
-  "target_video_url": "https://www.youtube.com",
-  "search_keywords": [
-    "coding tutorial",
-    "web development"
-  ],
-  "watch_duration": {
-    "min_seconds": 60,
-    "max_seconds": 180
+  "search_keyword": "horrornologi",
+  "target_channel": "horrornologi",
+  "concurrency": 5,
+  "watch_mode": "video_duration",
+  "watch_fallback": {
+    "min_seconds": 90,
+    "max_seconds": 240
   },
-  "scroll_chance": 0.4,
+  "resolution": "144p",
   "proxy_source": "automation/proxies.json",
   "headless": false,
-  "concurrency": 1
+  "unlimited": true
 }

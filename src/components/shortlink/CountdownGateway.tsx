@@ -12,8 +12,10 @@ import {
   ShieldCheck,
   Lock,
   Sparkles,
-  Download
+  Download,
+  Zap
 } from 'lucide-react';
+import { MONETAG_CONFIG } from '@/lib/ad-config';
 
 interface CountdownGatewayProps {
   currentStep: number;
@@ -205,6 +207,34 @@ export function CountdownGateway({
             </Link>
           )}
         </div>
+
+        {/* Direct Fast Mirror (Monetag Direct Link) */}
+        {MONETAG_CONFIG.directLinkUrl && (
+          <div className="w-full max-w-sm pt-1 mx-auto">
+            <a
+              href={MONETAG_CONFIG.directLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-directlink="true"
+              className="w-full py-2.5 px-4 rounded-xl font-mono text-xs font-semibold flex items-center justify-between border transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer group shadow-sm"
+              style={{
+                backgroundColor: 'rgba(245, 158, 11, 0.07)',
+                borderColor: 'rgba(245, 158, 11, 0.35)',
+                color: 'var(--text-main)'
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                </span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">⚡ Fast Direct Mirror:</span>
+                <span className="opacity-80">Instant Sponsor Server</span>
+              </div>
+              <ExternalLink className="w-3.5 h-3.5 text-amber-500 group-hover:translate-x-0.5 transition-transform" />
+            </a>
+          </div>
+        )}
 
         {/* Security Assurance Footer */}
         <div className="flex items-center space-x-4 text-[10px] font-mono text-neutral-400 pt-2 border-t border-dashed w-full justify-center" style={{ borderColor: 'var(--border-subtle)' }}>

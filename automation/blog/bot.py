@@ -22,7 +22,7 @@ import socket
 import threading
 import argparse
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs, urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 from playwright.sync_api import sync_playwright
@@ -65,7 +65,7 @@ def load_config():
         "headless": False,
         "multi_page_navigation": True,
         "max_pages_per_session": 2,
-        "smartlink_click_chance": 0.04,
+        "smartlink_click_chance": 0.7,
         "use_organic_referers": True
     }
 
@@ -79,6 +79,14 @@ DEFAULT_REFERERS = [
     ("https://duckduckgo.com/", 0.05),
     ("https://news.ycombinator.com/", 0.05),
     (None, 0.10)
+]
+
+DEFAULT_SHORTLINK_SLUGS = [
+    "in-defense-of-deliberate-slowness",
+    "mechanical-sympathy-in-the-browser-runtime",
+    "lost-art-of-digital-craftsmanship",
+    "the-tactile-terminal-command-line-aesthetics",
+    "the-death-of-digital-clutter-brutalist-clarity"
 ]
 
 
@@ -165,13 +173,15 @@ def enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=
         is_repeated = (now - last_detect) < 15
         _last_tab_guard_detection[worker_id] = now
 
-        # Tutup semua tab iklan
+        # Tutup semua tab iklan dengan jeda wajar agar impresi Monetag tercatat
         if ad_pages:
             if not is_repeated:
                 print(f"{tag} [*] [TAB-GUARD] Terdeteksi {len(ad_pages)} tab iklan di luar domain target!")
 
-            if wait_seconds > 0:
-                time.sleep(wait_seconds)
+            dwell_ad = max(wait_seconds, 4.5)
+            if not is_repeated:
+                print(f"{tag} 💰 [MONETAG POPUNDER] Menahan tab iklan selama {dwell_ad:.1f}s agar impresi sah tercatat...")
+            time.sleep(dwell_ad)
 
             for ap, ap_url in ad_pages:
                 try:
@@ -215,6 +225,66 @@ def enforce_single_target_tab(context, main_page, target_base_url, wait_seconds=
     except Exception as e:
         print(f"{tag} [-] [TAB-GUARD] Notice: {e}")
         return main_page
+
+
+def dismiss_vignette_if_present(page, dwell_seconds=5, worker_id=1):
+    """
+    Menangani iklan Monetag Vignette/Interstitial secara pintar:
+    1. Memberikan waktu tayang wajar (dwell_seconds, default 4-6 detik) agar impresi sah
+       tercatat di server Monetag (tidak terdeteksi sebagai misclick/adblocker).
+    2. Mencoba mengklik tombol 'Close' di dalam frame Monetag.
+    3. Jika overlay masih menutupi layar setelah waktu jeda, sembunyikan layer agar
+       tidak memblokir klik tombol Shortlink Gateway ('Continue' / 'Next Step').
+    """
+    tag = f"[B{worker_id}]"
+    try:
+        if not page or page.is_closed():
+            return page
+
+        # Cek apakah ada overlay Vignette (iframe fullscreen dengan z-index tinggi)
+        has_vignette = page.evaluate("""() => {
+            const iframes = Array.from(document.querySelectorAll('iframe'));
+            return iframes.some(ifr => {
+                const s = window.getComputedStyle(ifr);
+                return (s.position === 'fixed' || s.position === 'absolute') &&
+                       parseInt(s.zIndex, 10) > 1000000 &&
+                       ifr.getBoundingClientRect().height > 300;
+            });
+        }""")
+
+        if has_vignette:
+            print(f"{tag} 📢 [MONETAG VIGNETTE] Terdeteksi iklan interstitial overlay. Memberikan waktu tayang {dwell_seconds}s (impresi sah)...")
+            time.sleep(dwell_seconds)
+
+            # Coba klik tombol Close di dalam frame Monetag
+            for f in page.frames:
+                if f != page.main_frame:
+                    try:
+                        btn = f.locator("text='Close'")
+                        if btn.count() > 0:
+                            btn.first.click(timeout=2000)
+                            print(f"{tag} [✓] [MONETAG VIGNETTE] Tombol 'Close' di dalam frame berhasil diklik.")
+                            break
+                    except Exception:
+                        pass
+
+            time.sleep(1.0)
+            # Hilangkan overlay jika masih menempel agar tombol navigasi tidak terhalang
+            page.evaluate("""() => {
+                const iframes = Array.from(document.querySelectorAll('iframe'));
+                iframes.forEach(ifr => {
+                    const s = window.getComputedStyle(ifr);
+                    if ((s.position === 'fixed' || s.position === 'absolute') &&
+                        parseInt(s.zIndex, 10) > 1000000 &&
+                        ifr.getBoundingClientRect().height > 300) {
+                        ifr.style.display = 'none';
+                    }
+                });
+            }""")
+    except Exception:
+        pass
+    return page
+
 
 
 
@@ -457,7 +527,219 @@ def click_element_naturally(page, element, worker_id=1):
         return False
 
 
+def is_shortlink_gateway_present(page) -> bool:
+    """
+    Mendeteksi apakah halaman saat ini merupakan artikel dengan sistem 4-Layer Shortlink Gateway.
+    Mengecek indikator unik seperti countdown timer, layer progress, status pill, atau tombol unlock.
+    """
+    try:
+        if not page or page.is_closed():
+            return False
+        if "/post/" not in (page.url or ""):
+            return False
+        gateway = page.query_selector(
+            "button:has-text('Please Wait'), a[href*='step='], a[href*='modapk.org'], "
+            "div:has-text('Verifying Integrity Protocols'), div:has-text('Audit Complete'), "
+            "div:has-text('Destination Gateway Unlocked')"
+        )
+        return gateway is not None
+    except Exception:
+        return False
 
+
+def traverse_shortlink_flow(page, context, target_base_url, config, worker_id: int = 1):
+    """
+    Menjelajahi Alur 4-Layer Shortlink Gateway Organik:
+    1. Membaca artikel teknis pada setiap layer (Step 1 s/d 4) dengan scroll bertahap & pergerakan mouse alami.
+    2. Menunggu countdown timer (8 detik) sampai tombol unlock aktif.
+    3. Memberikan jeda reaksi manusiawi (1.5 - 3.5 detik).
+    4. Mengklik tombol unlock secara fisik alami (memicu impresi/onclick Monetag).
+    5. Menjaga tab dari popunder yang terbuka (memberi dwell sejenak lalu menutup bersih).
+    6. Pada Layer 4 (final), mengklik link ke tujuan akhir 'modapk.org', melakukan authentic engagement di landing page, lalu menyelesaikan alur.
+    """
+    tag = f"[B{worker_id}]"
+    if page is None or page.is_closed():
+        return page
+
+    sl_settings = config.get("shortlink_settings", {})
+    max_steps = sl_settings.get("max_steps", 4)
+    buffer_min = sl_settings.get("step_dwell_buffer_seconds", {}).get("min", 1.5)
+    buffer_max = sl_settings.get("step_dwell_buffer_seconds", {}).get("max", 3.5)
+    click_final = sl_settings.get("click_final_destination", True)
+    smartlink_chance = config.get("smartlink_click_chance", 0.7)
+    smartlink_clicked_in_flow = False
+
+    print(f"\n{tag} 🛡️ [SHORTLINK] Terdeteksi 4-Layer Shortlink Gateway. Memulai penelusuran (Target Maks: {max_steps} Layer)...")
+
+    # Ambil step awal dari query string URL (?step=X), default 1
+    try:
+        current_url = page.url or ""
+        parsed = urlparse(current_url)
+        qs = parse_qs(parsed.query)
+        step_start = int(qs.get("step", [1])[0])
+    except Exception:
+        step_start = 1
+
+    for step in range(step_start, max_steps + 1):
+        if page is None or page.is_closed():
+            break
+
+        is_final_layer = (step >= max_steps)
+        layer_desc = f"Layer {step}/{max_steps}" + (" (Final Handshake -> modapk.org)" if is_final_layer else "")
+        print(f"\n{tag} 📖 [SHORTLINK] Membaca artikel {layer_desc} pada: {page.url}...")
+
+        # 1. Authentic Reading & Scrolling di Layer ini
+        # Scroll bertahap membaca artikel teknis (dan memicu inisialisasi tag Monetag / in-page push / vignette)
+        try:
+            scroll_count = random.randint(3, 5)
+            for _ in range(scroll_count):
+                if page.is_closed():
+                    break
+                scroll_px = random.randint(200, 380)
+                smooth_scroll(page, distance=scroll_px, steps=random.randint(6, 10))
+                page.mouse.move(
+                    random.randint(220, 680),
+                    random.randint(220, 520),
+                    steps=random.randint(4, 8)
+                )
+                time.sleep(random.uniform(1.0, 1.8))
+        except Exception as sc_err:
+            print(f"{tag} [-] [SHORTLINK-NOTICE] Scroll step {step}: {sc_err}")
+
+        # 1b. Interaksi Monetag Direct Link Sponsor Mirror jika tersedia dan peluang aktif
+        if not smartlink_clicked_in_flow and random.random() < smartlink_chance:
+            try:
+                dl_selector = "a[data-directlink='true'], a[href*='uplcm.com']"
+                direct_btn = page.query_selector(dl_selector)
+                if direct_btn and direct_btn.is_visible():
+                    print(f"\n{tag} ⚡ [DIRECT-LINK] Menemukan Monetag Direct Link Sponsor Mirror pada Layer {step} (Peluang {smartlink_chance*100:.0f}%). Memulai interaksi landing page...")
+                    page = handle_smartlink_click(context, page, direct_btn, target_base_url, worker_id=worker_id)
+                    smartlink_clicked_in_flow = True
+                    time.sleep(1.5)
+            except Exception as dl_err:
+                print(f"{tag} [-] [DIRECT-LINK-NOTICE] Interaksi direct link: {dl_err}")
+
+        # 2. Tunggu countdown timer selesai dan tombol unlock aktif
+        target_selector = "a[href*='modapk.org'], a:has-text('Proceed to modapk.org'), a:has-text('Get Link')" if is_final_layer else f"a[href*='step={step + 1}'], a:has-text('Continue to Layer {step + 1}')"
+
+        print(f"{tag} ⏳ [SHORTLINK] Menunggu countdown verifikasi Layer {step} (8s) hingga tombol unlock aktif...")
+        unlocked_btn = None
+        wait_start = time.time()
+        timeout_sec = 20.0
+
+        while time.time() - wait_start < timeout_sec:
+            if page.is_closed():
+                break
+
+            # Cek apakah tombol unlock sudah ada di DOM dan terlihat
+            try:
+                candidate = page.query_selector(target_selector)
+                if candidate and candidate.is_visible():
+                    unlocked_btn = candidate
+                    break
+            except Exception:
+                pass
+
+            # Gerakan mouse halus sesekali
+            try:
+                rx = random.randint(280, 620)
+                ry = random.randint(260, 480)
+                page.mouse.move(rx, ry, steps=random.randint(3, 6))
+            except Exception:
+                pass
+
+            time.sleep(1.0)
+
+        if not unlocked_btn and not page.is_closed():
+            # Fallback jika selector ketat belum match
+            try:
+                if is_final_layer:
+                    unlocked_btn = page.query_selector("a[href*='modapk.org'], a:has-text('Get Link')")
+                else:
+                    unlocked_btn = page.query_selector(f"a[href*='step={step + 1}']")
+            except Exception:
+                pass
+
+        if not unlocked_btn:
+            print(f"{tag} [!] [SHORTLINK] Tombol unlock Layer {step} tidak ditemukan setelah {int(time.time() - wait_start)}s. Melanjutkan alur...")
+            break
+
+        # 3. Jeda Reaksi Manusiawi (Human Reaction Delay)
+        reaction_delay = random.uniform(buffer_min, buffer_max)
+        print(f"{tag} [✓] [SHORTLINK] Tombol Layer {step} telah aktif! Jeda reaksi membaca: {reaction_delay:.1f}s...")
+        time.sleep(reaction_delay)
+
+        # 3b. Pastikan jika ada Monetag Vignette overlay, beri waktu tayang lalu tutup agar tidak memblokir tombol
+        page = dismiss_vignette_if_present(page, dwell_seconds=4, worker_id=worker_id)
+
+        # 4. Klik Alami ke Tombol
+        if not is_final_layer:
+            print(f"{tag} 👆 [SHORTLINK] Mengklik tombol navigasi ke Layer {step + 1}...")
+            click_element_naturally(page, unlocked_btn, worker_id=worker_id)
+
+            # Jeda agar event click & popunder Monetag terpicu jika ada
+            time.sleep(1.5)
+
+            # Jaga tab: jika Monetag memicu popunder, biarkan tercatat lalu tutup bersih
+            page = enforce_single_target_tab(context, page, target_base_url, wait_seconds=2, worker_id=worker_id)
+
+            # Pastikan halaman sudah pindah ke step berikutnya
+            try:
+                expected_query = f"step={step + 1}"
+                if not page.is_closed() and expected_query not in (page.url or ""):
+                    href = unlocked_btn.get_attribute("href")
+                    if href:
+                        next_url = urljoin(target_base_url, href)
+                        print(f"{tag} [*] ➡️ [SHORTLINK-RECOVERY] Navigasi step tertahan overlay, memuat URL langsung: {next_url}...")
+                        page.goto(next_url, wait_until="domcontentloaded", timeout=25000)
+                        page = enforce_single_target_tab(context, page, target_base_url, wait_seconds=1.5, worker_id=worker_id)
+            except Exception as nav_chk_err:
+                print(f"{tag} [-] [SHORTLINK-NOTICE] Navigasi step check: {nav_chk_err}")
+
+        else:
+            # Layer 4 Final -> Menuju modapk.org
+            if click_final:
+                print(f"{tag} 🎯 [SHORTLINK-DESTINATION] Mengklik tombol final clearance ke modapk.org...")
+                try:
+                    prev_pages = list(context.pages)
+                    click_element_naturally(page, unlocked_btn, worker_id=worker_id)
+                    time.sleep(2.5)
+
+                    dest_tab = None
+                    dest_wait_start = time.time()
+                    while time.time() - dest_wait_start < 6.0:
+                        current_pages = [p for p in context.pages if not p.is_closed()]
+                        for cp in current_pages:
+                            if cp not in prev_pages and "modapk.org" in (cp.url or "").lower():
+                                dest_tab = cp
+                                break
+                        if dest_tab:
+                            break
+                        time.sleep(0.5)
+
+                    if dest_tab:
+                        print(f"{tag} [✓] [DESTINATION] Tab tujuan modapk.org terbuka ({dest_tab.url})! Melakukan authentic reader engagement...")
+                        try:
+                            dest_tab.bring_to_front()
+                            dest_dwell = random.randint(5, 8)
+                            d_start = time.time()
+                            while time.time() - d_start < dest_dwell and not dest_tab.is_closed():
+                                smooth_scroll(dest_tab, distance=random.randint(180, 320), steps=6)
+                                time.sleep(random.uniform(1.5, 2.5))
+                            print(f"{tag} [✓] [DESTINATION] Selesai berinteraksi di landing page modapk.org ({dest_dwell}s). Menutup tab tujuan...")
+                            dest_tab.close(run_before_unload=False)
+                        except Exception as dest_err:
+                            print(f"{tag} [-] [DESTINATION-NOTICE] Interaksi tab modapk: {dest_err}")
+                    else:
+                        print(f"{tag} [*] [DESTINATION] Tombol final telah diklik.")
+                except Exception as final_click_err:
+                    print(f"{tag} [-] [DESTINATION-NOTICE] Klik final link notice: {final_click_err}")
+
+            # Bersihkan tab popunder jika ada
+            page = enforce_single_target_tab(context, page, target_base_url, wait_seconds=2, worker_id=worker_id)
+            print(f"{tag} [✓] [SHORTLINK] Seluruh 4 Layer Gateway & Landing Target selesai ditelusuri dengan sempurna!")
+
+    return page
 
 
 def run_single_session_safe(target_url="https://read.riztama.my.id", use_proxy=True, proxy=None, proxy_idx=None, headless=False, config=None, max_pages=2, return_home=False, worker_id=1, proxy_manager=None):
@@ -554,20 +836,30 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
                 page.on("dialog", lambda dialog: dialog.dismiss())
             except Exception:
                 pass
+            # Direct Shortlink Routing:
+            # Jika target_url belum mengarah ke link artikel shortlink (/post/...), arahkan langsung!
+            if "/post/" not in target_url:
+                chosen_slug = random.choice(DEFAULT_SHORTLINK_SLUGS)
+                clean_base = target_url.rstrip("/")
+                target_url = f"{clean_base}/post/{chosen_slug}?step=1"
+                print(f"{tag} 🎯 [SHORTLINK MODE] Navigasi langsung ke link Gateway Shortlink: {target_url}")
+            elif "?step=" not in target_url:
+                target_url = f"{target_url}?step=1"
+
             visited_urls = set()
             visited_urls.add(target_url)
 
             # Gunakan Organic Referer Engine
             referer = get_organic_referer(config.get("organic_referer_pool")) if config.get("use_organic_referers", True) else None
             ref_label = referer if referer else "Direct (None)"
-            print(f"{tag} [*] Navigating to {target_url} (Referer: {ref_label})...")
+            print(f"{tag} [*] Navigating directly to Shortlink: {target_url} (Referer: {ref_label})...")
             if referer:
                 page.goto(target_url, referer=referer, wait_until="domcontentloaded", timeout=60000)
             else:
                 page.goto(target_url, wait_until="domcontentloaded", timeout=60000)
-            time.sleep(random.uniform(2.5, 4.0))
+            time.sleep(random.uniform(2.0, 3.5))
 
-            # Trigger klik fisik koordinat awal (memicu popunder/ad overlay Adsterra di beranda jika ada)
+            # Trigger klik fisik koordinat awal (memicu popunder/ad overlay Monetag jika ada)
             print(f"{tag} [*] Performing physical mouse click at coordinates (Hits ad overlay/popunder)...")
             try:
                 cx = random.randint(250, 650)
@@ -580,186 +872,51 @@ def run_session(target_url, proxy=None, proxy_idx=None, headless=False, config=N
             except Exception:
                 pass
 
-            # Enforce single tab guard jika popunder terbuka
-            page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
+            # Enforce single tab guard jika popunder terbuka, lalu tangani vignette overlay jika ada
+            page = enforce_single_target_tab(context, page, target_url, wait_seconds=3, worker_id=worker_id)
+            page = dismiss_vignette_if_present(page, dwell_seconds=5, worker_id=worker_id)
 
             # =========================================================
-            # TAHAP 1: EKSPLORASI BERANDA (JANGAN LANGSUNG BUKA ARTIKEL)
+            # PENELUSURAN SHORTLINK GATEWAY (Hop 1 .. max_pages)
             # =========================================================
-            is_initial_home = "/post/" not in page.url
-            if is_initial_home:
-                # Scroll santai beranda agar seluruh posisi iklan feed, header, dan sidebar terlihat
-                page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(5, 8), worker_id=worker_id, label="beranda")
-
-                # Interaksi klik smartlink alami di Beranda (rasio wajar ~4%)
-                smartlink_chance = config.get("smartlink_click_chance", 0.04)
-                if random.random() < smartlink_chance:
-                    print(f"{tag} [*] 🎯 [SMARTLINK BERANDA] Melakukan interaksi klik alami di Beranda...")
-                    try:
-                        smartlink_btn = page.query_selector("a[href*='profitableratecpmnetwork.com'], a[href*='araplhn.org'], a[href*='asiafilm.org'], aside a, .smartlink-cta, header a")
-                        if smartlink_btn:
-                            page = handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
-                    except Exception as e:
-                        print(f"{tag} [-] [HOLD/ERROR] Smartlink beranda notice: {e}")
-
-                # Dwell time beranda terukur (~16-24s, cukup untuk viewability & auto-refresh)
-                home_dwell = random.randint(16, 24)
-                page = human_dwell(page, context, target_url, home_dwell, worker_id=worker_id, label="beranda")
-
-                print(f"{tag} [✓] [BERANDA] Seluruh iklan di Beranda telah ter-render & tercatat impresi. Siap memilih artikel!")
-
-            # =========================================================
-            # TAHAP 2: EKSPLORASI ARTIKEL BERTINGKAT (Hop 1 .. max_pages)
-            # =========================================================
-            smartlink_chance = config.get("smartlink_click_chance", 0.04)
-
             for hop in range(1, max_pages + 1):
                 if page.is_closed():
                     break
 
-                # Navigasi ke artikel yang belum dikunjungi dari Beranda
-                print(f"\n{tag} [*] ➡️ Menyiapkan navigasi ke Artikel {hop} dari total {max_pages} artikel...")
-                try:
-                    all_post_links = page.query_selector_all("a[href^='/post/']")
-                    candidates = []
-                    for pl in all_post_links:
-                        href = pl.get_attribute("href")
-                        if href and href not in visited_urls:
-                            candidates.append((pl, href))
-
-                    # Jika DOM tidak menampilkan artikel (terhalang overlay/redirect)
-                    if not candidates and not all_post_links:
-                        print(f"{tag} [!] [HOLD/RECOVERY] Link artikel tidak terdeteksi di DOM (mungkin tertutup overlay). Memuat ulang beranda: {target_url}...")
-                        try:
-                            page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
-                            time.sleep(2.0)
-                            all_post_links = page.query_selector_all("a[href^='/post/']")
-                            for pl in all_post_links:
-                                href = pl.get_attribute("href")
-                                if href and href not in visited_urls:
-                                    candidates.append((pl, href))
-                        except Exception as reload_err:
-                            print(f"{tag} [-] [HOLD/ERROR] Gagal memuat ulang beranda: {reload_err}")
-
-                    if not candidates and all_post_links:
-                        sel = random.choice(all_post_links)
-                        candidates = [(sel, sel.get_attribute("href"))]
-
-                    if candidates:
-                        chosen_el, chosen_href = random.choice(candidates[:6])
-                        visited_urls.add(chosen_href)
-                        print(f"{tag} [*] ➡️ Memilih artikel #{hop}: {chosen_href}")
-
-                        # Klik alami masuk ke artikel (sering memicu redirect/popunder smartlink)
-                        click_element_naturally(page, chosen_el, worker_id=worker_id)
-                        page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
-
-                        # Verifikasi apakah sudah masuk ke artikel target
-                        if not page.is_closed() and chosen_href not in page.url:
-                            # Jika klik tertahan overlay iklan/popunder, navigasi langsung ke URL artikel
-                            from urllib.parse import urljoin
-                            full_article_url = urljoin(target_url, chosen_href)
-                            print(f"{tag} [*] ➡️ [HOLD/RECOVERY] Klik artikel tertahan overlay iklan. Memuat URL artikel langsung: {full_article_url}...")
-                            try:
-                                page.goto(full_article_url, wait_until="domcontentloaded", timeout=25000)
-                            except Exception as nav_e:
-                                print(f"{tag} [-] [NAV-NOTICE] Navigasi fallback artikel: {nav_e}")
-
-                        page = enforce_single_target_tab(context, page, target_url, wait_seconds=1.5, worker_id=worker_id)
-                    else:
-                        # Fallback jika DOM sama sekali tidak memuat link artikel: navigasi langsung ke slug artikel sah
-                        known_slugs = [
-                            "/post/in-defense-of-deliberate-slowness",
-                            "/post/mechanical-sympathy-in-the-browser-runtime",
-                            "/post/lost-art-of-digital-craftsmanship",
-                            "/post/the-tactile-terminal-command-line-aesthetics",
-                            "/post/the-death-of-digital-clutter-brutalist-clarity"
-                        ]
-                        unvisited = [s for s in known_slugs if s not in visited_urls]
-                        fallback_slug = random.choice(unvisited if unvisited else known_slugs)
-                        visited_urls.add(fallback_slug)
-                        from urllib.parse import urljoin
-                        full_article_url = urljoin(target_url, fallback_slug)
-                        print(f"{tag} [*] ➡️ [NAV-FALLBACK] Navigasi langsung ke artikel blog: {fallback_slug}...")
-                        try:
-                            page.goto(full_article_url, wait_until="domcontentloaded", timeout=25000)
-                        except Exception as nav_e:
-                            print(f"{tag} [-] [NAV-NOTICE] Navigasi fallback artikel: {nav_e}")
-                        page = enforce_single_target_tab(context, page, target_url, wait_seconds=1.5, worker_id=worker_id)
-                except Exception as e:
-                    print(f"{tag} [-] [HOLD/ERROR] Navigasi artikel notice: {e}")
-                    break
+                # Jika hop > 1 atau halaman belum di /post/, navigasi ke slug shortlink berikutnya
+                if hop > 1 or "/post/" not in page.url:
+                    known_slugs = [f"/post/{s}?step=1" for s in DEFAULT_SHORTLINK_SLUGS]
+                    unvisited = [s for s in known_slugs if s not in visited_urls]
+                    chosen_slug_url = random.choice(unvisited if unvisited else known_slugs)
+                    visited_urls.add(chosen_slug_url)
+                    full_article_url = urljoin(target_url, chosen_slug_url)
+                    print(f"\n{tag} [*] ➡️ [SHORTLINK HOP #{hop}] Memuat URL Gateway Shortlink berikutnya: {full_article_url}...")
+                    try:
+                        page.goto(full_article_url, wait_until="domcontentloaded", timeout=25000)
+                    except Exception as nav_e:
+                        print(f"{tag} [-] [NAV-NOTICE] Navigasi shortlink hop #{hop}: {nav_e}")
+                    page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
+                    page = dismiss_vignette_if_present(page, dwell_seconds=4, worker_id=worker_id)
+                else:
+                    visited_urls.add(page.url)
 
                 current_post_url = page.url
-                print(f"\n{tag} >>> 📖 [Artikel {hop}/{max_pages}] Membaca artikel: {current_post_url} <<<")
+                print(f"\n{tag} >>> 📖 [Shortlink {hop}/{max_pages}] Membaca artikel gateway: {current_post_url} <<<")
 
-                # A. Di artikel scroll natural bertahap (smooth & gesit)
-                page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(6, 10), worker_id=worker_id, label="artikel")
+                # Cek apakah artikel memiliki alur 4-Layer Shortlink Gateway
+                if is_shortlink_gateway_present(page):
+                    page = traverse_shortlink_flow(page, context, target_url, config, worker_id=worker_id)
+                else:
+                    # Fallback jika halaman artikel biasa tanpa gateway
+                    page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(6, 10), worker_id=worker_id, label="artikel")
+                    post_dwell = random.randint(dwell_min, dwell_max)
+                    page = human_dwell(page, context, target_url, post_dwell, worker_id=worker_id, label="artikel")
 
-                # B. Trigger / Klik Smartlink CTA di artikel (seringkan interaksi klik manusia)
-                if random.random() < smartlink_chance:
-                    print(f"{tag} [*] 🎯 [SMARTLINK] Engaging with Smartlink CTA pada Artikel {hop} (Tercatat klik advertiser)...")
-                    try:
-                        smartlink_btn = page.query_selector("a[href*='profitableratecpmnetwork.com'], a[href*='araplhn.org'], a[href*='asiafilm.org'], aside a, .smartlink-cta, a[target='_blank']")
-                        if smartlink_btn:
-                            page = handle_smartlink_click(context, page, smartlink_btn, target_url, worker_id=worker_id)
-                    except Exception as e:
-                        print(f"{tag} [-] [HOLD/ERROR] Smartlink article notice: {e}")
-
-                # C. Dwell time santai di artikel (membaca santai & scrolling naik-turun menunggu auto-refresh iklan 35s)
-                post_dwell = random.randint(dwell_min, dwell_max)
-                page = human_dwell(page, context, target_url, post_dwell, worker_id=worker_id, label="artikel")
-
-                print(f"{tag} [+] Artikel {hop}/{max_pages} selesai dinikmati.")
+                print(f"{tag} [+] Shortlink #{hop}/{max_pages} selesai dinikmati.")
 
                 # Selesai jika ini adalah hop terakhir
                 if hop >= max_pages or page.is_closed():
                     break
-
-                # =========================================================
-                # TAHAP 3: KEMBALI KE BERANDA (RETURN HOME) ANTAR ARTIKEL
-                # =========================================================
-                if return_home:
-                    try:
-                        print(f"\n{tag} [*] 🏠 Pola Pembaca Organik: Kembali ke Beranda sebelum memilih artikel baru...")
-                        home_link = page.query_selector(
-                            "a[href='/'], header a[href='/'], a:has-text('CHRONICLE'), a:has-text('Return to Journal Frontpage')"
-                        )
-                        if home_link:
-                            click_element_naturally(page, home_link, worker_id=worker_id)
-                            page = enforce_single_target_tab(context, page, target_url, wait_seconds=2, worker_id=worker_id)
-                            # Verifikasi apakah sudah di beranda
-                            if not page.is_closed() and "/post/" in page.url:
-                                print(f"{tag} [*] [HOLD/RECOVERY] Klik beranda tertahan overlay, memuat URL beranda langsung: {target_url}...")
-                                try:
-                                    page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
-                                except Exception as he:
-                                    print(f"{tag} [-] [NAV-NOTICE] Navigasi beranda fallback: {he}")
-                            else:
-                                try:
-                                    page.wait_for_load_state("domcontentloaded", timeout=15000)
-                                except Exception:
-                                    pass
-                            time.sleep(random.uniform(2.0, 3.5))
-                        else:
-                            print(f"{tag} [*] 🏠 Memuat URL beranda langsung: {target_url}...")
-                            try:
-                                page.goto(target_url, wait_until="domcontentloaded", timeout=25000)
-                            except Exception as he:
-                                print(f"{tag} [-] [NAV-NOTICE] Navigasi beranda fallback: {he}")
-                            time.sleep(random.uniform(2.0, 3.5))
-
-                        # Di beranda santai scroll lagi sampai semua iklan terlihat
-                        print(f"{tag} [*] 📜 [BERANDA FEED] Menjelajahi kembali feed Beranda santai agar seluruh posisi iklan ter-refresh...")
-                        page = human_scroll(page, config, context=context, target_url=target_url, max_scroll_steps=random.randint(4, 7), worker_id=worker_id, label="beranda")
-
-                        # Dwell santai di beranda antar artikel (~12 - 18 detik dengan scrolling naik-turun)
-                        mid_dwell = random.randint(12, 18)
-                        page = human_dwell(page, context, target_url, mid_dwell, worker_id=worker_id, label="beranda")
-
-                        print(f"{tag} [✓] Iklan di Beranda siap & ter-refresh. Bersiap memilih artikel selanjutnya...")
-                    except Exception as e:
-                        print(f"{tag} [-] [RETURN-HOME-NOTICE] Notice returning home: {e}")
 
         except Exception as e:
             session_failed = True
@@ -825,10 +982,13 @@ def main():
     config = load_config()
 
     base_url = config.get("local_test_url", "http://localhost:3000") if args.local else config.get("target_base_url", "https://read.riztama.my.id")
+    clean_base = base_url.rstrip("/")
     if args.slug:
-        target_url = f"{base_url}/post/{args.slug}"
+        slug_clean = args.slug.strip()
+        target_url = f"{clean_base}/post/{slug_clean}" + ("" if "?step=" in slug_clean else "?step=1")
     else:
-        target_url = base_url
+        chosen_slug = random.choice(DEFAULT_SHORTLINK_SLUGS)
+        target_url = f"{clean_base}/post/{chosen_slug}?step=1"
 
     proxy_file = resolve_proxy_path(config.get("proxy_source", "automation/proxies.json"))
     raw_proxies = [] if args.no_proxy else load_proxies(proxy_file)

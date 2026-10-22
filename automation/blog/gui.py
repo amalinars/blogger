@@ -527,6 +527,69 @@ class BotProcessWorker(QThread):
             emit("TIMER", "⌛ Dwell time selesai. Melanjutkan flow...")
             return
 
+        # Shortlink Gateway Indicators
+        if "[SHORTLINK] Membaca artikel Layer 1" in line:
+            url = line.split("pada:")[-1].strip() if "pada:" in line else ""
+            self.status_signal.emit("SURFING", "Membaca Shortlink Layer 1/4 (Verifikasi 8s)")
+            self.worker_flow_signal.emit(w_id, {
+                "step": "LAYER_1",
+                "status_text": "🛡️ Gateway Layer 1/4",
+                "url": url
+            })
+            emit("PAGE2", f"🛡️ <b>[SHORTLINK LAYER 1/4]</b> Membaca artikel & verifikasi gateway: {url}")
+            return
+
+        if "[SHORTLINK] Membaca artikel Layer 2" in line:
+            url = line.split("pada:")[-1].strip() if "pada:" in line else ""
+            self.status_signal.emit("SURFING", "Membaca Shortlink Layer 2/4 (Verifikasi 8s)")
+            self.worker_flow_signal.emit(w_id, {
+                "step": "LAYER_2",
+                "status_text": "🛡️ Gateway Layer 2/4",
+                "url": url
+            })
+            emit("PAGE2", f"🛡️ <b>[SHORTLINK LAYER 2/4]</b> Lanjut ke Layer 2...")
+            return
+
+        if "[SHORTLINK] Membaca artikel Layer 3" in line:
+            url = line.split("pada:")[-1].strip() if "pada:" in line else ""
+            self.status_signal.emit("SURFING", "Membaca Shortlink Layer 3/4 (Verifikasi 8s)")
+            self.worker_flow_signal.emit(w_id, {
+                "step": "LAYER_3",
+                "status_text": "🛡️ Gateway Layer 3/4",
+                "url": url
+            })
+            emit("PAGE2", f"🛡️ <b>[SHORTLINK LAYER 3/4]</b> Lanjut ke Layer 3...")
+            return
+
+        if "[SHORTLINK] Membaca artikel Layer 4" in line:
+            url = line.split("pada:")[-1].strip() if "pada:" in line else ""
+            self.status_signal.emit("SURFING", "Membaca Shortlink Layer 4/4 (Final Clearance)")
+            self.worker_flow_signal.emit(w_id, {
+                "step": "LAYER_4",
+                "status_text": "🛡️ Gateway Layer 4/4",
+                "url": url
+            })
+            emit("PAGE2", f"🛡️ <b>[SHORTLINK LAYER 4/4]</b> Lanjut ke Layer Final (Clearance)...")
+            return
+
+        if "[DESTINATION]" in line and "modapk.org" in line:
+            self.status_signal.emit("CLICK", "Landing page modapk.org tercapai")
+            self.worker_flow_signal.emit(w_id, {
+                "step": "DESTINATION",
+                "status_text": "🎯 Landing modapk.org",
+                "url": "https://modapk.org/"
+            })
+            emit("SUCCESS", f"🎯 <b>[DESTINATION UNLOCKED]</b> Berhasil membuka landing page modapk.org!")
+            return
+
+        if "Seluruh 4 Layer Gateway & Landing Target selesai" in line:
+            self.worker_flow_signal.emit(w_id, {
+                "step": "DONE",
+                "status_text": "✓ Shortlink Selesai"
+            })
+            emit("SUCCESS", "✓ <b>[SHORTLINK COMPLETE]</b> Seluruh 4 layer gateway berhasil diselesaikan!")
+            return
+
         # Multi-Hop exploration indicators
         if "[Artikel" in line or ">>> [HOP" in line:
             try:
@@ -1208,31 +1271,25 @@ class ProxyTestDialog(QDialog):
         event.accept()
 
 
-def generate_flow_steps(max_pages: int = 3, has_smartlink: bool = True):
-    steps = ["Proksi", "Beranda"]
-    for i in range(1, max(1, max_pages) + 1):
-        steps.append(f"Art {i}")
-    if has_smartlink:
-        steps.append("Smartlink")
-    steps.append("Dwell")
-    steps.append("Selesai")
-    return steps
+def generate_flow_steps(max_pages: int = 1, has_smartlink: bool = False):
+    return ["Proksi", "Layer 1", "Layer 2", "Layer 3", "Layer 4", "Landing", "Selesai"]
 
 
-def get_step_index(step_key: str, hop: int, max_pages: int, has_smartlink: bool = True) -> int:
+def get_step_index(step_key: str, hop: int = 1, max_pages: int = 1, has_smartlink: bool = False) -> int:
     if step_key in ("PROXY", "PROXY_TEST"):
         return 0
-    if step_key in ("PROXY_OK", "LANDING", "DWELL_BERANDA", "BERANDA"):
+    if step_key in ("PROXY_OK", "LAYER_1", "LANDING", "START", "BERANDA", "ARTICLE"):
         return 1
-    if step_key in ("ADS", "ARTICLE"):
-        h = max(1, min(hop or 1, max_pages))
-        return 1 + h
-    if step_key == "SMARTLINK":
-        return 2 + max_pages if has_smartlink else 2 + max_pages
-    if step_key in ("DWELL", "DWELL_DONE"):
-        return 2 + max_pages + (1 if has_smartlink else 0)
-    if step_key in ("DONE", "COOLDOWN", "CLOSING"):
-        return 3 + max_pages + (1 if has_smartlink else 0)
+    if step_key == "LAYER_2":
+        return 2
+    if step_key == "LAYER_3":
+        return 3
+    if step_key == "LAYER_4":
+        return 4
+    if step_key in ("DESTINATION", "MODAPK", "SMARTLINK"):
+        return 5
+    if step_key in ("DONE", "COOLDOWN", "CLOSING", "DWELL_DONE"):
+        return 6
     return -1
 
 
@@ -1699,15 +1756,15 @@ class TrafficBotGUI(QMainWindow):
         t_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
         self.target_url_combo = QComboBox()
         self.target_url_combo.setEditable(True)
-        self.target_url_combo.addItem("https://read.riztama.my.id (Server Live)")
-        self.target_url_combo.addItem("http://localhost:3000 (Uji Coba Komputer Sendiri)")
+        self.target_url_combo.addItem("https://read.riztama.my.id (Server Live - Shortlink Gateway)")
+        self.target_url_combo.addItem("http://localhost:3000 (Uji Coba Komputer Sendiri - Shortlink Gateway)")
         t_layout.addWidget(t_lbl)
         t_layout.addWidget(self.target_url_combo)
 
-        slug_lbl = QLabel("Artikel Tertentu (Opsional / Kosongkan untuk Halaman Utama):")
+        slug_lbl = QLabel("Pilih Slug Shortlink (Opsional / Kosongkan untuk Acak 5 Slug Otomatis):")
         slug_lbl.setStyleSheet("color: #94a3b8; font-size: 11px;")
         self.slug_input = QLineEdit()
-        self.slug_input.setPlaceholderText("Contoh: the-tactile-terminal-command-line-aesthetics")
+        self.slug_input.setPlaceholderText("Kosongkan = Otomatis rotasi 5 slug shortlink (?step=1)")
         t_layout.addWidget(slug_lbl)
         t_layout.addWidget(self.slug_input)
 
