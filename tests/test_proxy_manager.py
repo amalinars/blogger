@@ -1,8 +1,11 @@
 import os
+import sys
 import json
 import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import core.proxy_manager as proxy_manager
 from core.proxy_manager import (
@@ -300,6 +303,64 @@ def test_delete_dead_proxies(temp_proxy_file):
     # Test calling delete_dead again when none exist
     removed_second = pm.delete_dead()
     assert removed_second == 0
+
+
+def test_reset_usage_to_idle(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file)
+    # Lease a proxy first
+    alloc = pm.acquire_proxy(caller_id="worker_leak")
+    assert alloc is not None
+    assert alloc["usage"] == USAGE_IN_USE
+
+    # Verify state in manager
+    stats = pm.get_stats()
+    assert stats["in_use"] >= 1
+
+    # Reset usage
+    cleaned = pm.reset_usage_to_idle()
+    assert cleaned >= 1
+
+    # Verify all are now IDLE
+    stats_after = pm.get_stats()
+    assert stats_after["in_use"] == 0
+    assert stats_after["idle"] == stats_after["total"]
+
+
+def test_reset_cursor(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file)
+    # Advance cursor
+    pm.acquire_proxy(caller_id="w1")
+    assert pm.get_stats()["cursor"] > 0
+
+    # Reset cursor back to 0
+    new_cur = pm.reset_cursor(0)
+    assert new_cur == 0
+    assert pm.get_stats()["cursor"] == 0
+
+
+def test_acquire_proxy_with_verify_alive(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file)
+
+    # Mock _test_proxy_network to simulate first proxy failing, second proxy succeeding
+    call_count = 0
+    def mock_test_net(url):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            # First proxy candidate fails network check
+            return {"success": False, "ip": None, "latency_ms": None, "error": "Connection timed out"}
+        else:
+            # Second proxy candidate passes network check
+            return {"success": True, "ip": "203.0.113.5", "latency_ms": 120.5, "error": None}
+
+    with patch.object(pm, "_test_proxy_network", side_effect=mock_test_net):
+        # Even if p1 was ALIVE in JSON, verify_alive=True causes live check!
+        alloc = pm.acquire_proxy(caller_id="verifier_worker", verify_alive=True)
+        assert alloc is not None
+        # First proxy failed and was marked DEAD, so candidate 2 or next working was returned
+        assert alloc["ip_detected"] == "203.0.113.5"
+        assert alloc["health"] == HEALTH_ALIVE
+
 
 
 

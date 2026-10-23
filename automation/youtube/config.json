@@ -1,0 +1,31 @@
+{
+  "search_keyword": "horrornologi",
+  "target_channel": "horrornologi",
+  "dynamic_watch_ratio": {
+    "min_ratio": 0.30,
+    "max_ratio": 0.60
+  },
+  "fallback_watch_seconds": {
+    "min": 240,
+    "max": 420
+  },
+  "max_watch_cap_seconds": 900,
+  "flow_balance": {
+    "direct_search_video_weight": 0.0,
+    "channel_latest_video_weight": 1.0
+  },
+  "resolution": "144p",
+  "humanize": true,
+  "headless": true,
+  "run_browser_verifier": true,
+  "ad_skip_delay_seconds": {
+    "min": 2.0,
+    "max": 4.5
+  },
+  "concurrency": 2,
+  "unlimited": true,
+  "session_cooldown_seconds": {
+    "min": 4.0,
+    "max": 8.0
+  }
+}

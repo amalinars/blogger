@@ -1,68 +1,32 @@
-export interface Author {
-  name: string;
-  avatar: string;
-  role: string;
-  bio: string;
-}
-
-export interface Post {
+export type ArticleFeedItem = {
   id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  coverImage: string;
-  author: Author;
   category: string;
-  tags: string[];
-  readTimeMinutes: number;
-  views: number;
-  claps: number;
-  status: 'published' | 'draft';
-  isFeatured: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+  categoryLabel: string;
+  title: string;
+  snippet: string;
+  imageUrl: string | null;
+  source: string;
+  publishedLabel: string | null;
+};
 
-export interface Comment {
+export type GateStepData = {
   id: string;
-  postId: string;
-  authorName: string;
-  authorEmail?: string;
-  authorAvatar: string;
-  content: string;
-  createdAt: string;
-  likes: number;
-}
-
-export interface Category {
-  id: string;
-  name: string;
-  slug: string;
+  index: number;
+  title: string;
   description: string;
-  count: number;
-}
+  delaySeconds: number;
+  article: ArticleFeedItem;
+  related: ArticleFeedItem[];
+};
 
-export interface ArchiveItem {
-  year: number;
-  month: string;
-  monthNumber: number;
-  count: number;
-  posts: {
-    id: string;
-    slug: string;
-    title: string;
-    createdAt: string;
-    category: string;
-  }[];
-}
+export type FeedResult = {
+  source: 'live' | 'fallback';
+  fetchedAt: string;
+  steps: GateStepData[];
+};
 
-export interface SiteStats {
-  totalPosts: number;
-  publishedPosts: number;
-  draftPosts: number;
-  totalViews: number;
-  totalClaps: number;
-  totalComments: number;
-  topPosts: Post[];
-}
+export type SiteDestination = {
+  url: string;
+  host: string;
+  path: string;
+};

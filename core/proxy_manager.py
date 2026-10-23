@@ -43,12 +43,23 @@ KNOWN_PROXY_ERRORS = (
 
 
 class ProxyManager:
-    def __init__(self, filepath: str = DEFAULT_PROXY_FILE, check_url: str = CHECK_URL, timeout: int = CHECK_TIMEOUT):
+    def __init__(
+        self,
+        filepath: str = DEFAULT_PROXY_FILE,
+        check_url: str = CHECK_URL,
+        timeout: int = CHECK_TIMEOUT,
+        reset_stale_usage: bool = False,
+        reset_cursor: bool = False,
+    ):
         self.filepath = os.path.abspath(filepath)
         self.check_url = check_url
         self.timeout = timeout
         self._lock = threading.RLock()
         self._ensure_file()
+        if reset_stale_usage:
+            self.reset_usage_to_idle()
+        if reset_cursor:
+            self.reset_cursor(0)
 
     def _ensure_file(self):
         """Memastikan direktori dan proxies.json ada, melakukan migrasi jika masih berupa format array lama."""
@@ -434,12 +445,18 @@ class ProxyManager:
     # 3. ROTASI BERKELANJUTAN & ACQUIRE / RELEASE
     # =========================================================================
 
-    def acquire_proxy(self, caller_id: Optional[str] = None, exclusive: bool = True) -> Optional[Dict[str, Any]]:
+    def acquire_proxy(
+        self,
+        caller_id: Optional[str] = None,
+        exclusive: bool = True,
+        verify_alive: bool = False,
+    ) -> Optional[Dict[str, Any]]:
         """
         Mengambil proxy sehat berikutnya dengan rotasi berkelanjutan (cursor persisten).
         - Dimulai dari cursor terakhir yang tersimpan di proxies.json.
         - Proxy DEAD atau IN_USE dilewati.
         - Proxy UNKNOWN divalidasi langsung sebelum dialokasikan.
+        - Jika verify_alive=True: status ALIVE di-recheck langsung (tidak langsung dipercaya).
         - Menandai proxy menjadi IN_USE dan memperbarui cursor rotasi secara persisten.
         - Tidak menyebabkan infinite loop jika tidak ada proxy tersedia.
         """
@@ -499,6 +516,27 @@ class ProxyManager:
 
                 # 5. Jika ALIVE dan memenuhi syarat, alokasikan!
                 if candidate.get("health") == HEALTH_ALIVE:
+                    # Jika verify_alive=True, re-verifikasi koneksi proxy di jaringan langsung!
+                    if verify_alive:
+                        proxy_url = candidate.get("proxy_url")
+                        if not proxy_url:
+                            candidate["health"] = HEALTH_DEAD
+                            continue
+
+                        test_res = self._test_proxy_network(proxy_url)
+                        candidate["last_checked"] = time.time()
+                        if test_res["success"]:
+                            candidate["health"] = HEALTH_ALIVE
+                            candidate["ip_detected"] = test_res["ip"]
+                            candidate["latency_ms"] = test_res["latency_ms"]
+                            candidate["fail_count"] = 0
+                            candidate["last_error"] = None
+                        else:
+                            candidate["health"] = HEALTH_DEAD
+                            candidate["last_error"] = test_res["error"]
+                            # Proxy mati terkonfirmasi, lewati dan cari kandidat berikutnya
+                            continue
+
                     if exclusive:
                         candidate["usage"] = USAGE_IN_USE
                         candidate["leased_by"] = lease_token
@@ -517,6 +555,38 @@ class ProxyManager:
             data["cursor"] = (cursor + 1) % total
             self._save_raw(data)
             return None
+
+    def reset_usage_to_idle(self) -> int:
+        """
+        Membersihkan seluruh status IN_USE menjadi IDLE.
+        Menangani kasus jika ada proses sebelumnya yang mati mendadak (killed/crashed)
+        sehingga status proxy tidak terkunci di IN_USE.
+        """
+        with self._lock:
+            data = self._load_raw()
+            cleaned = 0
+            for p in data.get("proxies", []):
+                if p.get("usage") == USAGE_IN_USE or p.get("leased_by") is not None:
+                    p["usage"] = USAGE_IDLE
+                    p["leased_by"] = None
+                    p["lease_time"] = None
+                    cleaned += 1
+            if cleaned > 0:
+                self._save_raw(data)
+            return cleaned
+
+    def reset_cursor(self, to_index: int = 0) -> int:
+        """
+        Mereset posisi kursor rotasi (default ke index 0).
+        Dipanggil ketika sebuah modul baru pertama kali berjalan.
+        """
+        with self._lock:
+            data = self._load_raw()
+            total = len(data.get("proxies", []))
+            valid_cursor = to_index % total if total > 0 else 0
+            data["cursor"] = valid_cursor
+            self._save_raw(data)
+            return valid_cursor
 
     def release_proxy(self, identifier: str, caller_id: Optional[str] = None) -> bool:
         """
@@ -724,6 +794,17 @@ def get_proxies(health: Optional[str] = None, usage: Optional[str] = None) -> Li
 def get_stats() -> Dict[str, Any]:
     """Melihat statistik proxy pool."""
     return get_manager().get_stats()
+
+
+def reset_usage_to_idle() -> int:
+    """Membersihkan seluruh status IN_USE menjadi IDLE."""
+    return get_manager().reset_usage_to_idle()
+
+
+def reset_cursor(to_index: int = 0) -> int:
+    """Mereset posisi kursor rotasi proxy."""
+    return get_manager().reset_cursor(to_index)
+
 
 
 if __name__ == "__main__":

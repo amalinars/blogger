@@ -16,6 +16,8 @@ from .proxy_manager import (
     delete_dead_proxies,
     get_proxies,
     get_stats,
+    reset_usage_to_idle,
+    reset_cursor,
     get_manager,
     HEALTH_UNKNOWN,
     HEALTH_ALIVE,
@@ -43,6 +45,8 @@ __all__ = [
     "delete_dead_proxies",
     "get_proxies",
     "get_stats",
+    "reset_usage_to_idle",
+    "reset_cursor",
     "get_manager",
     "HEALTH_UNKNOWN",
     "HEALTH_ALIVE",
@@ -51,3 +55,4 @@ __all__ = [
     "USAGE_IDLE",
     "USAGE_IN_USE",
 ]
+
