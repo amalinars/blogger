@@ -78,6 +78,15 @@ export default function RootLayout({
           strategy="afterInteractive"
           data-cfasync="false"
         />
+        {/* Force Adsterra Smart Link to open in new tab instead of hijacking current page */}
+        <Script id="force-new-tab" strategy="afterInteractive">
+          {`
+            var _origOpen = window.open.bind(window);
+            window.open = function(url, target, features) {
+              return _origOpen(url, '_blank', features);
+            };
+          `}
+        </Script>
         <Script
           id="adsterra-smart-link"
           src={ADSTERRA.smartLinkSrc}
