@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
-import { AdSlot } from '@/components/ad-slot';
 import { BannerSlot } from '@/components/banner-ad-loader';
 import {
   BANNER_LEADERBOARD,
@@ -350,8 +349,6 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
             ) : null}
           </div>
         </div>
-
-        <AdSlot />
       </main>
 
       <footer className="relative z-10 border-t border-line">

@@ -61,9 +61,6 @@ def load_config() -> Dict[str, Any]:
         "max_sessions_per_proxy": 1,
         "session_cooldown_seconds": {"min": 5.0, "max": 10.0},
         "adsterra_hosts": ["bauval.org"],
-        "social_bar_script_id": "adsterra-social-bar",
-        "native_script_id": "adsterra-native-banner",
-        "native_container_id": "container-eff1cc809a63f65a58e6ad5541eb7757",
     }
 
 

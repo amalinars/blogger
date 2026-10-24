@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
 import { JetBrains_Mono, Newsreader, Plus_Jakarta_Sans } from 'next/font/google';
-import { ADSTERRA } from '@/lib/ads';
 import { SITE } from '@/lib/site-config';
 import './globals.css';
 
@@ -72,12 +70,6 @@ export default function RootLayout({
       <body className="min-h-[100dvh] antialiased">
         <div className="route-grid" aria-hidden="true" />
         {children}
-        <Script
-          id="adsterra-social-bar"
-          src={ADSTERRA.socialBarSrc}
-          strategy="afterInteractive"
-          data-cfasync="false"
-        />
       </body>
     </html>
   );
