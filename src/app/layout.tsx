@@ -73,14 +73,14 @@ export default function RootLayout({
         <div className="route-grid" aria-hidden="true" />
         {children}
         <Script
-          id="adsterra-popunder"
-          src={ADSTERRA.popunderSrc}
+          id="adsterra-social-bar"
+          src={ADSTERRA.socialBarSrc}
           strategy="afterInteractive"
           data-cfasync="false"
         />
         <Script
-          id="adsterra-social-bar"
-          src={ADSTERRA.socialBarSrc}
+          id="adsterra-smart-link"
+          src={ADSTERRA.smartLinkSrc}
           strategy="afterInteractive"
           data-cfasync="false"
         />

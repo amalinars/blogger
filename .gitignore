@@ -52,3 +52,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Adsterra QA run artifacts
+/data/adsterra_qa/
+

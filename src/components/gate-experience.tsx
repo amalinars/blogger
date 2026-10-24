@@ -1,9 +1,17 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { MouseEvent } from 'react';
 import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import { AdSlot } from '@/components/ad-slot';
+import { BannerSlot } from '@/components/banner-ad-loader';
+import {
+  BANNER_LEADERBOARD,
+  BANNER_HALF_BANNER,
+  BANNER_MED_RECT,
+  BANNER_SKYSCRAPER,
+  BANNER_MOBILE,
+  BANNER_HALF_PAGE,
+} from '@/lib/ads';
 import { GateStep } from '@/components/gate-step';
 import type { GateStepData, SiteDestination } from '@/lib/types';
 
@@ -73,14 +81,9 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
     }
   }
 
-  function handleDestinationClick(event: MouseEvent<HTMLAnchorElement>) {
-    event.preventDefault();
+  function handleDestinationClick() {
     if (redirecting) return;
-
     setRedirecting(true);
-    window.setTimeout(() => {
-      window.location.assign(destination.url);
-    }, 700);
   }
 
   return (
@@ -135,6 +138,13 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
           </div>
         </div>
       </header>
+
+      {/* Leaderboard: full-width below header */}
+      <div className="relative z-10 border-b border-line bg-base">
+        <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
+          <BannerSlot banner={BANNER_LEADERBOARD} />
+        </div>
+      </div>
 
       <main
         id="main"
@@ -240,9 +250,18 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
               />
               No login, payment, or personal data is requested on this page.
             </p>
+
+            {/* Sidebar banners */}
+            <div className="mt-6 flex flex-col items-center gap-4">
+              <BannerSlot banner={BANNER_MED_RECT} />
+              <BannerSlot banner={BANNER_SKYSCRAPER} />
+            </div>
           </div>
 
           <div className="min-w-0 space-y-5">
+            {/* Half-banner above steps */}
+            <BannerSlot banner={BANNER_HALF_BANNER} className="mb-2" />
+
             {steps.map((step) => (
               <GateStep
                 key={step.id}
@@ -253,6 +272,12 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
                 onComplete={() => handleStepComplete(step.index)}
               />
             ))}
+
+            {/* Mobile + half-page below steps */}
+            <div className="flex flex-col items-center gap-3 pt-2">
+              <BannerSlot banner={BANNER_MOBILE} />
+              <BannerSlot banner={BANNER_HALF_PAGE} />
+            </div>
 
             {showDestination ? (
               <section
