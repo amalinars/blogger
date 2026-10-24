@@ -24,12 +24,9 @@
     "max": 10.0
   },
   "adsterra_hosts": [
-    "abscloud.org",
-    "bauval.org",
-    "araplhn.org"
+    "bauval.org"
   ],
   "social_bar_script_id": "adsterra-social-bar",
-  "smart_link_script_id": "adsterra-smart-link",
   "native_script_id": "adsterra-native-banner",
   "native_container_id": "container-eff1cc809a63f65a58e6ad5541eb7757"
 }

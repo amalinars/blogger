@@ -1,6 +1,5 @@
 export const ADSTERRA = {
   socialBarSrc: 'https://bauval.org/14/4003659bb47be99b45e78647148ee214',
-  smartLinkSrc: 'https://araplhn.org/4/57ef1d1efc44d84ac528753127e75892',
   nativeBannerSrc: 'https://bauval.org/21/eff1cc809a63f65a58e6ad5541eb7757',
   nativeBannerContainerId: 'container-eff1cc809a63f65a58e6ad5541eb7757',
 } as const;

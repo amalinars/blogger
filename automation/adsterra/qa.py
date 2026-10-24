@@ -60,9 +60,8 @@ def load_config() -> Dict[str, Any]:
         "max_sessions_per_run": 8,
         "max_sessions_per_proxy": 1,
         "session_cooldown_seconds": {"min": 5.0, "max": 10.0},
-        "adsterra_hosts": ["abscloud.org", "bauval.org", "araplhn.org"],
+        "adsterra_hosts": ["bauval.org"],
         "social_bar_script_id": "adsterra-social-bar",
-        "smart_link_script_id": "adsterra-smart-link",
         "native_script_id": "adsterra-native-banner",
         "native_container_id": "container-eff1cc809a63f65a58e6ad5541eb7757",
     }
@@ -251,7 +250,7 @@ def _collect_dom_snapshot(page: Page, config: Dict[str, Any]) -> Dict[str, Any]:
 
             const resources = performance
                 .getEntriesByType("resource")
-                .filter((entry) => entry.name && (entry.name.includes("abscloud.org") || entry.name.includes("bauval.org")))
+                .filter((entry) => entry.name && entry.name.includes("bauval.org"))
                 .map((entry) => ({
                     name: entry.name,
                     initiatorType: entry.initiatorType,
