@@ -6,8 +6,11 @@ import { BannerSlot } from '@/components/banner-ad-loader';
 import { NativeAdSlot } from '@/components/native-ad-loader';
 import {
   BANNER_LEADERBOARD,
+  BANNER_468X60,
   BANNER_MED_RECT,
+  BANNER_160X300,
   BANNER_SKYSCRAPER,
+  BANNER_MOBILE,
   ADSTERRA_SMARTLINK,
 } from '@/lib/ads';
 import { GateStep } from '@/components/gate-step';
@@ -154,10 +157,14 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
         </div>
       </header>
 
-      {/* Leaderboard: full-width below header */}
-      <div className="relative z-10 border-b border-line bg-base">
-        <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
-          <BannerSlot banner={BANNER_LEADERBOARD} />
+      {/* 1. Leaderboard: full-width below header */}
+      <div className="relative z-10 border-b border-line bg-base/60 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-2 sm:px-8">
+          <div className="flex w-full max-w-[728px] items-center justify-between pb-1 px-1">
+            <span className="font-code text-[9px] uppercase tracking-wider text-faint">Sponsored</span>
+            <span className="font-code text-[9px] text-faint">728×90</span>
+          </div>
+          <BannerSlot banner={BANNER_LEADERBOARD} className="max-w-full overflow-x-auto" />
         </div>
       </div>
 
@@ -266,15 +273,108 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
               No login, payment, or personal data is requested on this page.
             </p>
 
-            {/* Sidebar banners */}
-            <div className="mt-6 flex flex-col items-center gap-4">
-              <BannerSlot banner={BANNER_MED_RECT} />
-              <BannerSlot banner={BANNER_SKYSCRAPER} />
+            {/* Sidebar banners: 300x250 on top, then 160x600 & 160x300 side-by-side */}
+            <div className="mt-7 flex flex-col items-center gap-5">
+              {/* 300x250 Medium Rectangle */}
+              <div className="w-full max-w-[320px] rounded-2xl border border-line bg-surface/60 p-2.5">
+                <div className="mb-2 flex items-center justify-between border-b border-line/60 px-1 pb-1.5">
+                  <span className="font-code text-[9px] uppercase tracking-wider text-faint">Sponsored Ad</span>
+                  <span className="font-code text-[9px] text-faint">300×250</span>
+                </div>
+                <BannerSlot banner={BANNER_MED_RECT} />
+              </div>
+
+              {/* Skyscraper Pair: 160x600 and 160x300 side-by-side */}
+              <div className="flex w-full max-w-[348px] items-start justify-center gap-3">
+                {/* 160x600 Wide Skyscraper */}
+                <div className="flex flex-col rounded-2xl border border-line bg-surface/60 p-2">
+                  <div className="mb-1.5 flex items-center justify-between border-b border-line/60 px-1 pb-1">
+                    <span className="font-code text-[8.5px] uppercase tracking-wider text-faint">Ad</span>
+                    <span className="font-code text-[8.5px] text-faint">160×600</span>
+                  </div>
+                  <BannerSlot banner={BANNER_SKYSCRAPER} />
+                </div>
+
+                {/* 160x300 Half Skyscraper with informative quick tips card underneath */}
+                <div className="flex w-[176px] flex-col gap-3">
+                  <div className="flex flex-col rounded-2xl border border-line bg-surface/60 p-2">
+                    <div className="mb-1.5 flex items-center justify-between border-b border-line/60 px-1 pb-1">
+                      <span className="font-code text-[8.5px] uppercase tracking-wider text-faint">Ad</span>
+                      <span className="font-code text-[8.5px] text-faint">160×300</span>
+                    </div>
+                    <BannerSlot banner={BANNER_160X300} />
+                  </div>
+
+                  <div className="rounded-2xl border border-line bg-surface/40 p-3 text-xs">
+                    <p className="font-code text-[9px] font-semibold uppercase tracking-wider text-muted">
+                      Quick Guide
+                    </p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-faint">
+                      Follow the 3 numbered steps to unlock the final destination route.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="min-w-0 space-y-5">
-            {steps.map((step) => (
+            {/* Step 1 */}
+            {steps[0] && (
+              <GateStep
+                key={steps[0].id}
+                step={steps[0]}
+                total={total}
+                isActive={steps[0].index === completedCount}
+                isCompleted={steps[0].index < completedCount}
+                onComplete={() => handleStepComplete(steps[0].index)}
+              />
+            )}
+
+            {/* In-content banner 468x60 between Step 1 & 2 */}
+            <div className="rounded-2xl border border-line bg-surface/50 p-3">
+              <div className="mb-1.5 flex items-center justify-between px-2">
+                <span className="font-code text-[9px] uppercase tracking-wider text-faint">Sponsored Content</span>
+                <span className="font-code text-[9px] text-faint">468×60</span>
+              </div>
+              <BannerSlot banner={BANNER_468X60} className="max-w-full overflow-x-auto" />
+            </div>
+
+            {/* Step 2 */}
+            {steps[1] && (
+              <GateStep
+                key={steps[1].id}
+                step={steps[1]}
+                total={total}
+                isActive={steps[1].index === completedCount}
+                isCompleted={steps[1].index < completedCount}
+                onComplete={() => handleStepComplete(steps[1].index)}
+              />
+            )}
+
+            {/* In-content compact banner 320x50 between Step 2 & 3 */}
+            <div className="rounded-2xl border border-line bg-surface/50 p-2.5">
+              <div className="mb-1 flex items-center justify-between px-2">
+                <span className="font-code text-[9px] uppercase tracking-wider text-faint">Featured Ad</span>
+                <span className="font-code text-[9px] text-faint">320×50</span>
+              </div>
+              <BannerSlot banner={BANNER_MOBILE} className="max-w-full overflow-x-auto" />
+            </div>
+
+            {/* Step 3 */}
+            {steps[2] && (
+              <GateStep
+                key={steps[2].id}
+                step={steps[2]}
+                total={total}
+                isActive={steps[2].index === completedCount}
+                isCompleted={steps[2].index < completedCount}
+                onComplete={() => handleStepComplete(steps[2].index)}
+              />
+            )}
+
+            {/* Any remaining steps if any */}
+            {steps.slice(3).map((step) => (
               <GateStep
                 key={step.id}
                 step={step}
