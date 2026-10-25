@@ -1,4 +1,5 @@
 {
+  "api_key": "bdbf5bfa8d9f984a695a20d352d3f6f5",
   "target_url": "https://article.riztama.my.id/",
   "headless": true,
   "humanize": true,
@@ -23,7 +24,12 @@
     "min": 5.0,
     "max": 10.0
   },
+  "native_container_id": "container-eff1cc809a63f65a58e6ad5541eb7757",
+  "popunder_script_id": "adsterra-popunder",
+  "smartlink_url": "https://araplhn.org/4/57ef1d1efc44d84ac528753127e75892",
   "adsterra_hosts": [
-    "bauval.org"
+    "bauval.org",
+    "abscloud.org",
+    "araplhn.org"
   ]
 }

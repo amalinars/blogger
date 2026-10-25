@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import { BannerSlot } from '@/components/banner-ad-loader';
+import { NativeAdSlot } from '@/components/native-ad-loader';
 import {
   BANNER_LEADERBOARD,
-  BANNER_HALF_BANNER,
   BANNER_MED_RECT,
   BANNER_SKYSCRAPER,
-  BANNER_MOBILE,
-  BANNER_HALF_PAGE,
+  ADSTERRA_SMARTLINK,
 } from '@/lib/ads';
 import { GateStep } from '@/components/gate-step';
 import type { GateStepData, SiteDestination } from '@/lib/types';
@@ -69,8 +68,24 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
     return () => window.clearTimeout(timer);
   }, [showDestination]);
 
+  const smartlinkTriggered = useRef(false);
+
+  function triggerSmartlink() {
+    try {
+      window.open(ADSTERRA_SMARTLINK, '_blank', 'noopener,noreferrer');
+    } catch {
+      // Ignored if popup blocked
+    }
+  }
+
   function handleStepComplete(stepIndex: number) {
     if (stepIndex !== completedCount || redirecting) return;
+
+    // Trigger Smartlink on step continue click
+    if (!smartlinkTriggered.current) {
+      smartlinkTriggered.current = true;
+      triggerSmartlink();
+    }
 
     const next = Math.min(completedCount + 1, total);
     setCompletedCount(next);
@@ -83,6 +98,7 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   function handleDestinationClick() {
     if (redirecting) return;
     setRedirecting(true);
+    triggerSmartlink();
   }
 
   return (
@@ -258,9 +274,6 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
           </div>
 
           <div className="min-w-0 space-y-5">
-            {/* Half-banner above steps */}
-            <BannerSlot banner={BANNER_HALF_BANNER} className="mb-2" />
-
             {steps.map((step) => (
               <GateStep
                 key={step.id}
@@ -272,11 +285,8 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
               />
             ))}
 
-            {/* Mobile + half-page below steps */}
-            <div className="flex flex-col items-center gap-3 pt-2">
-              <BannerSlot banner={BANNER_MOBILE} />
-              <BannerSlot banner={BANNER_HALF_PAGE} />
-            </div>
+            {/* Native Recommendation Ad Slot */}
+            <NativeAdSlot className="mt-4" />
 
             {showDestination ? (
               <section
