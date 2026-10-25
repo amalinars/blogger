@@ -28,6 +28,8 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
     iframe.style.height = `${banner.height}px`;
     iframe.style.border = 'none';
     iframe.style.overflow = 'hidden';
+    iframe.style.backgroundColor = 'transparent';
+    iframe.setAttribute('allowtransparency', 'true');
     iframe.scrolling = 'no';
     iframe.setAttribute(
       'sandbox',
@@ -45,7 +47,17 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
         <head>
           <meta charset="utf-8">
           <style>
-            body { margin: 0; padding: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; background: transparent; }
+            html, body {
+              margin: 0;
+              padding: 0;
+              overflow: hidden;
+              width: 100%;
+              height: 100%;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              background-color: transparent !important;
+            }
           </style>
         </head>
         <body>
