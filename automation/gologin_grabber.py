@@ -4,6 +4,7 @@ import json
 import time
 import random
 import re
+import threading
 from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -249,7 +250,11 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
         host = proxy_item.get("host", "")
         if re.match(r"^\d+\.\d+\.\d+\.\d+$", host):
             expected_ip = host
-        expected_country = proxy_item.get("country")
+        is_rotating = (
+            proxy_item.get("connection_type") == "residential"
+            or "floppydata" in str(host).lower()
+        )
+        expected_country = None if is_rotating else proxy_item.get("country")
 
     all_captured_proxies = []
 
@@ -276,7 +281,7 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                     expected_os=expected_os,
                     expected_country=expected_country,
                     check_ads=False,
-                    strict_mode=True
+                    strict_mode=False
                 )
 
                 if not verification.is_safe:
@@ -494,84 +499,101 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="GoLogin Trial Proxy Grabber with Verifier Gatekeeper")
     parser.add_argument("--headless", action="store_true", help="Jalankan dalam mode headless")
+    parser.add_argument("-c", "--concurrency", "--workers", dest="concurrency", type=int, default=1, help="Jumlah concurrent workers/browser yang berjalan bersamaan (default: 1)")
+    parser.add_argument("-r", "--rounds", type=int, default=2, help="Jumlah putaran grab per proxy (default: 2 putaran = 10 proxy)")
+    parser.add_argument("-t", "--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
     parser.add_argument("--proxy-index", type=int, default=None, help="Gunakan proxy index tertentu saja dari Proxy Management")
     parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
-    parser.add_argument("--rounds", type=int, default=2, help="Jumlah putaran grab per proxy (default: 2 putaran = 10 proxy)")
-    parser.add_argument("--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
     args = parser.parse_args()
 
-    total_added_in_session = 0
-    proxy_run_count = 0
+    concurrency = max(1, args.concurrency)
+    stop_event = threading.Event()
+    stats_lock = threading.Lock()
+    state = {
+        "total_added": 0,
+        "target": args.target_proxies,
+    }
 
     print("==========================================================================")
     print("🌾 GOLOGIN PROXY HARVESTER (AUTO-ROTATING SESSION)")
     print(f"🎯 Target Proxy Baru : {args.target_proxies} Proxy")
+    print(f"⚡ Concurrency       : {concurrency} Worker(s)")
     print(f"🔄 Rasio Grab        : 1 Proxy untuk {args.rounds}x Grab Akun GoLogin (~{args.rounds * 5} proxy)")
     print(f"🖥️ Mode Headless     : {args.headless}")
     print("==========================================================================\n")
 
-    try:
-        while total_added_in_session < args.target_proxies:
+    def _worker_job(worker_id: int):
+        proxy_run_count = 0
+        while not stop_event.is_set():
+            with stats_lock:
+                if state["total_added"] >= state["target"]:
+                    break
+
             proxy_run_count += 1
+            caller_id = f"gologin_grabber_w{worker_id}_{int(time.time() * 1000)}"
             selected_proxy = None
             is_acquired = False
 
             if args.direct:
-                print(f"🌐 [Sesi #{proxy_run_count}] Menggunakan Direct IP (Internet Lokal)...")
+                print(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menggunakan Direct IP (Internet Lokal)...")
                 selected_proxy = None
             elif args.proxy_index is not None:
                 selected_proxy = get_proxy_by_index(args.proxy_index)
                 if not selected_proxy:
-                    print(f"⚠️ Proxy index {args.proxy_index} tidak ditemukan di Proxy Management.")
+                    print(f"⚠️ [W{worker_id}] Proxy index {args.proxy_index} tidak ditemukan di Proxy Management.")
                     break
             else:
-                # DEFAULT: Mengambil proxy dari Proxy Management via rotasi berkelanjutan
-                print(f"\n🔍 [Sesi #{proxy_run_count}] Mengambil proxy aktif dari Proxy Management...")
-                selected_proxy = acquire_proxy(caller_id="gologin_grabber")
+                selected_proxy = acquire_proxy(caller_id=caller_id)
                 if selected_proxy:
                     is_acquired = True
-                    print(f"✅ Berhasil acquire proxy: {selected_proxy.get('country')} (ID: {selected_proxy.get('id')})")
+                    print(f"\n🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')})")
                 else:
-                    print("⚠️ Seluruh proxy di Proxy Management sedang DEAD atau habis!")
-                    if total_added_in_session > 0:
-                        print(f"🛑 Menghentikan sesi karena proxy habis. Total didapat: {total_added_in_session} proxy.")
-                        break
-                    else:
-                        print("🌐 Beralih otomatis ke Direct IP (Internet Lokal)...")
-                        selected_proxy = None
+                    print(f"⚠️ [W{worker_id}] Seluruh proxy di pool sedang digunakan atau DEAD. Menunggu 3 detik...")
+                    time.sleep(3.0)
+                    continue
 
             new_proxies = []
             try:
                 new_proxies = grab_gologin_proxies(headless=args.headless, proxy_item=selected_proxy, rounds=args.rounds)
-                total_added_in_session += len(new_proxies)
+                with stats_lock:
+                    state["total_added"] += len(new_proxies)
+                    total_now = state["total_added"]
+                print("\n" + "=" * 60)
+                print(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{args.target_proxies}")
+                print("=" * 60)
             except Exception as e:
-                print(f"⚠️ Terjadi error saat grab pada sesi #{proxy_run_count}: {e}")
+                print(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}")
                 if is_acquired and selected_proxy:
                     is_proxy_err = any(k.lower() in str(e).lower() for k in ["proxy", "timeout", "connection", "reset"])
-                    report_failure(selected_proxy["id"], error_message=str(e), is_proxy_error=is_proxy_err)
+                    report_failure(selected_proxy.get("id") or selected_proxy.get("proxy_url"), error_message=str(e), is_proxy_error=is_proxy_err)
             finally:
                 if is_acquired and selected_proxy:
-                    release_proxy(selected_proxy["id"], caller_id="gologin_grabber")
-                    print(f"🔓 Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.")
+                    release_proxy(selected_proxy.get("id") or selected_proxy.get("proxy_url"), caller_id=caller_id)
+                    print(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.")
 
-            # Laporan progress target terkini
-            print("\n" + "=" * 60)
-            print(f"📈 PROGRESS HARVEST: {total_added_in_session}/{args.target_proxies} Proxy Baru Berhasil Terkumpul")
-            print("=" * 60)
-
-            if total_added_in_session >= args.target_proxies:
-                print(f"\n🎉 TARGET TERCAPAI! Sukses mengumpulkan {total_added_in_session} proxy baru.")
-                break
-
-            # Jika memilih spesifik index proxy tertentu, jangan looping
             if args.proxy_index is not None:
                 break
 
-            # Jeda sebelum rotasi ke proxy berikutnya
-            print("⏳ Menyiapkan rotasi proxy berikutnya dalam 3 detik...\n")
-            time.sleep(3)
+            time.sleep(2.0)
 
+    threads = []
+    for wid in range(1, concurrency + 1):
+        t = threading.Thread(target=_worker_job, args=(wid,), daemon=True)
+        threads.append(t)
+        t.start()
+        time.sleep(1.0)
+
+    try:
+        while any(t.is_alive() for t in threads) and not stop_event.is_set():
+            time.sleep(1.0)
     except KeyboardInterrupt:
+        stop_event.set()
         print("\n\n🛑 Sesi dihentikan oleh pengguna (Ctrl+C).")
-        print(f"📊 Total proxy baru yang sempat terkumpul: {total_added_in_session} proxy.")
-        print(f"💾 Seluruh proxy yang berhasil didapat sudah aman tersimpan di data/proxies.json.")
+
+    for t in threads:
+        t.join(timeout=3.0)
+
+    print("\n" + "=" * 60)
+    print(f"📊 Total proxy baru yang berhasil terkumpul: {state['total_added']} proxy.")
+    print("💾 Seluruh proxy yang didapat telah aman tersimpan di data/proxies.json.")
+    print("=" * 60)
