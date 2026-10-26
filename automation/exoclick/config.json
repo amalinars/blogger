@@ -1,11 +1,14 @@
 {
   "target_url": "https://article.riztama.my.id/?ad_network=exoclick",
   "idzone": 6066234,
+  "native_idzone": 6066238,
   "ads_host": "a.pemsrv.com",
   "syndication_host": "s.pemsrv.com",
   "ad_hosts": [
     "a.pemsrv.com",
     "s.pemsrv.com",
+    "a.magsrv.com",
+    "magsrv.com",
     "exoclick.com",
     "exosrv.com",
     "exdynsrv.com"

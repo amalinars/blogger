@@ -1,20 +1,52 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { getAdProvider, AdProvider, EXOCLICK_NATIVE_SCRIPT, EXOCLICK_NATIVE_ZONE_ID } from '@/lib/ads';
+
+declare global {
+  interface Window {
+    AdProvider?: any[];
+  }
+}
 
 export function NativeAdSlot({ className = '' }: { className?: string }) {
+  const [provider, setProvider] = useState<AdProvider>('adsterra');
   const loaded = useRef(false);
 
   useEffect(() => {
+    const currentProvider = getAdProvider();
+    setProvider(currentProvider);
+
     if (loaded.current) return;
     loaded.current = true;
 
-    // Load Adsterra Native Banner script
-    const script = document.createElement('script');
-    script.async = true;
-    script.setAttribute('data-cfasync', 'false');
-    script.src = 'https://bauval.org/21/eff1cc809a63f65a58e6ad5541eb7757';
-    document.body.appendChild(script);
+    if (currentProvider === 'exoclick') {
+      // Load ExoClick Native AdProvider script
+      if (!document.getElementById('exoclick-native-script')) {
+        const script = document.createElement('script');
+        script.id = 'exoclick-native-script';
+        script.async = true;
+        script.type = 'application/javascript';
+        script.src = EXOCLICK_NATIVE_SCRIPT;
+        script.onload = () => {
+          try {
+            (window.AdProvider = window.AdProvider || []).push({ serve: {} });
+          } catch {}
+        };
+        document.body.appendChild(script);
+      } else {
+        try {
+          (window.AdProvider = window.AdProvider || []).push({ serve: {} });
+        } catch {}
+      }
+    } else {
+      // Load Adsterra Native Banner script
+      const script = document.createElement('script');
+      script.async = true;
+      script.setAttribute('data-cfasync', 'false');
+      script.src = 'https://bauval.org/21/eff1cc809a63f65a58e6ad5541eb7757';
+      document.body.appendChild(script);
+    }
   }, []);
 
   return (
@@ -29,10 +61,17 @@ export function NativeAdSlot({ className = '' }: { className?: string }) {
           Sponsored
         </span>
       </div>
-      <div
-        id="container-eff1cc809a63f65a58e6ad5541eb7757"
-        className="min-h-[140px] w-full"
-      />
+
+      {provider === 'exoclick' ? (
+        <div className="min-h-[140px] w-full flex justify-center">
+          <ins className="eas6a97888e20" data-zoneid={String(EXOCLICK_NATIVE_ZONE_ID)} />
+        </div>
+      ) : (
+        <div
+          id="container-eff1cc809a63f65a58e6ad5541eb7757"
+          className="min-h-[140px] w-full"
+        />
+      )}
     </div>
   );
 }
