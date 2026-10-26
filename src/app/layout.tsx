@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   },
   verification: {
     other: {
-      '6a97088e-site-verification': '0493887f12093535c450f67235dce0ba',
+      '6a97888e-site-verification': '0493887f12093535c450f67235dce0ba',
     },
   },
   openGraph: {
