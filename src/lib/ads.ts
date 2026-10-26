@@ -33,6 +33,7 @@ export const MONETAG_MULTITAG_ZONE = '302175';
 export const EXOCLICK_ZONE_ID = 6066234;
 export const EXOCLICK_ADS_HOST = 'a.pemsrv.com';
 export const EXOCLICK_NATIVE_ZONE_ID = 6066238;
+export const EXOCLICK_BANNER_ZONE_ID = 6066244;
 export const EXOCLICK_NATIVE_SCRIPT = 'https://a.magsrv.com/ad-provider.js';
 export const EXOCLICK_POPUNDER_CODE = `(function() {
     function randStr(e,t){for(var n="",r=t||"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz",o=0;o<e;o++)n+=r.charAt(Math.floor(Math.random()*r.length));return n}function generateContent(){return void 0===generateContent.val&&(generateContent.val="document.dispatchEvent("+randStr(4*Math.random()+3)+");"),generateContent.val}try{Object.defineProperty(document.currentScript,"innerHTML",{get:generateContent}),Object.defineProperty(document.currentScript,"textContent",{get:generateContent})}catch(e){};

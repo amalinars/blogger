@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { BannerAd } from '@/lib/ads';
+import { getAdProvider, AdProvider, EXOCLICK_BANNER_ZONE_ID, EXOCLICK_NATIVE_SCRIPT } from '@/lib/ads';
 
 // All BannerSlot instances share one promise chain so atOptions is never
 // overwritten before the previous Adsterra script has finished executing.
@@ -20,11 +21,37 @@ type BannerSlotProps = {
 export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
   const started = useRef(false);
+  const [provider, setProvider] = useState<AdProvider>('adsterra');
 
   useEffect(() => {
+    const currentProvider = getAdProvider();
+    setProvider(currentProvider);
+
     const el = ref.current;
     if (!el || started.current) return;
     started.current = true;
+
+    if (currentProvider === 'exoclick') {
+      // Load ExoClick AdProvider script if not already loaded
+      if (!document.getElementById('exoclick-native-script')) {
+        const script = document.createElement('script');
+        script.id = 'exoclick-native-script';
+        script.async = true;
+        script.type = 'application/javascript';
+        script.src = EXOCLICK_NATIVE_SCRIPT;
+        script.onload = () => {
+          try {
+            (window.AdProvider = window.AdProvider || []).push({ serve: {} });
+          } catch {}
+        };
+        document.body.appendChild(script);
+      } else {
+        try {
+          (window.AdProvider = window.AdProvider || []).push({ serve: {} });
+        } catch {}
+      }
+      return;
+    }
 
     enqueue(
       () =>
@@ -47,6 +74,18 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
         }),
     );
   }, [banner]);
+
+  if (provider === 'exoclick') {
+    return (
+      <div
+        ref={ref}
+        className={`flex justify-center overflow-hidden ${className}`}
+        style={{ minHeight: banner.height }}
+      >
+        <ins className="eas6a97888e2" data-zoneid={String(EXOCLICK_BANNER_ZONE_ID)} />
+      </div>
+    );
+  }
 
   return (
     <div
