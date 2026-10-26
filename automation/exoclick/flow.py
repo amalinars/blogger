@@ -118,10 +118,19 @@ def run_exoclick_session(
             step("VERIFIKASI IP", "Memeriksa kebocoran WebRTC & fingerprint...")
             try:
                 verifier = BrowserVerifier(strict_mode=False)
+                # Proxy residensial FloppyData bersifat rotating (IP keluar berubah dinamis per sesi).
+                # Jangan hukum skor (-40) jika IP keluar berganti, asalkan tidak leak WebRTC/bot.
+                is_rotating = (
+                    (proxy_data or {}).get("connection_type") == "residential"
+                    or "floppydata" in str((proxy_data or {}).get("host", "")).lower()
+                )
+                exp_ip = None if is_rotating else ((proxy_data or {}).get("ip_detected") or (proxy_data or {}).get("host"))
+                exp_country = None if is_rotating else (proxy_data or {}).get("country")
+
                 report = verifier.verify(
                     page,
-                    expected_ip=(proxy_data or {}).get("ip_detected") or (proxy_data or {}).get("host"),
-                    expected_country=(proxy_data or {}).get("country"),
+                    expected_ip=exp_ip,
+                    expected_country=exp_country,
                     check_ads=True,
                 )
                 actual = report.actual_state
