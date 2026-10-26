@@ -63,7 +63,7 @@ export function NativeAdSlot({ className = '' }: { className?: string }) {
       </div>
 
       {provider === 'exoclick' ? (
-        <div className="min-h-[140px] w-full flex justify-center">
+        <div className="min-h-[140px] w-full flex justify-center exoclick-native-container overflow-hidden">
           <ins className="eas6a97888e20" data-zoneid={String(EXOCLICK_NATIVE_ZONE_ID)} />
         </div>
       ) : (

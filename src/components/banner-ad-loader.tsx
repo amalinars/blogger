@@ -76,11 +76,16 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
   }, [banner]);
 
   if (provider === 'exoclick') {
+    // Hanya tampilkan 1 banner di sidebar (Medium Rectangle).
+    // Sembunyikan untuk Leaderboard dan Skyscraper agar tidak duplikat 3x tampilan grid yang sama.
+    if (banner.width > 320 || banner.height > 300) {
+      return null;
+    }
+
     return (
       <div
         ref={ref}
-        className={`flex justify-center overflow-hidden ${className}`}
-        style={{ minHeight: banner.height }}
+        className={`flex justify-center overflow-hidden rounded-2xl border border-line bg-surface-raised p-3 transition-all duration-300 ${className}`}
       >
         <ins className="eas6a97888e2" data-zoneid={String(EXOCLICK_BANNER_ZONE_ID)} />
       </div>

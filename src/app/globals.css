@@ -412,3 +412,58 @@ body {
     width: 100%;
   }
 }
+
+/* ==============================================================================
+   ExoClick Ad Network Styling & Dark Mode Polish
+   ============================================================================== */
+
+/* 1. In-Page Push Notification: Fix white-on-white text & elevate design */
+.eas6a97888e42,
+.eas6a97888e42 * {
+  color: #111827 !important;
+}
+
+.eas6a97888e42 {
+  max-width: 360px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6), 0 6px 12px -2px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  overflow: hidden !important;
+  z-index: 99999 !important;
+}
+
+/* 2. ExoClick Native Recommendation Widget: Constrain images so they look clean */
+.exoclick-native-container {
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.exoclick-native-container .eas6a97888e20 {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.exoclick-native-container img,
+.eas6a97888e20 img {
+  max-height: 180px !important;
+  width: 100% !important;
+  object-fit: cover !important;
+  border-radius: 10px !important;
+}
+
+/* 3. ExoClick Display Banner Constraints */
+.eas6a97888e2 {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  max-width: 100% !important;
+  margin: 0 auto !important;
+}
+
+.eas6a97888e2 img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 10px !important;
+}
+

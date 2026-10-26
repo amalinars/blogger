@@ -9,6 +9,7 @@ import {
   BANNER_MED_RECT,
   BANNER_SKYSCRAPER,
   getActiveSmartlink,
+  getAdProvider,
 } from '@/lib/ads';
 import { GateStep } from '@/components/gate-step';
 import type { GateStepData, SiteDestination } from '@/lib/types';
@@ -30,7 +31,12 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   const [completedCount, setCompletedCount] = useState(0);
   const [showDestination, setShowDestination] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [provider, setProvider] = useState<string>('adsterra');
   const finalRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setProvider(getAdProvider());
+  }, []);
 
   const totalSeconds = steps.reduce((sum, step) => sum + step.delaySeconds, 0);
   const destinationProtocol = destination.url.startsWith('https:')
@@ -155,12 +161,14 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
         </div>
       </header>
 
-      {/* Leaderboard: full-width below header */}
-      <div className="relative z-10 border-b border-line bg-base">
-        <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
-          <BannerSlot banner={BANNER_LEADERBOARD} />
+      {/* Leaderboard: full-width below header (khusus Adsterra) */}
+      {provider !== 'exoclick' && (
+        <div className="relative z-10 border-b border-line bg-base">
+          <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
+            <BannerSlot banner={BANNER_LEADERBOARD} />
+          </div>
         </div>
-      </div>
+      )}
 
       <main
         id="main"
@@ -270,7 +278,7 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
             {/* Sidebar banners */}
             <div className="mt-6 flex flex-col items-center gap-4">
               <BannerSlot banner={BANNER_MED_RECT} />
-              <BannerSlot banner={BANNER_SKYSCRAPER} />
+              {provider !== 'exoclick' && <BannerSlot banner={BANNER_SKYSCRAPER} />}
             </div>
           </div>
 
