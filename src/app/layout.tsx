@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { JetBrains_Mono, Newsreader, Plus_Jakarta_Sans } from 'next/font/google';
-import Script from 'next/script';
+import { AdNetworkManager } from '@/components/ad-network-manager';
 import { SITE } from '@/lib/site-config';
 import './globals.css';
 
@@ -72,21 +72,8 @@ export default function RootLayout({
         <div className="route-grid" aria-hidden="true" />
         {children}
 
-        {/* Adsterra Popunder */}
-        <Script
-          id="adsterra-popunder"
-          strategy="afterInteractive"
-          src="https://abscloud.org/1/eeed8343b7ddf3fe3051d2f96d96108d"
-          data-cfasync="false"
-        />
-
-        {/* Adsterra Social Bar */}
-        <Script
-          id="adsterra-socialbar"
-          strategy="afterInteractive"
-          src="https://bauval.org/14/4003659bb47be99b45e78647148ee214"
-          data-cfasync="false"
-        />
+        {/* Dynamic 50/50 Ad Network Loader (Adsterra / Monetag MultiTag) */}
+        <AdNetworkManager />
       </body>
     </html>
   );

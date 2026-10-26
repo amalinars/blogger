@@ -19,10 +19,37 @@ export const BANNER_LEADERBOARD  = ADSTERRA_BANNERS[5]; // 728x90  – below hea
 export const BANNER_MED_RECT     = ADSTERRA_BANNERS[1]; // 300x250 – left sidebar
 export const BANNER_SKYSCRAPER   = ADSTERRA_BANNERS[3]; // 160x600 – left sidebar
 
-// Deprecated low-yield placements:
-// - 468x60  (ADSTERRA_BANNERS[0])
-// - 320x50  (ADSTERRA_BANNERS[4])
-// - 160x300 (ADSTERRA_BANNERS[2])
-
-// High-CPM Smartlink
+// Adsterra Links & Scripts
 export const ADSTERRA_SMARTLINK = 'https://araplhn.org/4/57ef1d1efc44d84ac528753127e75892';
+export const ADSTERRA_POPUNDER_SRC = 'https://abscloud.org/1/eeed8343b7ddf3fe3051d2f96d96108d';
+export const ADSTERRA_SOCIALBAR_SRC = 'https://bauval.org/14/4003659bb47be99b45e78647148ee214';
+
+// Monetag Links & Scripts
+export const MONETAG_DIRECT_LINK = 'https://uplcm.com/4/12124796';
+export const MONETAG_MULTITAG_SRC = 'https://quge5.com/88/tag.min.js';
+export const MONETAG_MULTITAG_ZONE = '302175';
+
+// Ad Provider split (50% Adsterra / 50% Monetag)
+export type AdProvider = 'adsterra' | 'monetag';
+
+export function getAdProvider(): AdProvider {
+  if (typeof window === 'undefined') return 'adsterra';
+
+  try {
+    const cached = window.sessionStorage.getItem('ad_provider') as AdProvider | null;
+    if (cached === 'adsterra' || cached === 'monetag') {
+      return cached;
+    }
+
+    const assigned: AdProvider = Math.random() < 0.5 ? 'adsterra' : 'monetag';
+    window.sessionStorage.setItem('ad_provider', assigned);
+    return assigned;
+  } catch {
+    return 'adsterra';
+  }
+}
+
+export function getActiveSmartlink(): string {
+  const provider = getAdProvider();
+  return provider === 'monetag' ? MONETAG_DIRECT_LINK : ADSTERRA_SMARTLINK;
+}

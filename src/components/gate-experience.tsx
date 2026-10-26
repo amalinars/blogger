@@ -8,7 +8,7 @@ import {
   BANNER_LEADERBOARD,
   BANNER_MED_RECT,
   BANNER_SKYSCRAPER,
-  ADSTERRA_SMARTLINK,
+  getActiveSmartlink,
 } from '@/lib/ads';
 import { GateStep } from '@/components/gate-step';
 import type { GateStepData, SiteDestination } from '@/lib/types';
@@ -72,7 +72,8 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
 
   function triggerSmartlink() {
     try {
-      window.open(ADSTERRA_SMARTLINK, '_blank', 'noopener,noreferrer');
+      const url = getActiveSmartlink();
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch {
       // Ignored if popup blocked
     }
