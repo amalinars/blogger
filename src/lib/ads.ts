@@ -29,18 +29,38 @@ export const MONETAG_DIRECT_LINK = 'https://uplcm.com/4/12124796';
 export const MONETAG_MULTITAG_SRC = 'https://quge5.com/88/tag.min.js';
 export const MONETAG_MULTITAG_ZONE = '302175';
 
-// Ad Provider split (50% Adsterra / 50% Monetag)
+// Ad Provider split (Adsterra / Monetag / Both)
 export type AdProvider = 'adsterra' | 'monetag';
 
 export function getAdProvider(): AdProvider {
   if (typeof window === 'undefined') return 'adsterra';
 
   try {
+    // 1. Prioritaskan parameter URL (?ad_network=monetag | adsterra | both)
+    const urlParams = new URLSearchParams(window.location.search);
+    const param = (urlParams.get('ad_network') || urlParams.get('ad_provider') || '').toLowerCase();
+
+    if (param === 'monetag') {
+      window.sessionStorage.setItem('ad_provider', 'monetag');
+      return 'monetag';
+    }
+    if (param === 'adsterra') {
+      window.sessionStorage.setItem('ad_provider', 'adsterra');
+      return 'adsterra';
+    }
+    if (param === 'both' || param === 'hybrid' || param === 'auto') {
+      const assigned: AdProvider = Math.random() < 0.5 ? 'adsterra' : 'monetag';
+      window.sessionStorage.setItem('ad_provider', assigned);
+      return assigned;
+    }
+
+    // 2. Cek sessionStorage yang sudah tersimpan sebelumnya
     const cached = window.sessionStorage.getItem('ad_provider') as AdProvider | null;
     if (cached === 'adsterra' || cached === 'monetag') {
       return cached;
     }
 
+    // 3. Default fallback: rotasi 50% Adsterra / 50% Monetag
     const assigned: AdProvider = Math.random() < 0.5 ? 'adsterra' : 'monetag';
     window.sessionStorage.setItem('ad_provider', assigned);
     return assigned;
