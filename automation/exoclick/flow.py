@@ -117,9 +117,28 @@ def run_exoclick_session(
         if enable_verifier:
             step("VERIFIKASI IP", "Memeriksa kebocoran WebRTC & fingerprint...")
             try:
-                verifier = BrowserVerifier(page=page)
-                v_res = verifier.verify(expected_country=geo.get("country"))
-                if v_res.get("webrtc_leaked"):
+                verifier = BrowserVerifier(strict_mode=False)
+                report = verifier.verify(
+                    page,
+                    expected_ip=(proxy_data or {}).get("ip_detected") or (proxy_data or {}).get("host"),
+                    expected_country=(proxy_data or {}).get("country"),
+                    check_ads=True,
+                )
+                actual = report.actual_state
+                _emit(
+                    event_callback,
+                    "verifier_report",
+                    worker_id=worker_id,
+                    score=report.score,
+                    is_safe=report.is_safe,
+                    detected_ip=actual.get("ip"),
+                    detected_country=country_label(actual.get("country")),
+                    isp=actual.get("isp"),
+                    bot_detected=bool(actual.get("webdriver")),
+                    webrtc_leak=bool(actual.get("webrtc_leak")),
+                    ads_allowed=bool(actual.get("ads_allowed", True)),
+                )
+                if actual.get("webrtc_leak"):
                     log("⚠️ Peringatan: WebRTC terdeteksi leak", "yellow")
                 else:
                     log("🛡️ Browser verifier: Bersih dari kebocoran", "green")
@@ -157,9 +176,9 @@ def run_exoclick_session(
         while time.time() < page_end_time and not page.is_closed():
             if humanize_enabled:
                 # Gerakan kursor santai kurva Bézier
-                human_wander(page, duration=random.uniform(1.0, 2.0))
+                human_wander(page, duration_seconds=random.uniform(1.0, 2.0))
                 # Scrolling alami naik-turun (memicu viewability banner & native widget)
-                human_scroll(page, delta_y=random.randint(180, 420))
+                human_scroll(page, scroll_amount=random.randint(180, 420))
 
             # Lakukan klik acak pada area konten untuk memicu Popunder ExoClick
             if click_attempts < max_clicks and random.random() < 0.70:
@@ -167,7 +186,7 @@ def run_exoclick_session(
                     vp = page.viewport_size or {"width": 1280, "height": 800}
                     click_x = random.randint(100, vp["width"] - 100)
                     click_y = random.randint(180, vp["height"] - 180)
-                    human_click(page, click_x, click_y)
+                    human_click(page, (click_x, click_y))
                     click_attempts += 1
                     log(f"👆 Klik pemicu popunder ke-{click_attempts} di ({click_x}, {click_y})", "dim")
                     time.sleep(1.0)
@@ -194,8 +213,8 @@ def run_exoclick_session(
 
                     while time.time() < end_pop and not p_page.is_closed():
                         if humanize_enabled:
-                            human_wander(p_page, duration=random.uniform(1.0, 2.0))
-                            human_scroll(p_page, delta_y=random.randint(120, 320))
+                            human_wander(p_page, duration_seconds=random.uniform(1.0, 2.0))
+                            human_scroll(p_page, scroll_amount=random.randint(120, 320))
                         time.sleep(1.0)
 
                     popunders_processed += 1
