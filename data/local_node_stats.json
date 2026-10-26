@@ -1,0 +1,283 @@
+{
+  "node_id": "jovan-897207",
+  "node_name": "🖥️ jovan (Linux)",
+  "created_at": 1793019726.9206643,
+  "total_sessions": 219,
+  "passed": 219,
+  "warned": 0,
+  "failed": 0,
+  "anti_detect_100_count": 153,
+  "bot_detected_count": 0,
+  "recent_sessions": [
+    {
+      "ts": 1793033696,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "115.131.236.111",
+      "country": "Australia"
+    },
+    {
+      "ts": 1793033694,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "37.68.55.34",
+      "country": "France"
+    },
+    {
+      "ts": 1793033656,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "37.65.178.228",
+      "country": "France"
+    },
+    {
+      "ts": 1793033648,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "209.227.139.113",
+      "country": "Canada"
+    },
+    {
+      "ts": 1793033631,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "124.171.155.243",
+      "country": "Australia"
+    },
+    {
+      "ts": 1793033619,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "65.27.153.80",
+      "country": "United States"
+    },
+    {
+      "ts": 1793033613,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "90.222.149.64",
+      "country": "United Kingdom"
+    },
+    {
+      "ts": 1793033609,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "88.163.241.23",
+      "country": "France"
+    },
+    {
+      "ts": 1793033603,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "90.86.49.98",
+      "country": "France"
+    },
+    {
+      "ts": 1793033593,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "69.127.68.183",
+      "country": "United States"
+    },
+    {
+      "ts": 1793033549,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "184.162.144.58",
+      "country": "Canada"
+    },
+    {
+      "ts": 1793033544,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "86.183.128.149",
+      "country": "United Kingdom"
+    },
+    {
+      "ts": 1793033538,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 90,
+      "bot_detected": false,
+      "proxy_ip": "73.35.13.118",
+      "country": "UNITED STATES"
+    },
+    {
+      "ts": 1793033527,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "86.75.67.6",
+      "country": "France"
+    },
+    {
+      "ts": 1793033522,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "1.41.233.179",
+      "country": "Australia"
+    },
+    {
+      "ts": 1793033503,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "88.136.74.43",
+      "country": "France"
+    },
+    {
+      "ts": 1793033491,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "24.47.19.10",
+      "country": "United States"
+    },
+    {
+      "ts": 1793033462,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "99.46.239.55",
+      "country": "United States"
+    },
+    {
+      "ts": 1793033451,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "75.154.176.91",
+      "country": "Canada"
+    },
+    {
+      "ts": 1793033434,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "86.150.145.71",
+      "country": "United Kingdom"
+    },
+    {
+      "ts": 1793033429,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "92.148.101.3",
+      "country": "France"
+    },
+    {
+      "ts": 1793033415,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "116.91.221.201",
+      "country": "Australia"
+    },
+    {
+      "ts": 1793033399,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "47.12.103.90",
+      "country": "United States"
+    },
+    {
+      "ts": 1793033389,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "173.35.127.248",
+      "country": "Canada"
+    },
+    {
+      "ts": 1793033367,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 60,
+      "bot_detected": false,
+      "proxy_ip": "86.0.208.110",
+      "country": "United Kingdom"
+    },
+    {
+      "ts": 1793033367,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "81.53.204.195",
+      "country": "France"
+    },
+    {
+      "ts": 1793033353,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "72.194.89.122",
+      "country": "United States"
+    },
+    {
+      "ts": 1793033319,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "77.143.64.169",
+      "country": "France"
+    },
+    {
+      "ts": 1793033316,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "184.146.17.249",
+      "country": "Canada"
+    },
+    {
+      "ts": 1793033310,
+      "target": "💎 Monetag",
+      "passed": true,
+      "score": 100,
+      "bot_detected": false,
+      "proxy_ip": "139.168.207.86",
+      "country": "Australia"
+    }
+  ]
+}

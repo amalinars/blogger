@@ -1,5 +1,5 @@
 {
-  "cursor": 8,
+  "cursor": 179,
   "proxies": [
     {
       "country": "UNITED STATES",
@@ -11,14 +11,23 @@
       "proxy_url": "http://btdZhZcerzRmJ9jI:oz02Tq7kTwpoDkbW@geo.floppydata.com:10080",
       "id": "proxy_61_2631cc",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811020.6405065,
       "latency_ms": 1085.89,
       "ip_detected": "68.131.57.110",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031197235",
+      "lease_time": 1793031197.236546,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031289.332217,
+          "history": [
+            1793031289.332217
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -30,14 +39,23 @@
       "proxy_url": "http://hdnjzh5bb0m9qk2D:XGKsPtLzjVNb4ehW@geo.floppydata.com:10080",
       "id": "proxy_62_d1ec99",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811021.9892309,
       "latency_ms": 935.68,
       "ip_detected": "90.114.30.243",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031199042",
+      "lease_time": 1793031199.0496576,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031264.3730183,
+          "history": [
+            1793031264.3730183
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -49,14 +67,23 @@
       "proxy_url": "http://ilPEmuzlhBl0Y1g7:TA1nnDLCiysxPIDO@geo.floppydata.com:10080",
       "id": "proxy_63_85eb40",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811083.3177335,
       "latency_ms": 905.35,
       "ip_detected": "67.61.59.23",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031200848",
+      "lease_time": 1793031200.8498378,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031338.992043,
+          "history": [
+            1793031338.992043
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -68,14 +95,23 @@
       "proxy_url": "http://oilOYnpnwTnvc9Co:NA9roGmATcyrLnsO@geo.floppydata.com:10080",
       "id": "proxy_64_c2a2cd",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811084.0995088,
       "latency_ms": 533.94,
       "ip_detected": "82.225.164.223",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031202651",
+      "lease_time": 1793031202.652891,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031275.1938484,
+          "history": [
+            1793031275.1938484
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -87,14 +123,23 @@
       "proxy_url": "http://yMPboNjfmgpi3FJL:63u3Afjftxp60ER3@geo.floppydata.com:10080",
       "id": "proxy_65_ad5582",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811152.6461554,
       "latency_ms": 1574.67,
       "ip_detected": "50.35.53.234",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031204456",
+      "lease_time": 1793031204.4577074,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031260.2074625,
+          "history": [
+            1793031260.2074625
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -106,14 +151,23 @@
       "proxy_url": "http://esKQo5ZR4xFIXR5l:IMragDYgyzvk6Wvd@geo.floppydata.com:10080",
       "id": "proxy_66_65f140",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811186.9890885,
       "latency_ms": 541.11,
       "ip_detected": "109.153.157.223",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031206267",
+      "lease_time": 1793031206.2726717,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031257.1726348,
+          "history": [
+            1793031257.1726348
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -125,14 +179,23 @@
       "proxy_url": "http://jFodVQgnApTeIokc:o4pnGrll6YT2URNO@geo.floppydata.com:10080",
       "id": "proxy_67_e1cd54",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811216.001483,
       "latency_ms": 556.13,
       "ip_detected": "82.233.152.116",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031260003",
+      "lease_time": 1793031260.005045,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031356.430762,
+          "history": [
+            1793031356.430762
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -144,14 +207,23 @@
       "proxy_url": "http://le0TVorrOMJy5YoV:wBHPvIcRKpWZfAxj@geo.floppydata.com:10080",
       "id": "proxy_68_6822e1",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792811272.1655953,
       "latency_ms": 704.15,
       "ip_detected": "66.183.52.63",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031263775",
+      "lease_time": 1793031263.779331,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031369.0418227,
+          "history": [
+            1793031369.0418227
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -163,14 +235,23 @@
       "proxy_url": "http://2tpkEYN6fkAH8rQd:dYKehLaDZ8ic3plH@geo.floppydata.com:10080",
       "id": "proxy_69_86c1a3",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792807323.6145728,
       "latency_ms": 1052.52,
       "ip_detected": "121.221.250.214",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031267690",
+      "lease_time": 1793031267.6929367,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031322.7930164,
+          "history": [
+            1793031322.7930164
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -182,14 +263,23 @@
       "proxy_url": "http://fHD5Ya6FLNtjlMCI:PfmKYWVDqJ4uFWVh@geo.floppydata.com:10080",
       "id": "proxy_70_e04e5e",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792807366.3080592,
       "latency_ms": 1204.71,
       "ip_detected": "67.86.152.223",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031278982",
+      "lease_time": 1793031278.9858234,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031344.099343,
+          "history": [
+            1793031344.099343
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -201,14 +291,23 @@
       "proxy_url": "http://5n8fKjKrQ3HtuJPN:Ni9mnyts8xNICAEB@geo.floppydata.com:10080",
       "id": "proxy_71_fe798c",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792767780.7914524,
       "latency_ms": 674.58,
       "ip_detected": "91.125.94.172",
       "fail_count": 1,
       "last_error": "Browser.close: Connection closed while reading from the driver",
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031293006",
+      "lease_time": 1793031293.0077028,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031376.0095184,
+          "history": [
+            1793031376.0095184
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -219,15 +318,24 @@
       "password": "5YjRg4upSv1VpZ81",
       "proxy_url": "http://KYuappOlbk9S1LWy:5YjRg4upSv1VpZ81@geo.floppydata.com:10080",
       "id": "proxy_72_b50396",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031328.2695625,
+      "latency_ms": 868.13,
+      "ip_detected": "90.5.215.106",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031327399",
+      "lease_time": 1793031328.2695715,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031395.551238,
+          "history": [
+            1793031395.551238
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -238,15 +346,24 @@
       "password": "8fh9KzsfvSASw9wO",
       "proxy_url": "http://PmklIfO1lJ9hYcWC:8fh9KzsfvSASw9wO@geo.floppydata.com:10080",
       "id": "proxy_73_e694ad",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031344.052988,
+      "latency_ms": 995.82,
+      "ip_detected": "107.179.213.92",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031343054",
+      "lease_time": 1793031344.052999,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031447.7017741,
+          "history": [
+            1793031447.7017741
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -257,15 +374,24 @@
       "password": "WbeBYmI3g1EIB5Py",
       "proxy_url": "http://TWGj2cVYEYrMmxIs:WbeBYmI3g1EIB5Py@geo.floppydata.com:10080",
       "id": "proxy_74_f0f663",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031349.1192117,
+      "latency_ms": 516.53,
+      "ip_detected": "124.190.156.123",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031348600",
+      "lease_time": 1793031349.1192262,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031495.5085511,
+          "history": [
+            1793031495.5085511
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -277,14 +403,23 @@
       "proxy_url": "http://qCRJiIvZEnwbJRGE:apjWVBDmTF53KVAl@geo.floppydata.com:10080",
       "id": "proxy_75_f01bb8",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792759547.375748,
       "latency_ms": 1695.62,
       "ip_detected": "47.189.146.3",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031361305",
+      "lease_time": 1793031361.3081987,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031526.2908564,
+          "history": [
+            1793031526.2908564
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -296,14 +431,23 @@
       "proxy_url": "http://NymqiP1XPH3IHNMJ:Ut9q2dML8ZZtsSOM@geo.floppydata.com:10080",
       "id": "proxy_76_f71161",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792759710.6318843,
       "latency_ms": 824.11,
       "ip_detected": "37.66.150.194",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031373171",
+      "lease_time": 1793031373.1727116,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031449.1571476,
+          "history": [
+            1793031449.1571476
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -315,14 +459,23 @@
       "proxy_url": "http://8pReBCa2t3ROa1ZW:OytGGVVHuyZHsMC3@geo.floppydata.com:10080",
       "id": "proxy_67_5de11d",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792759833.51294,
       "latency_ms": 1512.65,
       "ip_detected": "45.47.151.106",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031378547",
+      "lease_time": 1793031378.5504258,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031439.0951421,
+          "history": [
+            1793031439.0951421
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -334,14 +487,23 @@
       "proxy_url": "http://o6mRFPUmEuM93why:ARNSqDNyrPknHVsx@geo.floppydata.com:10080",
       "id": "proxy_68_d0f44c",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792759991.3178577,
       "latency_ms": 652.78,
       "ip_detected": "146.90.146.24",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031398632",
+      "lease_time": 1793031398.6354575,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031509.6308434,
+          "history": [
+            1793031509.6308434
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -353,14 +515,23 @@
       "proxy_url": "http://gVza1eqhD94U3vMI:LjbRliLVNd4NShVp@geo.floppydata.com:10080",
       "id": "proxy_69_1df78d",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760102.908552,
       "latency_ms": 543.31,
       "ip_detected": "88.171.127.6",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031443336",
+      "lease_time": 1793031443.3401299,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031524.403621,
+          "history": [
+            1793031524.403621
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -372,14 +543,23 @@
       "proxy_url": "http://gJ7fzaGim7JCrErZ:O2P8QRskqttHjsvr@geo.floppydata.com:10080",
       "id": "proxy_70_c0326f",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760228.5234368,
       "latency_ms": 587.41,
       "ip_detected": "66.234.48.105",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031451346",
+      "lease_time": 1793031451.3483067,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031537.8214123,
+          "history": [
+            1793031537.8214123
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -391,14 +571,23 @@
       "proxy_url": "http://BTumFOOLLEBUJmXj:niKyHstc6mgXD26L@geo.floppydata.com:10080",
       "id": "proxy_71_92cc9a",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760365.2487385,
       "latency_ms": 1744.81,
       "ip_detected": "203.123.106.83",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031453794",
+      "lease_time": 1793031453.7969077,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031624.970295,
+          "history": [
+            1793031624.970295
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -410,14 +599,23 @@
       "proxy_url": "http://6lAyUGF9nja3fyg2:kt72zMR5w9SezuqC@geo.floppydata.com:10080",
       "id": "proxy_72_056c18",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760509.9539752,
       "latency_ms": 1929.9,
       "ip_detected": "66.170.213.20",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031498419",
+      "lease_time": 1793031498.4253635,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031600.0481327,
+          "history": [
+            1793031600.0481327
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -429,14 +627,23 @@
       "proxy_url": "http://s50lupKhGpyXM2EV:1ThFmQhGDFdcOAdh@geo.floppydata.com:10080",
       "id": "proxy_73_b8f1eb",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760622.4490802,
       "latency_ms": 756.7,
       "ip_detected": "92.157.67.64",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031514171",
+      "lease_time": 1793031514.1743069,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031588.437504,
+          "history": [
+            1793031588.437504
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -448,14 +655,23 @@
       "proxy_url": "http://VQjHdcfkwj5Y5yqV:fitlWzWfN4ThHwKV@geo.floppydata.com:10080",
       "id": "proxy_74_129bfb",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760726.3264234,
       "latency_ms": 1716.83,
       "ip_detected": "208.102.65.45",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031528239",
+      "lease_time": 1793031528.2440727,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031655.2483878,
+          "history": [
+            1793031655.2483878
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -466,15 +682,24 @@
       "password": "ZKG2aDsmLBaXyx5v",
       "proxy_url": "http://NA96gYM7Va0X2zXB:ZKG2aDsmLBaXyx5v@geo.floppydata.com:10080",
       "id": "proxy_76_c27b92",
-      "health": "COOLDOWN",
-      "usage": "IDLE",
+      "health": "ALIVE",
+      "usage": "IN_USE",
       "last_checked": 1792760896.4170427,
       "latency_ms": 560.74,
       "ip_detected": "90.104.64.185",
       "fail_count": 1,
       "last_error": "Page.goto: Timeout 30000ms exceeded.\nCall log:\n  - navigating to \"https://app.gologin.com/sign_up\", waiting until \"load\"\n",
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031531250",
+      "lease_time": 1793031531.252126,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031627.7192814,
+          "history": [
+            1793031627.7192814
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -486,14 +711,23 @@
       "proxy_url": "http://zEIALyh8LhDOIthT:Bf62lCAh8w7wR9YR@geo.floppydata.com:10080",
       "id": "proxy_77_97350a",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792760900.2239676,
       "latency_ms": 712.82,
       "ip_detected": "135.12.200.98",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031542627",
+      "lease_time": 1793031542.6285143,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031691.7259252,
+          "history": [
+            1793031691.7259252
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -505,14 +739,23 @@
       "proxy_url": "http://RdbpIpxtdPjj3WOA:hHF1eFH1liYohhok@geo.floppydata.com:10080",
       "id": "proxy_78_ff7cde",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792761055.1120734,
       "latency_ms": 630.29,
       "ip_detected": "180.181.226.202",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031591521",
+      "lease_time": 1793031591.524483,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031697.2202096,
+          "history": [
+            1793031697.2202096
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -523,15 +766,24 @@
       "password": "kFXS9VuSQNLP71WA",
       "proxy_url": "http://fah8LfwUmCW1s1fa:kFXS9VuSQNLP71WA@geo.floppydata.com:10080",
       "id": "proxy_79_3a565c",
-      "health": "COOLDOWN",
-      "usage": "IDLE",
+      "health": "ALIVE",
+      "usage": "IN_USE",
       "last_checked": 1792761196.329462,
       "latency_ms": 1546.44,
       "ip_detected": "209.124.218.107",
       "fail_count": 1,
       "last_error": "Page.goto: SEC_ERROR_UNKNOWN_ISSUER\nCall log:\n  - navigating to \"https://app.gologin.com/sign_up\", waiting until \"load\"\n",
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031604062",
+      "lease_time": 1793031604.0633466,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031697.5313978,
+          "history": [
+            1793031697.5313978
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -543,14 +795,23 @@
       "proxy_url": "http://F5j8EYBlHC1zsrYV:xkHZyfvlfzsG1mhk@geo.floppydata.com:10080",
       "id": "proxy_80_2c9a57",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792761199.889126,
       "latency_ms": 545.28,
       "ip_detected": "176.166.140.100",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031628863",
+      "lease_time": 1793031628.8654015,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031699.615125,
+          "history": [
+            1793031699.615125
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -562,14 +823,23 @@
       "proxy_url": "http://JVxoQVQFrXRoFaj4:mUksAaXk5U7VKRiS@geo.floppydata.com:10080",
       "id": "proxy_81_844c6d",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792761376.594047,
       "latency_ms": 1699.0,
       "ip_detected": "167.224.3.68",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031632294",
+      "lease_time": 1793031632.2969036,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031728.989111,
+          "history": [
+            1793031728.989111
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -580,15 +850,24 @@
       "password": "JHLWv27VHodth8jD",
       "proxy_url": "http://xRFOAR6k7mzRPcut:JHLWv27VHodth8jD@geo.floppydata.com:10080",
       "id": "proxy_82_2d9009",
-      "health": "COOLDOWN",
-      "usage": "IDLE",
+      "health": "ALIVE",
+      "usage": "IN_USE",
       "last_checked": 1792761643.7267256,
       "latency_ms": 740.51,
       "ip_detected": "86.145.218.28",
       "fail_count": 1,
       "last_error": "Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://app.gologin.com/proxy\", waiting until \"load\"\n",
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031659647",
+      "lease_time": 1793031659.649568,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031725.6029472,
+          "history": [
+            1793031725.6029472
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -600,14 +879,23 @@
       "proxy_url": "http://QNkajNtjYhRUiNfn:IjMTCd7DCZAmkcz3@geo.floppydata.com:10080",
       "id": "proxy_83_fac5d2",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792761651.532475,
       "latency_ms": 4782.14,
       "ip_detected": "109.24.169.89",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031695224",
+      "lease_time": 1793031695.2288618,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031772.2859788,
+          "history": [
+            1793031772.2859788
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -619,14 +907,23 @@
       "proxy_url": "http://z8AwuhKep9skMQq7:3ajnwn9R6f7qLzqy@geo.floppydata.com:10080",
       "id": "proxy_84_9549fc",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792761765.7991803,
       "latency_ms": 800.87,
       "ip_detected": "173.176.207.108",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031702123",
+      "lease_time": 1793031702.1251445,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031797.6827416,
+          "history": [
+            1793031797.6827416
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -637,15 +934,24 @@
       "password": "HcnKA4SikPPnZdIP",
       "proxy_url": "http://OvnJwGuygZpsKshR:HcnKA4SikPPnZdIP@geo.floppydata.com:10080",
       "id": "proxy_85_f26569",
-      "health": "COOLDOWN",
-      "usage": "IDLE",
+      "health": "ALIVE",
+      "usage": "IN_USE",
       "last_checked": 1792762138.1932473,
       "latency_ms": 892.08,
       "ip_detected": "125.254.126.208",
       "fail_count": 1,
       "last_error": "Page.goto: NS_ERROR_ABORT\nCall log:\n  - navigating to \"https://app.gologin.com/proxy\", waiting until \"load\"\n",
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031702416",
+      "lease_time": 1793031702.438883,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031802.5528479,
+          "history": [
+            1793031802.5528479
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -657,14 +963,23 @@
       "proxy_url": "http://cCRYpwfnemPGXuDv:h2x7FQ4vI5qxuq2L@geo.floppydata.com:10080",
       "id": "proxy_86_d216bd",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792762143.2092884,
       "latency_ms": 1999.91,
       "ip_detected": "73.59.148.228",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031703142",
+      "lease_time": 1793031703.170791,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031772.0957725,
+          "history": [
+            1793031772.0957725
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -676,14 +991,23 @@
       "proxy_url": "http://wlFohhrMLzjj5iRU:1YrvTrto0BeFtjag@geo.floppydata.com:10080",
       "id": "proxy_87_d4481d",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792762283.1994166,
       "latency_ms": 3338.36,
       "ip_detected": "90.103.23.170",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031728910",
+      "lease_time": 1793031728.9120846,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031891.9356577,
+          "history": [
+            1793031891.9356577
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -695,14 +1019,23 @@
       "proxy_url": "http://0mlXiGXDQBqWr0Oa:g3CcGNTZRycNxmgs@geo.floppydata.com:10080",
       "id": "proxy_88_2145b3",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792762457.0672235,
       "latency_ms": 748.65,
       "ip_detected": "206.124.8.23",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031731893",
+      "lease_time": 1793031731.8960462,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031799.6007314,
+          "history": [
+            1793031799.6007314
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -714,14 +1047,23 @@
       "proxy_url": "http://Hu5azkt22g0uqceJ:jKvjrZesNF1369ek@geo.floppydata.com:10080",
       "id": "proxy_89_421d0a",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792750697.5530026,
       "latency_ms": 1600.81,
       "ip_detected": "81.135.75.107",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031775921",
+      "lease_time": 1793031775.9229722,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031852.4101424,
+          "history": [
+            1793031852.4101424
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -733,14 +1075,23 @@
       "proxy_url": "http://xWH5blMPWDcJMH88:ZP6ByBslWTiXJT0I@geo.floppydata.com:10080",
       "id": "proxy_90_19ae30",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792762476.7553747,
       "latency_ms": 661.38,
       "ip_detected": "2.10.224.5",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031776700",
+      "lease_time": 1793031776.7029004,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031862.2141924,
+          "history": [
+            1793031862.2141924
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -752,14 +1103,23 @@
       "proxy_url": "http://rEADaz3XcvZ4vl6D:hSYWWSKHk2xCnsaX@geo.floppydata.com:10080",
       "id": "proxy_91_97a94a",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1792762678.098034,
       "latency_ms": 767.88,
       "ip_detected": "66.131.149.116",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031800751",
+      "lease_time": 1793031800.7558513,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031897.3144994,
+          "history": [
+            1793031897.3144994
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -770,15 +1130,24 @@
       "password": "tH6GuAMn6C27D494",
       "proxy_url": "http://4cHsQj0nKfHA37yi:tH6GuAMn6C27D494@geo.floppydata.com:10080",
       "id": "proxy_92_f483c8",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031804.839426,
+      "latency_ms": 726.76,
+      "ip_detected": "120.155.56.168",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031804108",
+      "lease_time": 1793031804.8394353,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031891.8631415,
+          "history": [
+            1793031891.8631415
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -789,15 +1158,24 @@
       "password": "YUWuImlOROhMZV4O",
       "proxy_url": "http://Knq7RTguhVRSaJE1:YUWuImlOROhMZV4O@geo.floppydata.com:10080",
       "id": "proxy_93_3b5bba",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031810.5126927,
+      "latency_ms": 4397.52,
+      "ip_detected": "71.192.161.37",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031806111",
+      "lease_time": 1793031810.5127056,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031937.389259,
+          "history": [
+            1793031937.389259
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -808,15 +1186,24 @@
       "password": "L96VvmjHJMnKjcmz",
       "proxy_url": "http://SaHvbOIcVRNo027z:L96VvmjHJMnKjcmz@geo.floppydata.com:10080",
       "id": "proxy_94_415199",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031858.4473279,
+      "latency_ms": 1474.03,
+      "ip_detected": "88.160.96.89",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031856969",
+      "lease_time": 1793031858.4473357,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031935.8334625,
+          "history": [
+            1793031935.8334625
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -827,15 +1214,24 @@
       "password": "kTGpUgcuDcu9a8D6",
       "proxy_url": "http://xE4VkYEMNJlwtDex:kTGpUgcuDcu9a8D6@geo.floppydata.com:10080",
       "id": "proxy_95_07afcb",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031867.3127239,
+      "latency_ms": 2166.92,
+      "ip_detected": "97.73.80.1",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031865144",
+      "lease_time": 1793031867.312734,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031959.298551,
+          "history": [
+            1793031959.298551
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -846,15 +1242,24 @@
       "password": "NhZx3qNJF1ZYaSW7",
       "proxy_url": "http://pdEWdFg8hemV7rso:NhZx3qNJF1ZYaSW7@geo.floppydata.com:10080",
       "id": "proxy_96_9d9a9b",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031895.0492783,
+      "latency_ms": 507.73,
+      "ip_detected": "81.157.246.65",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031894536",
+      "lease_time": 1793031895.0492928,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031937.945968,
+          "history": [
+            1793031937.945968
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -865,15 +1270,24 @@
       "password": "dUacNNoSmrEY42M3",
       "proxy_url": "http://CGEVHhwK0BPDz96H:dUacNNoSmrEY42M3@geo.floppydata.com:10080",
       "id": "proxy_97_5e47b0",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031897.2701797,
+      "latency_ms": 625.29,
+      "ip_detected": "88.172.173.250",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031896643",
+      "lease_time": 1793031897.2701895,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793031974.55495,
+          "history": [
+            1793031974.55495
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -884,15 +1298,24 @@
       "password": "rUKAQpczamg5eaO4",
       "proxy_url": "http://2BkHKHSRESFjwLkt:rUKAQpczamg5eaO4@geo.floppydata.com:10080",
       "id": "proxy_98_5fe0ba",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031903.0079808,
+      "latency_ms": 1450.93,
+      "ip_detected": "23.17.66.60",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793031901554",
+      "lease_time": 1793031903.0079913,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032020.8178606,
+          "history": [
+            1793032020.8178606
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -903,15 +1326,24 @@
       "password": "d3hnp30IAWZ7Pfhb",
       "proxy_url": "http://KxOR6LuOjC27XUNY:d3hnp30IAWZ7Pfhb@geo.floppydata.com:10080",
       "id": "proxy_99_e69548",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031939.8479705,
+      "latency_ms": 787.79,
+      "ip_detected": "1.159.81.153",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793031939057",
+      "lease_time": 1793031939.8479855,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032006.1821399,
+          "history": [
+            1793032006.1821399
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -922,15 +1354,24 @@
       "password": "qC9eovo56CbBDQcl",
       "proxy_url": "http://NRA1MAU3iVpDBb9t:qC9eovo56CbBDQcl@geo.floppydata.com:10080",
       "id": "proxy_100_917d00",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031941.5476599,
+      "latency_ms": 828.15,
+      "ip_detected": "69.77.137.126",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793031940687",
+      "lease_time": 1793031941.5476727,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032037.1372535,
+          "history": [
+            1793032037.1372535
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -941,15 +1382,24 @@
       "password": "bH84iPJZH8BAMGz2",
       "proxy_url": "http://mSitHHBKq6Qkemi0:bH84iPJZH8BAMGz2@geo.floppydata.com:10080",
       "id": "proxy_101_84886f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031942.441125,
+      "latency_ms": 548.44,
+      "ip_detected": "90.89.70.127",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793031941889",
+      "lease_time": 1793031942.4411538,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032004.0479882,
+          "history": [
+            1793032004.0479882
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -960,15 +1410,24 @@
       "password": "xHBAKNUZaUlqgqWz",
       "proxy_url": "http://32AIhdWlQ9DzE4Dq:xHBAKNUZaUlqgqWz@geo.floppydata.com:10080",
       "id": "proxy_102_e468f1",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031962.9189932,
+      "latency_ms": 873.16,
+      "ip_detected": "184.19.26.29",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793031962043",
+      "lease_time": 1793031962.9190013,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032063.569767,
+          "history": [
+            1793032063.569767
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -979,15 +1438,24 @@
       "password": "KvPAteBmQvwGYTFa",
       "proxy_url": "http://cOK7g1tbIi4AWAvJ:KvPAteBmQvwGYTFa@geo.floppydata.com:10080",
       "id": "proxy_103_7ad52b",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793031979.445835,
+      "latency_ms": 537.56,
+      "ip_detected": "213.120.218.38",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793031978906",
+      "lease_time": 1793031979.4458435,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032060.529112,
+          "history": [
+            1793032060.529112
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -998,15 +1466,24 @@
       "password": "3KxvOPe9ZgLvAxVK",
       "proxy_url": "http://F2pu6QjObaSNRmav:3KxvOPe9ZgLvAxVK@geo.floppydata.com:10080",
       "id": "proxy_104_5dcb49",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032008.0326743,
+      "latency_ms": 879.56,
+      "ip_detected": "37.65.159.184",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032007151",
+      "lease_time": 1793032008.0326853,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032060.6906574,
+          "history": [
+            1793032060.6906574
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1017,15 +1494,24 @@
       "password": "B94Itzp96dWYoSNB",
       "proxy_url": "http://ZmXEGlVYxA9pvZOY:B94Itzp96dWYoSNB@geo.floppydata.com:10080",
       "id": "proxy_105_5ef742",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032009.6762877,
+      "latency_ms": 589.49,
+      "ip_detected": "142.59.36.223",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032009084",
+      "lease_time": 1793032009.6762955,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032107.3363757,
+          "history": [
+            1793032107.3363757
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1036,15 +1522,24 @@
       "password": "ZcsRtb7p8nFl7bPu",
       "proxy_url": "http://GRid1Z8Rrs8d0GFA:ZcsRtb7p8nFl7bPu@geo.floppydata.com:10080",
       "id": "proxy_106_064edc",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032026.9501207,
+      "latency_ms": 2265.84,
+      "ip_detected": "121.210.214.30",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032024682",
+      "lease_time": 1793032026.9501276,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032066.1129456,
+          "history": [
+            1793032066.1129456
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1055,15 +1550,24 @@
       "password": "Fyw0GZWq4dvb9bET",
       "proxy_url": "http://YQzbaJJd5vPva4AG:Fyw0GZWq4dvb9bET@geo.floppydata.com:10080",
       "id": "proxy_107_ffad2e",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032040.6869648,
+      "latency_ms": 878.95,
+      "ip_detected": "74.75.198.170",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032039802",
+      "lease_time": 1793032040.6869793,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032110.7175763,
+          "history": [
+            1793032110.7175763
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1074,15 +1578,24 @@
       "password": "FxvfAZD3W3u7GTxq",
       "proxy_url": "http://jKGixFgpEaJAEEJq:FxvfAZD3W3u7GTxq@geo.floppydata.com:10080",
       "id": "proxy_108_37197d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032064.5057547,
+      "latency_ms": 547.89,
+      "ip_detected": "77.135.220.190",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032063956",
+      "lease_time": 1793032064.505763,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032127.7446659,
+          "history": [
+            1793032127.7446659
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1093,15 +1606,24 @@
       "password": "iAEh4UZYFpIGX0eg",
       "proxy_url": "http://rKAMcb8mQ6F9n8IO:iAEh4UZYFpIGX0eg@geo.floppydata.com:10080",
       "id": "proxy_109_303f5a",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032065.417851,
+      "latency_ms": 899.37,
+      "ip_detected": "148.64.41.156",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032064228",
+      "lease_time": 1793032065.4178813,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032150.680286,
+          "history": [
+            1793032150.680286
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1112,15 +1634,24 @@
       "password": "Tt9wRoUeFxKtCKNq",
       "proxy_url": "http://ZgyMr5oV5oZ8tcbT:Tt9wRoUeFxKtCKNq@geo.floppydata.com:10080",
       "id": "proxy_110_a18bb0",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032068.0688338,
+      "latency_ms": 574.44,
+      "ip_detected": "82.18.179.176",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032067492",
+      "lease_time": 1793032068.0688422,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032156.2591531,
+          "history": [
+            1793032156.2591531
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1131,15 +1662,24 @@
       "password": "IVdOcG3phtoQaq02",
       "proxy_url": "http://JOSv2qgfGo7tPLfR:IVdOcG3phtoQaq02@geo.floppydata.com:10080",
       "id": "proxy_111_1f0700",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032071.506691,
+      "latency_ms": 538.32,
+      "ip_detected": "90.116.117.177",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032070964",
+      "lease_time": 1793032071.5067024,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032156.2366397,
+          "history": [
+            1793032156.2366397
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1150,15 +1690,24 @@
       "password": "bc1LaQ8IoexAX9IJ",
       "proxy_url": "http://riKfzhBdL7oMmYfB:bc1LaQ8IoexAX9IJ@geo.floppydata.com:10080",
       "id": "proxy_112_caf6a3",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032112.5188253,
+      "latency_ms": 710.95,
+      "ip_detected": "142.165.170.172",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032111803",
+      "lease_time": 1793032112.5188339,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032187.004863,
+          "history": [
+            1793032187.004863
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1169,15 +1718,24 @@
       "password": "uSqdmQcUUV569NTU",
       "proxy_url": "http://nFuyq24tB8fkQYV5:uSqdmQcUUV569NTU@geo.floppydata.com:10080",
       "id": "proxy_113_faee36",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032115.8844063,
+      "latency_ms": 749.95,
+      "ip_detected": "1.40.182.200",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032115131",
+      "lease_time": 1793032115.8844175,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032233.6328175,
+          "history": [
+            1793032233.6328175
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1188,15 +1746,24 @@
       "password": "FVg4Ts4moAaIDgcy",
       "proxy_url": "http://Ei5ETb8s2kxfSHey:FVg4Ts4moAaIDgcy@geo.floppydata.com:10080",
       "id": "proxy_114_7da323",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032131.3386724,
+      "latency_ms": 1042.15,
+      "ip_detected": "73.35.13.118",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032130293",
+      "lease_time": 1793032131.3387,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032224.3084595,
+          "history": [
+            1793032224.3084595
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1207,15 +1774,24 @@
       "password": "RniYN1BtdUIB2YBT",
       "proxy_url": "http://I2tM3aGm4vn48ou2:RniYN1BtdUIB2YBT@geo.floppydata.com:10080",
       "id": "proxy_115_044f4d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032155.2974794,
+      "latency_ms": 570.29,
+      "ip_detected": "37.65.36.55",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032154725",
+      "lease_time": 1793032155.2974982,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032233.1743898,
+          "history": [
+            1793032233.1743898
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1226,15 +1802,24 @@
       "password": "anuRyIWXVuth4HsK",
       "proxy_url": "http://6jV4rg9BJfni2Ovd:anuRyIWXVuth4HsK@geo.floppydata.com:10080",
       "id": "proxy_116_9f4420",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032160.0182936,
+      "latency_ms": 874.1,
+      "ip_detected": "71.63.41.129",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032159141",
+      "lease_time": 1793032160.018307,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032205.7915158,
+          "history": [
+            1793032205.7915158
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1245,15 +1830,24 @@
       "password": "Vfh4n2SWVDv2vwb3",
       "proxy_url": "http://i6ymxJVlpKDCAaCR:Vfh4n2SWVDv2vwb3@geo.floppydata.com:10080",
       "id": "proxy_117_248756",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032161.7589707,
+      "latency_ms": 678.18,
+      "ip_detected": "78.144.201.42",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032161077",
+      "lease_time": 1793032161.758978,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032249.5871184,
+          "history": [
+            1793032249.5871184
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1264,15 +1858,24 @@
       "password": "gluclfZQzJA23G1F",
       "proxy_url": "http://5NL4lLuqI1pAhAbk:gluclfZQzJA23G1F@geo.floppydata.com:10080",
       "id": "proxy_118_7f7c44",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032190.5590544,
+      "latency_ms": 503.72,
+      "ip_detected": "88.167.42.116",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032190052",
+      "lease_time": 1793032190.5590665,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032234.8409429,
+          "history": [
+            1793032234.8409429
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1283,15 +1886,24 @@
       "password": "mnsJduX57gtrByzR",
       "proxy_url": "http://4IYDwzo5j4DpaVe5:mnsJduX57gtrByzR@geo.floppydata.com:10080",
       "id": "proxy_119_d66e39",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032209.0942922,
+      "latency_ms": 740.75,
+      "ip_detected": "142.162.191.195",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032208351",
+      "lease_time": 1793032209.0943031,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032297.4772322,
+          "history": [
+            1793032297.4772322
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1302,15 +1914,24 @@
       "password": "rO3lclSNGwCsdXRk",
       "proxy_url": "http://oxod58KprMnBUcNK:rO3lclSNGwCsdXRk@geo.floppydata.com:10080",
       "id": "proxy_120_ee4693",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032228.6009614,
+      "latency_ms": 722.97,
+      "ip_detected": "144.6.2.86",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032227875",
+      "lease_time": 1793032228.6009696,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032324.1054623,
+          "history": [
+            1793032324.1054623
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1321,15 +1942,24 @@
       "password": "6zAvXk7zD2x1YsQm",
       "proxy_url": "http://3tFgtknkhMXTvi2I:6zAvXk7zD2x1YsQm@geo.floppydata.com:10080",
       "id": "proxy_121_73e55b",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032238.521426,
+      "latency_ms": 1486.56,
+      "ip_detected": "67.219.163.174",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032237033",
+      "lease_time": 1793032238.5214334,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032294.2134614,
+          "history": [
+            1793032294.2134614
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1340,15 +1970,24 @@
       "password": "eq1C5b6o2ARNRBGu",
       "proxy_url": "http://ttOkncxg7x0W3iC1:eq1C5b6o2ARNRBGu@geo.floppydata.com:10080",
       "id": "proxy_122_aca483",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032239.536977,
+      "latency_ms": 1003.71,
+      "ip_detected": "89.92.84.86",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032238013",
+      "lease_time": 1793032239.5369873,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032338.6630588,
+          "history": [
+            1793032338.6630588
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1359,15 +1998,24 @@
       "password": "AoRuCDa9XdyoStPT",
       "proxy_url": "http://DcmfvoE5wfhWFQGD:AoRuCDa9XdyoStPT@geo.floppydata.com:10080",
       "id": "proxy_123_e74fc1",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032240.5763237,
+      "latency_ms": 1024.46,
+      "ip_detected": "69.42.233.173",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032238523",
+      "lease_time": 1793032240.576344,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032317.0539992,
+          "history": [
+            1793032317.0539992
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1378,15 +2026,24 @@
       "password": "lXwMGM7bKQSpMtyY",
       "proxy_url": "http://X95NIFxHJEjKM975:lXwMGM7bKQSpMtyY@geo.floppydata.com:10080",
       "id": "proxy_124_e16b63",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032253.21781,
+      "latency_ms": 512.42,
+      "ip_detected": "95.214.187.162",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032252703",
+      "lease_time": 1793032253.2178252,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032358.1830583,
+          "history": [
+            1793032358.1830583
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1397,15 +2054,24 @@
       "password": "b9ywwocEB12Yth8v",
       "proxy_url": "http://zgEAriKl74CeKnTO:b9ywwocEB12Yth8v@geo.floppydata.com:10080",
       "id": "proxy_125_367dc1",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032298.2098856,
+      "latency_ms": 523.86,
+      "ip_detected": "90.110.187.70",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032297683",
+      "lease_time": 1793032298.209894,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032394.3595934,
+          "history": [
+            1793032394.3595934
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1416,15 +2082,24 @@
       "password": "DDOrIZdcRgt2b1mD",
       "proxy_url": "http://ymkGFgEAyuoS2nuK:DDOrIZdcRgt2b1mD@geo.floppydata.com:10080",
       "id": "proxy_126_59dfc0",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032301.8534403,
+      "latency_ms": 717.87,
+      "ip_detected": "24.66.252.94",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032301133",
+      "lease_time": 1793032301.8534477,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032370.463114,
+          "history": [
+            1793032370.463114
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1435,15 +2110,24 @@
       "password": "LNGrJ6CfOiSbOHFs",
       "proxy_url": "http://XW4S8rwYD5q4kyN7:LNGrJ6CfOiSbOHFs@geo.floppydata.com:10080",
       "id": "proxy_127_d824d7",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032321.3521986,
+      "latency_ms": 766.4,
+      "ip_detected": "49.180.110.201",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032320583",
+      "lease_time": 1793032321.3522081,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032433.3886,
+          "history": [
+            1793032433.3886
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1454,15 +2138,24 @@
       "password": "ezuLFWrel4KOW6UG",
       "proxy_url": "http://bYQ0pAFg7dCaimds:ezuLFWrel4KOW6UG@geo.floppydata.com:10080",
       "id": "proxy_128_a6ed3f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032329.175084,
+      "latency_ms": 955.51,
+      "ip_detected": "63.79.129.223",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032328216",
+      "lease_time": 1793032329.1752765,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032388.364595,
+          "history": [
+            1793032388.364595
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1473,15 +2166,24 @@
       "password": "UjXH1O9udc692Fhz",
       "proxy_url": "http://rv9L5Ch6CnVhITks:UjXH1O9udc692Fhz@geo.floppydata.com:10080",
       "id": "proxy_129_652d1d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032343.2421267,
+      "latency_ms": 572.09,
+      "ip_detected": "82.126.53.95",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032342667",
+      "lease_time": 1793032343.2421575,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032388.1217835,
+          "history": [
+            1793032388.1217835
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1492,15 +2194,24 @@
       "password": "JF94k6oDBYSXXH24",
       "proxy_url": "http://6ZIJ0JCY3rfNTER4:JF94k6oDBYSXXH24@geo.floppydata.com:10080",
       "id": "proxy_130_02403f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032362.2830856,
+      "latency_ms": 885.02,
+      "ip_detected": "99.74.229.116",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032361392",
+      "lease_time": 1793032362.2831206,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032495.909162,
+          "history": [
+            1793032495.909162
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1511,15 +2222,24 @@
       "password": "wFyHDv428cS1wDvv",
       "proxy_url": "http://I39GhfOdB68j9q78:wFyHDv428cS1wDvv@geo.floppydata.com:10080",
       "id": "proxy_131_d87faf",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032375.6655705,
+      "latency_ms": 533.9,
+      "ip_detected": "82.42.77.69",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032375128",
+      "lease_time": 1793032375.66559,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032428.1815124,
+          "history": [
+            1793032428.1815124
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1530,15 +2250,24 @@
       "password": "7PI9BEBu8rMEKjGe",
       "proxy_url": "http://4Q2MUjZ5UaOg8TLf:7PI9BEBu8rMEKjGe@geo.floppydata.com:10080",
       "id": "proxy_132_6f780e",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032391.6251347,
+      "latency_ms": 680.11,
+      "ip_detected": "90.3.111.215",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032390943",
+      "lease_time": 1793032391.6251497,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032475.731223,
+          "history": [
+            1793032475.731223
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1549,15 +2278,24 @@
       "password": "Q5aVzjvY6WvVcYuQ",
       "proxy_url": "http://kemhlSf2WZGyFcGL:Q5aVzjvY6WvVcYuQ@geo.floppydata.com:10080",
       "id": "proxy_133_b07e12",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032393.1492152,
+      "latency_ms": 559.68,
+      "ip_detected": "207.35.112.98",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032392588",
+      "lease_time": 1793032393.149226,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032452.4865751,
+          "history": [
+            1793032452.4865751
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1568,15 +2306,24 @@
       "password": "fuLPY7FOEk8tKl3X",
       "proxy_url": "http://mWh9TZD2ELBy5QgW:fuLPY7FOEk8tKl3X@geo.floppydata.com:10080",
       "id": "proxy_134_dd90b5",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032399.4594307,
+      "latency_ms": 865.05,
+      "ip_detected": "49.194.55.31",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032398592",
+      "lease_time": 1793032399.4594426,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032491.7870038,
+          "history": [
+            1793032491.7870038
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1587,15 +2334,24 @@
       "password": "To1DicN152ltwspC",
       "proxy_url": "http://IW3xsDDzSe01ZFdX:To1DicN152ltwspC@geo.floppydata.com:10080",
       "id": "proxy_135_d3e53c",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032433.369171,
+      "latency_ms": 2006.86,
+      "ip_detected": "153.66.239.171",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032431358",
+      "lease_time": 1793032433.3691814,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032507.6346295,
+          "history": [
+            1793032507.6346295
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1606,15 +2362,24 @@
       "password": "lk34dv602aVTXdLR",
       "proxy_url": "http://liXhXzZiZwlluuEh:lk34dv602aVTXdLR@geo.floppydata.com:10080",
       "id": "proxy_136_0d0a57",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032437.8492608,
+      "latency_ms": 813.94,
+      "ip_detected": "86.246.154.237",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032437033",
+      "lease_time": 1793032437.8492725,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032495.107808,
+          "history": [
+            1793032495.107808
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1625,15 +2390,24 @@
       "password": "kmVKkuN5wREVfWV5",
       "proxy_url": "http://P3bA7uYi5N7rrNkE:kmVKkuN5wREVfWV5@geo.floppydata.com:10080",
       "id": "proxy_137_e99667",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032458.0580072,
+      "latency_ms": 1364.5,
+      "ip_detected": "71.218.250.194",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032456690",
+      "lease_time": 1793032458.0580196,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032545.41663,
+          "history": [
+            1793032545.41663
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1644,15 +2418,24 @@
       "password": "uSL6c146vR0iHCv6",
       "proxy_url": "http://nNcuhgPLkkNB9bOO:uSL6c146vR0iHCv6@geo.floppydata.com:10080",
       "id": "proxy_138_96916a",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032479.6043594,
+      "latency_ms": 505.6,
+      "ip_detected": "88.97.210.180",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032479096",
+      "lease_time": 1793032479.6043704,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032548.9411428,
+          "history": [
+            1793032548.9411428
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1663,15 +2446,24 @@
       "password": "3O7b7nv1mycPjdYx",
       "proxy_url": "http://WbU7fmGN5m5nhnXU:3O7b7nv1mycPjdYx@geo.floppydata.com:10080",
       "id": "proxy_139_a31870",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032495.8968909,
+      "latency_ms": 580.53,
+      "ip_detected": "88.171.38.129",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032495314",
+      "lease_time": 1793032495.8968997,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032570.5486355,
+          "history": [
+            1793032570.5486355
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1682,15 +2474,24 @@
       "password": "nFayCrqZYDu0hbAs",
       "proxy_url": "http://tkg6kW75i57NRzTf:nFayCrqZYDu0hbAs@geo.floppydata.com:10080",
       "id": "proxy_140_4440d0",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032498.5001876,
+      "latency_ms": 621.14,
+      "ip_detected": "173.33.71.173",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032497876",
+      "lease_time": 1793032498.500198,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032574.6786482,
+          "history": [
+            1793032574.6786482
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1701,15 +2502,24 @@
       "password": "YO2jNJr1gjJtvEAK",
       "proxy_url": "http://QKBdrnuLs5cu8qwR:YO2jNJr1gjJtvEAK@geo.floppydata.com:10080",
       "id": "proxy_141_bb7ef3",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032501.3623857,
+      "latency_ms": 645.23,
+      "ip_detected": "180.150.81.229",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032500715",
+      "lease_time": 1793032501.3624108,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032562.87355,
+          "history": [
+            1793032562.87355
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1720,15 +2530,24 @@
       "password": "ZXfHyQAJIJ8vg2Nk",
       "proxy_url": "http://Im6LBrZnOya8GXNE:ZXfHyQAJIJ8vg2Nk@geo.floppydata.com:10080",
       "id": "proxy_142_091df6",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032512.3076441,
+      "latency_ms": 1094.69,
+      "ip_detected": "12.195.154.34",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032511208",
+      "lease_time": 1793032512.30767,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032601.873671,
+          "history": [
+            1793032601.873671
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1739,15 +2558,24 @@
       "password": "7tpifZUOwpDTtahD",
       "proxy_url": "http://2wFWcLA3S3150kj3:7tpifZUOwpDTtahD@geo.floppydata.com:10080",
       "id": "proxy_143_bd12a4",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032548.8546696,
+      "latency_ms": 758.85,
+      "ip_detected": "88.164.117.99",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032548092",
+      "lease_time": 1793032548.8546963,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032612.1074588,
+          "history": [
+            1793032612.1074588
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1758,15 +2586,24 @@
       "password": "mt8tAawooBCLAQW5",
       "proxy_url": "http://ddFybHjjTVjW0DXP:mt8tAawooBCLAQW5@geo.floppydata.com:10080",
       "id": "proxy_144_75309f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032554.4715164,
+      "latency_ms": 1157.3,
+      "ip_detected": "70.36.213.234",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032553310",
+      "lease_time": 1793032554.4715238,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032596.9688916,
+          "history": [
+            1793032596.9688916
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1777,15 +2614,24 @@
       "password": "DTcIu7r9QLGBNLBy",
       "proxy_url": "http://ZVU3T7UHYCfi8998:DTcIu7r9QLGBNLBy@geo.floppydata.com:10080",
       "id": "proxy_145_e0fa30",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032568.4138944,
+      "latency_ms": 709.71,
+      "ip_detected": "92.30.89.238",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032567698",
+      "lease_time": 1793032568.4139042,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032607.0032885,
+          "history": [
+            1793032607.0032885
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1796,15 +2642,24 @@
       "password": "OijVVFc8fDQIApWr",
       "proxy_url": "http://HdtbUn0waf3lh2fZ:OijVVFc8fDQIApWr@geo.floppydata.com:10080",
       "id": "proxy_146_ff653f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032573.7468266,
+      "latency_ms": 615.56,
+      "ip_detected": "82.126.189.35",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032573127",
+      "lease_time": 1793032573.7468474,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032652.6034043,
+          "history": [
+            1793032652.6034043
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1815,15 +2670,24 @@
       "password": "jZ8ihwPA3COREv4K",
       "proxy_url": "http://fNvu47tyuCzkverI:jZ8ihwPA3COREv4K@geo.floppydata.com:10080",
       "id": "proxy_147_90cd23",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032581.062499,
+      "latency_ms": 1706.48,
+      "ip_detected": "108.168.127.78",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032579354",
+      "lease_time": 1793032581.062507,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032676.9036982,
+          "history": [
+            1793032676.9036982
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1834,15 +2698,24 @@
       "password": "KbZMAqQlNEMkM0AK",
       "proxy_url": "http://nNfVSgpwFgo9Os42:KbZMAqQlNEMkM0AK@geo.floppydata.com:10080",
       "id": "proxy_148_71cfe0",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032601.2373614,
+      "latency_ms": 785.16,
+      "ip_detected": "203.206.90.186",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032600449",
+      "lease_time": 1793032601.237369,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032686.7196288,
+          "history": [
+            1793032686.7196288
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1853,15 +2726,24 @@
       "password": "gA7eWajUcwTKKi9c",
       "proxy_url": "http://xOMSbeWzpfocS8yK:gA7eWajUcwTKKi9c@geo.floppydata.com:10080",
       "id": "proxy_149_33eea3",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032605.8425992,
+      "latency_ms": 832.49,
+      "ip_detected": "173.79.245.217",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032605007",
+      "lease_time": 1793032605.8426065,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032655.71031,
+          "history": [
+            1793032655.71031
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1872,15 +2754,24 @@
       "password": "j6Wu35hqvTbUwoO7",
       "proxy_url": "http://Go9maIR2oDZXh9wh:j6Wu35hqvTbUwoO7@geo.floppydata.com:10080",
       "id": "proxy_150_cefbf5",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032611.8080335,
+      "latency_ms": 566.91,
+      "ip_detected": "80.14.237.209",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032611238",
+      "lease_time": 1793032611.8080413,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032662.3593428,
+          "history": [
+            1793032662.3593428
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1891,15 +2782,24 @@
       "password": "EImNpQDruNR5if2V",
       "proxy_url": "http://9UkeOnzmMLyg6rUh:EImNpQDruNR5if2V@geo.floppydata.com:10080",
       "id": "proxy_151_393f3a",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032622.738105,
+      "latency_ms": 6812.99,
+      "ip_detected": "47.184.128.58",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032615922",
+      "lease_time": 1793032622.7381172,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032793.244886,
+          "history": [
+            1793032793.244886
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -1910,15 +2810,24 @@
       "password": "pLhHGsx9dNlKZ1T0",
       "proxy_url": "http://IiWbHYA3gvZZlRUY:pLhHGsx9dNlKZ1T0@geo.floppydata.com:10080",
       "id": "proxy_152_e35c06",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032656.6477153,
+      "latency_ms": 534.53,
+      "ip_detected": "94.154.184.172",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032656109",
+      "lease_time": 1793032656.6477237,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032715.8968081,
+          "history": [
+            1793032715.8968081
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -1929,15 +2838,24 @@
       "password": "XUHnNAFtk5MVNxH1",
       "proxy_url": "http://ER2QaX3cMAs5FtMI:XUHnNAFtk5MVNxH1@geo.floppydata.com:10080",
       "id": "proxy_153_cb9a9b",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032658.8413172,
+      "latency_ms": 496.73,
+      "ip_detected": "87.231.51.40",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032658341",
+      "lease_time": 1793032658.8413413,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032786.0573773,
+          "history": [
+            1793032786.0573773
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -1948,15 +2866,24 @@
       "password": "98MlHuvELraJug2J",
       "proxy_url": "http://Hmz6JOm5WVoUu3zF:98MlHuvELraJug2J@geo.floppydata.com:10080",
       "id": "proxy_154_952b80",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032666.2331197,
+      "latency_ms": 704.43,
+      "ip_detected": "50.98.147.11",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032665526",
+      "lease_time": 1793032666.2331278,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032722.3076737,
+          "history": [
+            1793032722.3076737
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -1967,15 +2894,24 @@
       "password": "fxMQiQfE9VLeScvB",
       "proxy_url": "http://oaD34hqGYqdIbnXJ:fxMQiQfE9VLeScvB@geo.floppydata.com:10080",
       "id": "proxy_155_0b7245",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032682.2419689,
+      "latency_ms": 785.65,
+      "ip_detected": "114.73.157.15",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032681452",
+      "lease_time": 1793032682.2419956,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032783.218176,
+          "history": [
+            1793032783.218176
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -1986,15 +2922,24 @@
       "password": "mMBb7gkAMeWOOmyE",
       "proxy_url": "http://TTd4R1zh75dhpIsw:mMBb7gkAMeWOOmyE@geo.floppydata.com:10080",
       "id": "proxy_156_1b5802",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032692.498644,
+      "latency_ms": 827.94,
+      "ip_detected": "100.35.216.243",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032691667",
+      "lease_time": 1793032692.4986525,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032776.522304,
+          "history": [
+            1793032776.522304
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2005,15 +2950,24 @@
       "password": "H8JqvNi2Be0boK6B",
       "proxy_url": "http://e67HSwDyUu5kWC6C:H8JqvNi2Be0boK6B@geo.floppydata.com:10080",
       "id": "proxy_157_f25a5c",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032720.2752767,
+      "latency_ms": 554.78,
+      "ip_detected": "86.249.185.239",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032719717",
+      "lease_time": 1793032720.2752855,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032774.8821616,
+          "history": [
+            1793032774.8821616
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2024,15 +2978,24 @@
       "password": "TWsJgeBuoEltL1lz",
       "proxy_url": "http://nDbayBVgbBM8i9Gv:TWsJgeBuoEltL1lz@geo.floppydata.com:10080",
       "id": "proxy_158_82d611",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032726.0394442,
+      "latency_ms": 905.14,
+      "ip_detected": "98.97.43.58",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032725131",
+      "lease_time": 1793032726.0394535,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032798.7098918,
+          "history": [
+            1793032798.7098918
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2043,15 +3006,24 @@
       "password": "3abAihaMsO1ACG9O",
       "proxy_url": "http://Z1lTgu79nf53Yz6u:3abAihaMsO1ACG9O@geo.floppydata.com:10080",
       "id": "proxy_159_aa5a91",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032779.793942,
+      "latency_ms": 734.9,
+      "ip_detected": "2.97.13.47",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032779056",
+      "lease_time": 1793032779.7939527,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032855.7906435,
+          "history": [
+            1793032855.7906435
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2062,15 +3034,24 @@
       "password": "xtuTFQSImXX5F0XJ",
       "proxy_url": "http://QmdKahLXsnf7S6oJ:xtuTFQSImXX5F0XJ@geo.floppydata.com:10080",
       "id": "proxy_160_c4b5a9",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032781.3350165,
+      "latency_ms": 521.86,
+      "ip_detected": "83.192.66.127",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032780811",
+      "lease_time": 1793032781.3350446,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032859.4619832,
+          "history": [
+            1793032859.4619832
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2081,15 +3062,24 @@
       "password": "oKih6qIqgWRT41a9",
       "proxy_url": "http://9U8j8z5uYT9Y9zLV:oKih6qIqgWRT41a9@geo.floppydata.com:10080",
       "id": "proxy_161_18ceb7",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032788.1908977,
+      "latency_ms": 877.92,
+      "ip_detected": "75.157.82.105",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032787310",
+      "lease_time": 1793032788.1909251,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032855.769265,
+          "history": [
+            1793032855.769265
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2100,15 +3090,24 @@
       "password": "KQIBe3FaoIBPvpmy",
       "proxy_url": "http://jsBTyGzuBe1ChGsP:KQIBe3FaoIBPvpmy@geo.floppydata.com:10080",
       "id": "proxy_162_17b2de",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032791.8502584,
+      "latency_ms": 801.79,
+      "ip_detected": "110.175.149.224",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032791045",
+      "lease_time": 1793032791.8502684,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032868.4498703,
+          "history": [
+            1793032868.4498703
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2119,15 +3118,24 @@
       "password": "Zk8lJJz5XGIz0W0Q",
       "proxy_url": "http://MTZXpATVS9Lsklca:Zk8lJJz5XGIz0W0Q@geo.floppydata.com:10080",
       "id": "proxy_163_1f8b29",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032798.567248,
+      "latency_ms": 845.44,
+      "ip_detected": "47.188.121.204",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032797720",
+      "lease_time": 1793032798.567256,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032885.5815349,
+          "history": [
+            1793032885.5815349
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2138,15 +3146,24 @@
       "password": "rv1mAVRFMU1rJlcj",
       "proxy_url": "http://sRgcCeKCwhr09zF2:rv1mAVRFMU1rJlcj@geo.floppydata.com:10080",
       "id": "proxy_164_0d5338",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032803.5377002,
+      "latency_ms": 543.53,
+      "ip_detected": "91.68.8.200",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032802990",
+      "lease_time": 1793032803.5377114,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032864.4358304,
+          "history": [
+            1793032864.4358304
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2157,15 +3174,24 @@
       "password": "nkjUDI7TKv7qFQ1K",
       "proxy_url": "http://uAm2xpPC241ASzhm:nkjUDI7TKv7qFQ1K@geo.floppydata.com:10080",
       "id": "proxy_165_d01fb8",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032859.4514115,
+      "latency_ms": 807.73,
+      "ip_detected": "73.150.102.39",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032858641",
+      "lease_time": 1793032859.4514184,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032899.0619404,
+          "history": [
+            1793032899.0619404
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2176,15 +3202,24 @@
       "password": "TqHCcshpjyLzx2kk",
       "proxy_url": "http://EG2htLNeMD3bqQhD:TqHCcshpjyLzx2kk@geo.floppydata.com:10080",
       "id": "proxy_166_aa677d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032861.0954955,
+      "latency_ms": 496.05,
+      "ip_detected": "151.229.67.138",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032860596",
+      "lease_time": 1793032861.0955021,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032921.8283112,
+          "history": [
+            1793032921.8283112
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2195,15 +3230,24 @@
       "password": "vDG0s6MXqLYxD9Rb",
       "proxy_url": "http://kjwsnPdkjLiF5dTC:vDG0s6MXqLYxD9Rb@geo.floppydata.com:10080",
       "id": "proxy_167_54a149",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032864.4125104,
+      "latency_ms": 531.95,
+      "ip_detected": "5.49.160.245",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032863878",
+      "lease_time": 1793032864.4125202,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032940.430214,
+          "history": [
+            1793032940.430214
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2214,15 +3258,24 @@
       "password": "ZEOQcgmKYgFj9LM7",
       "proxy_url": "http://YmUMrCbkGNOtUVJB:ZEOQcgmKYgFj9LM7@geo.floppydata.com:10080",
       "id": "proxy_168_3e5819",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032868.436255,
+      "latency_ms": 600.23,
+      "ip_detected": "99.235.157.43",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032867831",
+      "lease_time": 1793032868.4362628,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032957.1927404,
+          "history": [
+            1793032957.1927404
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2233,15 +3286,24 @@
       "password": "OtjbNgFljkKjLAUY",
       "proxy_url": "http://FQ4HKn8yNUXghGPp:OtjbNgFljkKjLAUY@geo.floppydata.com:10080",
       "id": "proxy_169_b006db",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032872.6107254,
+      "latency_ms": 806.99,
+      "ip_detected": "203.220.208.40",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032871801",
+      "lease_time": 1793032872.6107454,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032945.4141345,
+          "history": [
+            1793032945.4141345
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2252,15 +3314,24 @@
       "password": "5bgJzVjUxxe5a0k9",
       "proxy_url": "http://ZoBWRPAPJvKTXB8u:5bgJzVjUxxe5a0k9@geo.floppydata.com:10080",
       "id": "proxy_170_b0b580",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032889.9811318,
+      "latency_ms": 1448.55,
+      "ip_detected": "75.76.46.169",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032888529",
+      "lease_time": 1793032889.981143,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032928.0195265,
+          "history": [
+            1793032928.0195265
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2271,15 +3342,24 @@
       "password": "qsiGODyu139G14RF",
       "proxy_url": "http://aEX5Dn5rU0ooYgqG:qsiGODyu139G14RF@geo.floppydata.com:10080",
       "id": "proxy_171_3efbfe",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032904.0907702,
+      "latency_ms": 524.29,
+      "ip_detected": "109.9.40.192",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032903564",
+      "lease_time": 1793032904.090779,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032960.407069,
+          "history": [
+            1793032960.407069
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2290,15 +3370,24 @@
       "password": "4TEoNcCqNIhCx1zv",
       "proxy_url": "http://B2XzmgbcZyrqN1Op:4TEoNcCqNIhCx1zv@geo.floppydata.com:10080",
       "id": "proxy_124_e90cda",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032926.234971,
+      "latency_ms": 1082.3,
+      "ip_detected": "104.175.33.74",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793032925149",
+      "lease_time": 1793032926.2349868,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033026.0126445,
+          "history": [
+            1793033026.0126445
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2309,15 +3398,24 @@
       "password": "kvYDsg1q7KcS6jj2",
       "proxy_url": "http://rPlZXmVofmrdqRdA:kvYDsg1q7KcS6jj2@geo.floppydata.com:10080",
       "id": "proxy_125_b81f6f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032933.1600494,
+      "latency_ms": 788.64,
+      "ip_detected": "82.6.135.133",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032932367",
+      "lease_time": 1793032933.1600575,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793032977.7736099,
+          "history": [
+            1793032977.7736099
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2328,15 +3426,24 @@
       "password": "DxjqejpV6JnY2C5V",
       "proxy_url": "http://UFPByyTfAi9o60t3:DxjqejpV6JnY2C5V@geo.floppydata.com:10080",
       "id": "proxy_126_64dd56",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032944.9592452,
+      "latency_ms": 667.37,
+      "ip_detected": "82.231.214.63",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793032944288",
+      "lease_time": 1793032944.9592662,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033016.8042457,
+          "history": [
+            1793033016.8042457
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2347,15 +3454,16 @@
       "password": "QaMHTmaS3JQmsLdg",
       "proxy_url": "http://kpRAhoUrcU9oa76V:QaMHTmaS3JQmsLdg@geo.floppydata.com:10080",
       "id": "proxy_127_d12b18",
-      "health": "UNKNOWN",
+      "health": "DEAD",
       "usage": "IDLE",
-      "last_checked": null,
+      "last_checked": 1793032956.3944714,
       "latency_ms": null,
       "ip_detected": null,
       "fail_count": 0,
-      "last_error": null,
+      "last_error": "ReadTimeout: HTTPConnectionPool(host='geo.floppydata.com', port=10080): Read timed out. (read timeout=7)",
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -2366,15 +3474,24 @@
       "password": "wgiKQbxaa45VoyGz",
       "proxy_url": "http://m11dlWKVUc3IztMr:wgiKQbxaa45VoyGz@geo.floppydata.com:10080",
       "id": "proxy_128_95b13f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032957.1668382,
+      "latency_ms": 772.1,
+      "ip_detected": "125.253.57.44",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793032949288",
+      "lease_time": 1793032957.1668537,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033058.6942475,
+          "history": [
+            1793033058.6942475
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2385,15 +3502,24 @@
       "password": "fTpxr8a1M4yzXo7U",
       "proxy_url": "http://EYxEk7JwCIqVXADs:fTpxr8a1M4yzXo7U@geo.floppydata.com:10080",
       "id": "proxy_129_33c268",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032961.531073,
+      "latency_ms": 811.0,
+      "ip_detected": "69.120.109.124",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793032960718",
+      "lease_time": 1793032961.5310855,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033019.2537074,
+          "history": [
+            1793033019.2537074
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2404,15 +3530,24 @@
       "password": "RchX0eG27xXf4S2x",
       "proxy_url": "http://w3cJx1wYutGkC08G:RchX0eG27xXf4S2x@geo.floppydata.com:10080",
       "id": "proxy_130_40ebd6",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032965.4935646,
+      "latency_ms": 610.19,
+      "ip_detected": "146.199.175.75",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793032964879",
+      "lease_time": 1793032965.4935732,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033017.9391668,
+          "history": [
+            1793033017.9391668
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2423,15 +3558,24 @@
       "password": "2jxmQp94ohswoXr2",
       "proxy_url": "http://hNNzRQZCmbr5B2Qi:2jxmQp94ohswoXr2@geo.floppydata.com:10080",
       "id": "proxy_131_5b3a8d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793032982.9704387,
+      "latency_ms": 521.64,
+      "ip_detected": "37.67.84.126",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793032982446",
+      "lease_time": 1793032982.9704509,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033060.0067558,
+          "history": [
+            1793033060.0067558
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2442,15 +3586,24 @@
       "password": "cIAvDQ4YOyi6Cn0r",
       "proxy_url": "http://mKiLH7v6ouRcagum:cIAvDQ4YOyi6Cn0r@geo.floppydata.com:10080",
       "id": "proxy_132_42b177",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033020.1001935,
+      "latency_ms": 753.6,
+      "ip_detected": "24.77.103.136",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033019343",
+      "lease_time": 1793033020.1002095,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033101.2064736,
+          "history": [
+            1793033101.2064736
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2461,15 +3614,24 @@
       "password": "8Kxjziy17eR9Zrve",
       "proxy_url": "http://26POdMsOXU7Xs0K2:8Kxjziy17eR9Zrve@geo.floppydata.com:10080",
       "id": "proxy_133_49e944",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033024.3308988,
+      "latency_ms": 1450.79,
+      "ip_detected": "203.123.106.45",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033022872",
+      "lease_time": 1793033024.3309114,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033119.1624234,
+          "history": [
+            1793033119.1624234
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2480,15 +3642,24 @@
       "password": "3PQrT0pePGrqTqe8",
       "proxy_url": "http://hl85czXgtjN6dEqG:3PQrT0pePGrqTqe8@geo.floppydata.com:10080",
       "id": "proxy_134_0ab261",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033025.985446,
+      "latency_ms": 1634.0,
+      "ip_detected": "68.45.246.19",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033023541",
+      "lease_time": 1793033025.985456,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033121.3347957,
+          "history": [
+            1793033121.3347957
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2499,15 +3670,24 @@
       "password": "gBNX0Gz4xAtJO1QC",
       "proxy_url": "http://qzcLgRumNYnANhYL:gBNX0Gz4xAtJO1QC@geo.floppydata.com:10080",
       "id": "proxy_135_47f3c7",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033030.9862788,
+      "latency_ms": 1137.37,
+      "ip_detected": "86.233.109.99",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033029846",
+      "lease_time": 1793033030.9862895,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033121.5639024,
+          "history": [
+            1793033121.5639024
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2518,15 +3698,24 @@
       "password": "9wudKkTt3UB2tPNQ",
       "proxy_url": "http://ZrOYt6ZY3LnbMsy1:9wudKkTt3UB2tPNQ@geo.floppydata.com:10080",
       "id": "proxy_136_7d4cd2",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033063.3878412,
+      "latency_ms": 1018.74,
+      "ip_detected": "172.248.237.222",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033062363",
+      "lease_time": 1793033063.387854,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033132.4574635,
+          "history": [
+            1793033132.4574635
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2537,15 +3726,24 @@
       "password": "bDv7CXwnMF39MdiK",
       "proxy_url": "http://6udctgYiIYxGFmyd:bDv7CXwnMF39MdiK@geo.floppydata.com:10080",
       "id": "proxy_137_f54031",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033064.4212623,
+      "latency_ms": 517.49,
+      "ip_detected": "86.147.167.171",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033063902",
+      "lease_time": 1793033064.4212697,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033144.8227234,
+          "history": [
+            1793033144.8227234
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2556,15 +3754,24 @@
       "password": "QiqHGODRMYUKj6nA",
       "proxy_url": "http://PI2wClz0RGAGsWdO:QiqHGODRMYUKj6nA@geo.floppydata.com:10080",
       "id": "proxy_138_89fed9",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033105.1008623,
+      "latency_ms": 644.88,
+      "ip_detected": "86.218.217.26",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033104453",
+      "lease_time": 1793033105.1008701,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033191.252817,
+          "history": [
+            1793033191.252817
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2575,15 +3782,24 @@
       "password": "fMN6sn6ofavs2AGu",
       "proxy_url": "http://yiyulwLFxcDrKVZE:fMN6sn6ofavs2AGu@geo.floppydata.com:10080",
       "id": "proxy_139_65fda6",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033122.5584342,
+      "latency_ms": 687.34,
+      "ip_detected": "216.121.194.161",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033121866",
+      "lease_time": 1793033122.5584428,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033236.0858376,
+          "history": [
+            1793033236.0858376
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2594,15 +3810,24 @@
       "password": "du1UUg1PQ6l2rMzg",
       "proxy_url": "http://dalzIPcslT741Q1J:du1UUg1PQ6l2rMzg@geo.floppydata.com:10080",
       "id": "proxy_140_b67eeb",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033125.3105216,
+      "latency_ms": 815.27,
+      "ip_detected": "104.28.28.0",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033124488",
+      "lease_time": 1793033125.3105328,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033192.5748138,
+          "history": [
+            1793033192.5748138
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2613,15 +3838,24 @@
       "password": "h93ZVSIshWBJpu19",
       "proxy_url": "http://ONMlmKIduvXiPXky:h93ZVSIshWBJpu19@geo.floppydata.com:10080",
       "id": "proxy_141_d3e552",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033126.468054,
+      "latency_ms": 821.09,
+      "ip_detected": "208.79.163.27",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033124648",
+      "lease_time": 1793033126.4680622,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033231.1192625,
+          "history": [
+            1793033231.1192625
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2632,15 +3866,24 @@
       "password": "72fetF2OVlPrSXWC",
       "proxy_url": "http://ii5Uv0zBo23BlLXW:72fetF2OVlPrSXWC@geo.floppydata.com:10080",
       "id": "proxy_142_44250c",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033135.6792207,
+      "latency_ms": 550.39,
+      "ip_detected": "109.222.209.254",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033135124",
+      "lease_time": 1793033135.6792417,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033220.5331569,
+          "history": [
+            1793033220.5331569
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2651,15 +3894,24 @@
       "password": "fK9KFggZFVUoLOjP",
       "proxy_url": "http://inMGvCcCM1q8Uc4G:fK9KFggZFVUoLOjP@geo.floppydata.com:10080",
       "id": "proxy_143_aad5d5",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033149.0484848,
+      "latency_ms": 816.04,
+      "ip_detected": "76.35.54.130",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033148229",
+      "lease_time": 1793033149.0485113,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033258.5168362,
+          "history": [
+            1793033258.5168362
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2670,15 +3922,24 @@
       "password": "qPEQoGjinTftJsF5",
       "proxy_url": "http://GHIJZKmRvCVuOX21:qPEQoGjinTftJsF5@geo.floppydata.com:10080",
       "id": "proxy_144_02c123",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033194.7942433,
+      "latency_ms": 580.39,
+      "ip_detected": "31.52.108.143",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033194202",
+      "lease_time": 1793033194.794253,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033272.8429925,
+          "history": [
+            1793033272.8429925
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2689,15 +3950,24 @@
       "password": "dBJ2P0GUwrCf0NkK",
       "proxy_url": "http://hjeTqNOcwhwLaXt0:dBJ2P0GUwrCf0NkK@geo.floppydata.com:10080",
       "id": "proxy_145_91e092",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033195.699109,
+      "latency_ms": 573.46,
+      "ip_detected": "176.158.216.84",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033195123",
+      "lease_time": 1793033195.6991196,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033280.6084254,
+          "history": [
+            1793033280.6084254
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2708,15 +3978,24 @@
       "password": "SCMWbxjvT8gacphk",
       "proxy_url": "http://eMI6wbC6pgQ95ZK5:SCMWbxjvT8gacphk@geo.floppydata.com:10080",
       "id": "proxy_146_2bd5b6",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033224.7802572,
+      "latency_ms": 683.13,
+      "ip_detected": "184.146.17.249",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033224089",
+      "lease_time": 1793033224.7802656,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033318.9071057,
+          "history": [
+            1793033318.9071057
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2727,15 +4006,24 @@
       "password": "Wd1y6GvXyIyZPKE6",
       "proxy_url": "http://beRn0c6vlsAcBVEJ:Wd1y6GvXyIyZPKE6@geo.floppydata.com:10080",
       "id": "proxy_147_b0d114",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033235.3199158,
+      "latency_ms": 733.23,
+      "ip_detected": "139.168.207.86",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033234584",
+      "lease_time": 1793033235.319937,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033315.4904406,
+          "history": [
+            1793033315.4904406
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2746,15 +4034,24 @@
       "password": "HSVaEsMxjGO2bXBB",
       "proxy_url": "http://yQ7Am0QyAVVxF9JC:HSVaEsMxjGO2bXBB@geo.floppydata.com:10080",
       "id": "proxy_148_6f60da",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033240.6323318,
+      "latency_ms": 911.79,
+      "ip_detected": "174.165.232.172",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033239717",
+      "lease_time": 1793033240.6323469,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033295.1932786,
+          "history": [
+            1793033295.1932786
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2765,15 +4062,24 @@
       "password": "Pt0rzGKHTBxVmTTq",
       "proxy_url": "http://pKkq5g3WtGZy292W:Pt0rzGKHTBxVmTTq@geo.floppydata.com:10080",
       "id": "proxy_149_ff1530",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033264.1669307,
+      "latency_ms": 1030.5,
+      "ip_detected": "77.143.64.169",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033263131",
+      "lease_time": 1793033264.1669605,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033321.468888,
+          "history": [
+            1793033321.468888
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2784,15 +4090,24 @@
       "password": "SSK5jF3DUSZkbXdN",
       "proxy_url": "http://U1PmK5kJ2cUGYxX2:SSK5jF3DUSZkbXdN@geo.floppydata.com:10080",
       "id": "proxy_150_21a789",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033278.5974672,
+      "latency_ms": 958.34,
+      "ip_detected": "72.194.89.122",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033277636",
+      "lease_time": 1793033278.5974746,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033356.6135545,
+          "history": [
+            1793033356.6135545
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2803,15 +4118,24 @@
       "password": "M3CBdTAAgdOVoYVG",
       "proxy_url": "http://9AFc7rIA5bs3n3vZ:M3CBdTAAgdOVoYVG@geo.floppydata.com:10080",
       "id": "proxy_151_18b4c2",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033285.458482,
+      "latency_ms": 511.51,
+      "ip_detected": "86.0.208.110",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033284943",
+      "lease_time": 1793033285.4584928,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033375.4690773,
+          "history": [
+            1793033375.4690773
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2822,15 +4146,24 @@
       "password": "BWrkbWOpVlkibb9b",
       "proxy_url": "http://O0ZXf9lvfQ0UFhBx:BWrkbWOpVlkibb9b@geo.floppydata.com:10080",
       "id": "proxy_152_ddd873",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033298.5493724,
+      "latency_ms": 505.31,
+      "ip_detected": "81.53.204.195",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033298040",
+      "lease_time": 1793033298.549385,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033376.9153433,
+          "history": [
+            1793033376.9153433
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2841,15 +4174,24 @@
       "password": "d4K0C2gcvrWUP7lr",
       "proxy_url": "http://hbA858yWnPnQyDls:d4K0C2gcvrWUP7lr@geo.floppydata.com:10080",
       "id": "proxy_153_39d068",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033318.8925552,
+      "latency_ms": 593.48,
+      "ip_detected": "173.35.127.248",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033318295",
+      "lease_time": 1793033318.8925624,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033396.826383,
+          "history": [
+            1793033396.826383
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2860,15 +4202,24 @@
       "password": "2ejEulfADUdDSGcM",
       "proxy_url": "http://iHHlcSjwO3IS6rMR:2ejEulfADUdDSGcM@geo.floppydata.com:10080",
       "id": "proxy_154_5019e5",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033324.2557666,
+      "latency_ms": 667.18,
+      "ip_detected": "116.91.221.201",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033323584",
+      "lease_time": 1793033324.2557793,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033424.8683968,
+          "history": [
+            1793033424.8683968
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2879,15 +4230,24 @@
       "password": "kmxmqo5V8Osfat3n",
       "proxy_url": "http://Pch2664O7KdUoxIY:kmxmqo5V8Osfat3n@geo.floppydata.com:10080",
       "id": "proxy_155_f21361",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033325.2346911,
+      "latency_ms": 896.11,
+      "ip_detected": "47.12.103.90",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033324331",
+      "lease_time": 1793033325.2347,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033405.4149218,
+          "history": [
+            1793033405.4149218
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2898,15 +4258,24 @@
       "password": "AwTJA6Ag2hL1jx6C",
       "proxy_url": "http://IL3g0bv97mokkJ04:AwTJA6Ag2hL1jx6C@geo.floppydata.com:10080",
       "id": "proxy_156_28aeb7",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033361.0367625,
+      "latency_ms": 566.97,
+      "ip_detected": "92.148.101.3",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033360467",
+      "lease_time": 1793033361.0367725,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033433.7175708,
+          "history": [
+            1793033433.7175708
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -2917,15 +4286,24 @@
       "password": "i8nOXu0EHt4MLVhO",
       "proxy_url": "http://mYwxZh2V246u723Q:i8nOXu0EHt4MLVhO@geo.floppydata.com:10080",
       "id": "proxy_157_80502c",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033380.3956876,
+      "latency_ms": 959.01,
+      "ip_detected": "99.46.239.55",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033379433",
+      "lease_time": 1793033380.3956954,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033465.9422154,
+          "history": [
+            1793033465.9422154
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -2936,15 +4314,24 @@
       "password": "F9ZKBoTXiWiJeT4t",
       "proxy_url": "http://onmvJL80RKJCtRoI:F9ZKBoTXiWiJeT4t@geo.floppydata.com:10080",
       "id": "proxy_158_347d61",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033381.904755,
+      "latency_ms": 517.48,
+      "ip_detected": "86.150.145.71",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033381384",
+      "lease_time": 1793033381.9047725,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033440.9844692,
+          "history": [
+            1793033440.9844692
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -2955,15 +4342,24 @@
       "password": "67XVRqZjsPtLfaPd",
       "proxy_url": "http://pQ09rSxiQFn9Q8HJ:67XVRqZjsPtLfaPd@geo.floppydata.com:10080",
       "id": "proxy_159_523f60",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033400.9549136,
+      "latency_ms": 581.05,
+      "ip_detected": "88.136.74.43",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033400368",
+      "lease_time": 1793033400.954923,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033508.14681,
+          "history": [
+            1793033508.14681
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -2974,15 +4370,24 @@
       "password": "t5JUzuCVFiQbn4EE",
       "proxy_url": "http://3nLOUbrktt5CzXgU:t5JUzuCVFiQbn4EE@geo.floppydata.com:10080",
       "id": "proxy_160_739f12",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033408.9517558,
+      "latency_ms": 747.05,
+      "ip_detected": "75.154.176.91",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033408200",
+      "lease_time": 1793033408.9517727,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033456.3386955,
+          "history": [
+            1793033456.3386955
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -2993,15 +4398,24 @@
       "password": "k22yQ1rxrRez3q07",
       "proxy_url": "http://pUmqG4yqLHCz3kNo:k22yQ1rxrRez3q07@geo.floppydata.com:10080",
       "id": "proxy_161_ed6d3f",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033430.5882888,
+      "latency_ms": 881.71,
+      "ip_detected": "1.41.233.179",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033429702",
+      "lease_time": 1793033430.58831,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033525.517169,
+          "history": [
+            1793033525.517169
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3012,15 +4426,24 @@
       "password": "cl2owi9WN3cjvENr",
       "proxy_url": "http://tHUQg7OkvtLi8lqN:cl2owi9WN3cjvENr@geo.floppydata.com:10080",
       "id": "proxy_162_37ba29",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033437.709277,
+      "latency_ms": 829.27,
+      "ip_detected": "24.47.19.10",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033436876",
+      "lease_time": 1793033437.709285,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033495.4014819,
+          "history": [
+            1793033495.4014819
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -3031,15 +4454,24 @@
       "password": "g9UhqtlfJuYGa0Ea",
       "proxy_url": "http://m7tZyHiNH6vVjBd8:g9UhqtlfJuYGa0Ea@geo.floppydata.com:10080",
       "id": "proxy_163_ac55ed",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033445.9670339,
+      "latency_ms": 775.02,
+      "ip_detected": "86.75.67.6",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033445188",
+      "lease_time": 1793033445.9670475,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033529.4242542,
+          "history": [
+            1793033529.4242542
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3050,15 +4482,24 @@
       "password": "6TVuR2EjfQtMiVol",
       "proxy_url": "http://TvsYsI1gwRhPptLj:6TVuR2EjfQtMiVol@geo.floppydata.com:10080",
       "id": "proxy_164_e87508",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033460.3847787,
+      "latency_ms": 1171.6,
+      "ip_detected": "73.35.13.118",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033459211",
+      "lease_time": 1793033460.3847861,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033541.994634,
+          "history": [
+            1793033541.994634
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -3069,15 +4510,24 @@
       "password": "0eQ5LhxOWFrKrmaW",
       "proxy_url": "http://FqfSrXLibMnI7tSj:0eQ5LhxOWFrKrmaW@geo.floppydata.com:10080",
       "id": "proxy_165_0c8144",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033471.2595184,
+      "latency_ms": 510.59,
+      "ip_detected": "86.183.128.149",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033470746",
+      "lease_time": 1793033471.259527,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033547.951923,
+          "history": [
+            1793033547.951923
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -3088,15 +4538,24 @@
       "password": "qN3lUsZ2Uz9zPcUT",
       "proxy_url": "http://gcnJ2EaB15tM8St1:qN3lUsZ2Uz9zPcUT@geo.floppydata.com:10080",
       "id": "proxy_166_043dd9",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033500.4915822,
+      "latency_ms": 646.43,
+      "ip_detected": "90.86.49.98",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033499841",
+      "lease_time": 1793033500.491592,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033605.4398708,
+          "history": [
+            1793033605.4398708
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -3107,15 +4566,24 @@
       "password": "bcUs1lzCtx6JStcn",
       "proxy_url": "http://PlmmtXE4rgYailna:bcUs1lzCtx6JStcn@geo.floppydata.com:10080",
       "id": "proxy_167_660a07",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033513.4050205,
+      "latency_ms": 642.89,
+      "ip_detected": "184.162.144.58",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033512757",
+      "lease_time": 1793033513.405041,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033553.2514436,
+          "history": [
+            1793033553.2514436
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -3126,15 +4594,24 @@
       "password": "a8VtV9kwiy4Ak14r",
       "proxy_url": "http://GMAffL6xYoxqIoTn:a8VtV9kwiy4Ak14r@geo.floppydata.com:10080",
       "id": "proxy_168_19a3ec",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033531.1495612,
+      "latency_ms": 1596.49,
+      "ip_detected": "124.171.155.243",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033529549",
+      "lease_time": 1793033531.1495688,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033636.3542717,
+          "history": [
+            1793033636.3542717
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3145,15 +4622,24 @@
       "password": "UX8rKSk1QKr4LwjH",
       "proxy_url": "http://1qYdCgicqgygXfIl:UX8rKSk1QKr4LwjH@geo.floppydata.com:10080",
       "id": "proxy_169_e9be83",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033532.984298,
+      "latency_ms": 837.45,
+      "ip_detected": "65.27.153.80",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033532144",
+      "lease_time": 1793033532.984307,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033627.3293765,
+          "history": [
+            1793033627.3293765
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -3164,15 +4650,24 @@
       "password": "rcxamy1jovZOnMu0",
       "proxy_url": "http://7xHaCt8j3EQFnV9Q:rcxamy1jovZOnMu0@geo.floppydata.com:10080",
       "id": "proxy_170_29e1b8",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033545.9308293,
+      "latency_ms": 519.4,
+      "ip_detected": "88.163.241.23",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033545408",
+      "lease_time": 1793033545.93084,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033612.5841603,
+          "history": [
+            1793033612.5841603
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3183,15 +4678,24 @@
       "password": "MF4bAKLh12zrEfkO",
       "proxy_url": "http://1Bymmwet4seHtU3Z:MF4bAKLh12zrEfkO@geo.floppydata.com:10080",
       "id": "proxy_171_a0abbb",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033553.2336671,
+      "latency_ms": 942.87,
+      "ip_detected": "69.127.68.183",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033552288",
+      "lease_time": 1793033553.233676,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033597.7162135,
+          "history": [
+            1793033597.7162135
+          ]
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -3202,15 +4706,24 @@
       "password": "KMZ5FLGn0lq5Wqvo",
       "proxy_url": "http://S1ymxITsaKJsjzbI:KMZ5FLGn0lq5Wqvo@geo.floppydata.com:10080",
       "id": "proxy_172_a6206c",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033556.5880136,
+      "latency_ms": 672.42,
+      "ip_detected": "90.222.149.64",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033555912",
+      "lease_time": 1793033556.5880218,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033616.4984796,
+          "history": [
+            1793033616.4984796
+          ]
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -3221,15 +4734,24 @@
       "password": "ktN0WCGh0rBVEV16",
       "proxy_url": "http://awDocbiZUu7db5aU:ktN0WCGh0rBVEV16@geo.floppydata.com:10080",
       "id": "proxy_173_6ef7a7",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033601.4252095,
+      "latency_ms": 602.95,
+      "ip_detected": "37.65.178.228",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033600819",
+      "lease_time": 1793033601.425221,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033660.9961674,
+          "history": [
+            1793033660.9961674
+          ]
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -3240,15 +4762,24 @@
       "password": "h1Y02mQ5qVJXOcre",
       "proxy_url": "http://QWoY8lA16xoRH2wh:h1Y02mQ5qVJXOcre@geo.floppydata.com:10080",
       "id": "proxy_174_ae63aa",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033609.5323443,
+      "latency_ms": 1269.34,
+      "ip_detected": "209.227.139.113",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033608260",
+      "lease_time": 1793033609.5323555,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033655.781566,
+          "history": [
+            1793033655.781566
+          ]
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -3259,15 +4790,24 @@
       "password": "3D0WVqbBhe2WSc2n",
       "proxy_url": "http://t44zqV9i0Oe0QH8f:3D0WVqbBhe2WSc2n@geo.floppydata.com:10080",
       "id": "proxy_175_272cc3",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033616.1674516,
+      "latency_ms": 945.74,
+      "ip_detected": "115.131.236.111",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w6_1793033615218",
+      "lease_time": 1793033616.1674592,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033706.0111334,
+          "history": [
+            1793033706.0111334
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3278,15 +4818,16 @@
       "password": "XxjZGLVFLo7j0MI5",
       "proxy_url": "http://poBiZ3NUJZdcLR6q:XxjZGLVFLo7j0MI5@geo.floppydata.com:10080",
       "id": "proxy_176_847b0b",
-      "health": "UNKNOWN",
+      "health": "DEAD",
       "usage": "IDLE",
-      "last_checked": null,
+      "last_checked": 1793033626.7246232,
       "latency_ms": null,
       "ip_detected": null,
       "fail_count": 0,
-      "last_error": null,
+      "last_error": "ReadTimeout: HTTPConnectionPool(host='geo.floppydata.com', port=10080): Read timed out. (read timeout=7)",
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3297,15 +4838,24 @@
       "password": "4Lr9V0zm5CUS63dI",
       "proxy_url": "http://g01F8v7lq3pdJUBZ:4Lr9V0zm5CUS63dI@geo.floppydata.com:10080",
       "id": "proxy_177_431845",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033627.275545,
+      "latency_ms": 550.63,
+      "ip_detected": "37.68.55.34",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033619666",
+      "lease_time": 1793033627.2755644,
+      "target_usage": {
+        "monetag": {
+          "count": 1,
+          "last_used": 1793033700.3326278,
+          "history": [
+            1793033700.3326278
+          ]
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3316,15 +4866,22 @@
       "password": "7fKwt0hHqvc4zc3d",
       "proxy_url": "http://efJ6V8EHiMI06IrM:7fKwt0hHqvc4zc3d@geo.floppydata.com:10080",
       "id": "proxy_178_2f2f7d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033631.2713664,
+      "latency_ms": 844.24,
+      "ip_detected": "24.101.48.65",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w1_1793033630424",
+      "lease_time": 1793033631.2713766,
+      "target_usage": {
+        "monetag": {
+          "count": 0,
+          "last_used": null,
+          "history": []
+        }
+      }
     },
     {
       "country": "UNITED KINGDOM",
@@ -3335,15 +4892,22 @@
       "password": "2TjC1UP14FTAkZX4",
       "proxy_url": "http://dNw2oGk1nJe2iBzB:2TjC1UP14FTAkZX4@geo.floppydata.com:10080",
       "id": "proxy_179_5231cd",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033640.970958,
+      "latency_ms": 1019.59,
+      "ip_detected": "92.234.45.182",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w2_1793033639947",
+      "lease_time": 1793033640.9709704,
+      "target_usage": {
+        "monetag": {
+          "count": 0,
+          "last_used": null,
+          "history": []
+        }
+      }
     },
     {
       "country": "FRANCE",
@@ -3354,15 +4918,22 @@
       "password": "7dmL0DwZAKUcM9gU",
       "proxy_url": "http://kB07t5DSfd93WtGj:7dmL0DwZAKUcM9gU@geo.floppydata.com:10080",
       "id": "proxy_180_df520a",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033659.8299315,
+      "latency_ms": 545.88,
+      "ip_detected": "90.103.37.193",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w4_1793033659281",
+      "lease_time": 1793033659.8299396,
+      "target_usage": {
+        "monetag": {
+          "count": 0,
+          "last_used": null,
+          "history": []
+        }
+      }
     },
     {
       "country": "CANADA",
@@ -3373,15 +4944,22 @@
       "password": "6JYAwCPUWmnbZ8W3",
       "proxy_url": "http://j4Jy01AZjWDuZvyi:6JYAwCPUWmnbZ8W3@geo.floppydata.com:10080",
       "id": "proxy_181_9eb1e4",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033666.6024656,
+      "latency_ms": 1171.19,
+      "ip_detected": "144.168.55.132",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w5_1793033665428",
+      "lease_time": 1793033666.6024766,
+      "target_usage": {
+        "monetag": {
+          "count": 0,
+          "last_used": null,
+          "history": []
+        }
+      }
     },
     {
       "country": "AUSTRALIA",
@@ -3392,15 +4970,22 @@
       "password": "nlpY3m1fIuTpfpYa",
       "proxy_url": "http://qcLDfOezvNI2q2tM:nlpY3m1fIuTpfpYa@geo.floppydata.com:10080",
       "id": "proxy_182_b7509d",
-      "health": "UNKNOWN",
-      "usage": "IDLE",
-      "last_checked": null,
-      "latency_ms": null,
-      "ip_detected": null,
+      "health": "ALIVE",
+      "usage": "IN_USE",
+      "last_checked": 1793033705.278165,
+      "latency_ms": 643.85,
+      "ip_detected": "116.91.221.201",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null
+      "leased_by": "monetag_w3_1793033704631",
+      "lease_time": 1793033705.2781816,
+      "target_usage": {
+        "monetag": {
+          "count": 0,
+          "last_used": null,
+          "history": []
+        }
+      }
     },
     {
       "country": "UNITED STATES",
@@ -3419,7 +5004,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3438,7 +5024,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3457,7 +5044,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3476,7 +5064,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3495,7 +5084,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3514,7 +5104,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3533,7 +5124,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED KINGDOM",
@@ -3552,7 +5144,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3571,7 +5164,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "CANADA",
@@ -3590,7 +5184,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -3609,7 +5204,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3628,7 +5224,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3647,7 +5244,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3666,7 +5264,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED KINGDOM",
@@ -3685,7 +5284,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3704,7 +5304,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "CANADA",
@@ -3723,7 +5324,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -3742,7 +5344,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3761,7 +5364,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED KINGDOM",
@@ -3780,7 +5384,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3799,7 +5404,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "CANADA",
@@ -3818,7 +5424,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -3837,7 +5444,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3856,7 +5464,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3875,7 +5484,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3894,7 +5504,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED KINGDOM",
@@ -3913,7 +5524,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -3932,7 +5544,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "CANADA",
@@ -3951,7 +5564,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -3970,7 +5584,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -3989,7 +5604,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -4008,7 +5624,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -4027,7 +5644,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -4046,7 +5664,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -4065,7 +5684,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED KINGDOM",
@@ -4084,7 +5704,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -4103,7 +5724,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "CANADA",
@@ -4122,7 +5744,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -4141,7 +5764,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -4160,7 +5784,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED KINGDOM",
@@ -4179,7 +5804,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -4198,7 +5824,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "CANADA",
@@ -4217,7 +5844,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "AUSTRALIA",
@@ -4236,7 +5864,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "UNITED STATES",
@@ -4255,7 +5884,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     },
     {
       "country": "FRANCE",
@@ -4274,7 +5904,8 @@
       "fail_count": 0,
       "last_error": null,
       "leased_by": null,
-      "lease_time": null
+      "lease_time": null,
+      "target_usage": {}
     }
   ]
 }
