@@ -675,6 +675,9 @@ class ProxyManager:
         - Jika proxy DEAD, tetap DEAD (tidak otomatis jadi ALIVE).
         - Pemanggilan release aman dan tidak membatalkan alokasi milik caller lain.
         """
+        if isinstance(identifier, dict):
+            identifier = identifier.get("id") or identifier.get("proxy_url") or ""
+
         with self._lock:
             data = self._load_raw()
             proxies = data.get("proxies", [])
