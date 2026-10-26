@@ -7,6 +7,7 @@ import {
   ADSTERRA_SOCIALBAR_SRC,
   MONETAG_MULTITAG_SRC,
   MONETAG_MULTITAG_ZONE,
+  EXOCLICK_POPUNDER_CODE,
 } from '@/lib/ads';
 
 export function AdNetworkManager() {
@@ -18,7 +19,16 @@ export function AdNetworkManager() {
 
     const provider = getAdProvider();
 
-    if (provider === 'monetag') {
+    if (provider === 'exoclick') {
+      // Load ExoClick Popunder script
+      if (!document.getElementById('exoclick-popunder')) {
+        const exoScript = document.createElement('script');
+        exoScript.id = 'exoclick-popunder';
+        exoScript.type = 'application/javascript';
+        exoScript.text = EXOCLICK_POPUNDER_CODE;
+        document.body.appendChild(exoScript);
+      }
+    } else if (provider === 'monetag') {
       // Load Monetag MultiTag script
       if (!document.getElementById('monetag-multitag')) {
         const script = document.createElement('script');
