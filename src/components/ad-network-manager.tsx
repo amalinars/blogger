@@ -56,15 +56,6 @@ export function AdNetworkManager() {
         document.body.appendChild(stickyWrapper);
       }
 
-      // 4. Load ExoClick Outstream Video
-      if (!document.getElementById('exoclick-outstream')) {
-        const outstreamIns = document.createElement('ins');
-        outstreamIns.id = 'exoclick-outstream';
-        outstreamIns.className = 'eas6a97888e37';
-        outstreamIns.setAttribute('data-zoneid', String(EXOCLICK_OUTSTREAM_ZONE_ID));
-        document.body.appendChild(outstreamIns);
-      }
-
       // Load ExoClick AdProvider Script once & serve widgets
       if (!document.getElementById('exoclick-native-script')) {
         const script = document.createElement('script');

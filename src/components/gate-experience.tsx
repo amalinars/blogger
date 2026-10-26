@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import { BannerSlot } from '@/components/banner-ad-loader';
 import { NativeAdSlot } from '@/components/native-ad-loader';
+import { VideoAdSlot } from '@/components/video-ad-loader';
 import {
   BANNER_LEADERBOARD,
   BANNER_MED_RECT,
@@ -32,11 +33,15 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   const [showDestination, setShowDestination] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [provider, setProvider] = useState<string>('adsterra');
+  const [videoSlotIndex, setVideoSlotIndex] = useState<number>(0);
   const finalRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     setProvider(getAdProvider());
-  }, []);
+    if (steps.length > 1) {
+      setVideoSlotIndex(Math.floor(Math.random() * (steps.length - 1)));
+    }
+  }, [steps.length]);
 
   const totalSeconds = steps.reduce((sum, step) => sum + step.delaySeconds, 0);
   const destinationProtocol = destination.url.startsWith('https:')
@@ -283,15 +288,18 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
           </div>
 
           <div className="min-w-0 space-y-5">
-            {steps.map((step) => (
-              <GateStep
-                key={step.id}
-                step={step}
-                total={total}
-                isActive={step.index === completedCount}
-                isCompleted={step.index < completedCount}
-                onComplete={() => handleStepComplete(step.index)}
-              />
+            {steps.map((step, idx) => (
+              <Fragment key={step.id}>
+                <GateStep
+                  step={step}
+                  total={total}
+                  isActive={step.index === completedCount}
+                  isCompleted={step.index < completedCount}
+                  onComplete={() => handleStepComplete(step.index)}
+                />
+                {/* Sisipkan video ads secara acak di antara stepper */}
+                {idx === videoSlotIndex && <VideoAdSlot className="my-2" />}
+              </Fragment>
             ))}
 
             {/* Native Recommendation Ad Slot */}
