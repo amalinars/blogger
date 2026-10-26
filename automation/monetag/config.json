@@ -1,0 +1,39 @@
+{
+  "target_url": "https://article.riztama.my.id/",
+  "direct_link_url": "https://uplcm.com/4/12124796",
+  "multitag_zone": "302175",
+  "ad_hosts": [
+    "quge5.com",
+    "5gvci.com",
+    "uplcm.com",
+    "al5sm.com",
+    "nap5k.com",
+    "n6wxm.com",
+    "bauval.org",
+    "abscloud.org"
+  ],
+  "headless": true,
+  "humanize": true,
+  "concurrency": 3,
+  "max_sessions_per_run": 25,
+  "max_uses_per_day": 2,
+  "proxy_cooldown_hours": 6.0,
+  "dwell_page_seconds": {
+    "min": 5.0,
+    "max": 12.0
+  },
+  "dwell_popup_seconds": {
+    "min": 10.0,
+    "max": 20.0
+  },
+  "dwell_direct_link_seconds": {
+    "min": 12.0,
+    "max": 25.0
+  },
+  "popunder_click_count": {
+    "min": 1,
+    "max": 3
+  },
+  "direct_link_chance": 0.85,
+  "report_dir": "data/monetag_qa"
+}
