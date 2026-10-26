@@ -3,8 +3,8 @@
 automation.exoclick.flow
 Workflow automasi khusus ExoClick Ads:
 - Memuat website target dengan parameter ?ad_network=exoclick.
-- Membuka halaman dan memicu 4 format ExoClick: Popunder (6066234), In-Page Push (6066246),
-  Native Recommendation Banner (6066238), dan Display Banner (6066244).
+- Membuka halaman dan memicu format ExoClick: Popunder (6066234), In-Page Push (6066246),
+  Native Banner (6066238), Display Banner (6066244), Sticky Banner (6066266), dan Outstream Video (6066272).
 - Interaksi ultra-humanized: kurva Bézier, micro-tremor, variasi kecepatan, scroll naik-turun, dan klik acak.
 - Penanganan multi-tab popunder: mendeteksi tab baru yang terbuka, dwell natural, lalu menutup tabnya.
 - Terintegrasi penuh dengan GUI dashboard, event stepper, budget session, dan ProxyManager target usage.
@@ -91,7 +91,12 @@ def run_exoclick_session(
 
     # Format profil Camoufox
     geo = resolve_geo_profile(proxy_data or {})
-    camoufox_opts = build_camoufox_kwargs(proxy_data, geo, headless=headless)
+    camoufox_opts = build_camoufox_kwargs(
+        proxy_data=proxy_data,
+        headless=headless,
+        humanize=humanize_enabled,
+        allow_ads=True,
+    )
 
     with Camoufox(**camoufox_opts) as browser:
         context = browser.new_context()

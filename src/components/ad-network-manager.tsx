@@ -10,6 +10,7 @@ import {
   EXOCLICK_POPUNDER_CODE,
   EXOCLICK_INPAGE_PUSH_ZONE_ID,
   EXOCLICK_STICKY_ZONE_ID,
+  EXOCLICK_OUTSTREAM_ZONE_ID,
   EXOCLICK_NATIVE_SCRIPT,
 } from '@/lib/ads';
 
@@ -53,6 +54,15 @@ export function AdNetworkManager() {
         stickyIns.setAttribute('data-zoneid', String(EXOCLICK_STICKY_ZONE_ID));
         stickyWrapper.appendChild(stickyIns);
         document.body.appendChild(stickyWrapper);
+      }
+
+      // 4. Load ExoClick Outstream Video
+      if (!document.getElementById('exoclick-outstream')) {
+        const outstreamIns = document.createElement('ins');
+        outstreamIns.id = 'exoclick-outstream';
+        outstreamIns.className = 'eas6a97888e37';
+        outstreamIns.setAttribute('data-zoneid', String(EXOCLICK_OUTSTREAM_ZONE_ID));
+        document.body.appendChild(outstreamIns);
       }
 
       // Load ExoClick AdProvider Script once & serve widgets

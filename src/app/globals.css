@@ -498,4 +498,18 @@ body {
   border-radius: 6px !important;
 }
 
+/* ExoClick Outstream Video (6066272) */
+.eas6a97888e37 {
+  display: block !important;
+  max-width: 100% !important;
+  margin: 1rem auto !important;
+  text-align: center !important;
+}
+
+.eas6a97888e37 video,
+.eas6a97888e37 iframe {
+  max-width: 100% !important;
+  border-radius: 8px !important;
+}
+
 
