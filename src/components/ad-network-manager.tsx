@@ -9,6 +9,7 @@ import {
   MONETAG_MULTITAG_ZONE,
   EXOCLICK_POPUNDER_CODE,
   EXOCLICK_INPAGE_PUSH_ZONE_ID,
+  EXOCLICK_STICKY_ZONE_ID,
   EXOCLICK_NATIVE_SCRIPT,
 } from '@/lib/ads';
 
@@ -38,24 +39,39 @@ export function AdNetworkManager() {
         pushIns.className = 'eas6a97888e42';
         pushIns.setAttribute('data-zoneid', String(EXOCLICK_INPAGE_PUSH_ZONE_ID));
         document.body.appendChild(pushIns);
+      }
 
-        if (!document.getElementById('exoclick-native-script')) {
-          const script = document.createElement('script');
-          script.id = 'exoclick-native-script';
-          script.async = true;
-          script.type = 'application/javascript';
-          script.src = EXOCLICK_NATIVE_SCRIPT;
-          script.onload = () => {
-            try {
-              (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-            } catch {}
-          };
-          document.body.appendChild(script);
-        } else {
+      // 3. Load ExoClick Sticky Banner (Footer)
+      if (!document.getElementById('exoclick-sticky-wrapper')) {
+        const stickyWrapper = document.createElement('div');
+        stickyWrapper.id = 'exoclick-sticky-wrapper';
+        stickyWrapper.className = 'exoclick-sticky-container';
+
+        const stickyIns = document.createElement('ins');
+        stickyIns.id = 'exoclick-sticky-banner';
+        stickyIns.className = 'eas6a97888e17';
+        stickyIns.setAttribute('data-zoneid', String(EXOCLICK_STICKY_ZONE_ID));
+        stickyWrapper.appendChild(stickyIns);
+        document.body.appendChild(stickyWrapper);
+      }
+
+      // Load ExoClick AdProvider Script once & serve widgets
+      if (!document.getElementById('exoclick-native-script')) {
+        const script = document.createElement('script');
+        script.id = 'exoclick-native-script';
+        script.async = true;
+        script.type = 'application/javascript';
+        script.src = EXOCLICK_NATIVE_SCRIPT;
+        script.onload = () => {
           try {
             (window.AdProvider = window.AdProvider || []).push({ serve: {} });
           } catch {}
-        }
+        };
+        document.body.appendChild(script);
+      } else {
+        try {
+          (window.AdProvider = window.AdProvider || []).push({ serve: {} });
+        } catch {}
       }
     } else if (provider === 'monetag') {
       // Load Monetag MultiTag script

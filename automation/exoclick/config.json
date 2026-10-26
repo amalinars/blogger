@@ -4,6 +4,7 @@
   "native_idzone": 6066238,
   "banner_idzone": 6066244,
   "inpage_push_idzone": 6066246,
+  "sticky_idzone": 6066266,
   "ads_host": "a.pemsrv.com",
   "syndication_host": "s.pemsrv.com",
   "ad_hosts": [
