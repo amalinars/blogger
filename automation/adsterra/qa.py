@@ -103,10 +103,15 @@ def is_proxy_pool_exhausted(stats: Dict[str, Any]) -> bool:
 
 
 class SessionBudget:
-    """Thread-safe cap that prevents unbounded QA visits."""
+    """Thread-safe cap that prevents unbounded QA visits.
+
+    max_sessions=0 means unlimited — the budget never exhausts on its own.
+    """
 
     def __init__(self, max_sessions: int, max_sessions_per_proxy: int = 1):
-        self.max_sessions = max(1, int(max_sessions))
+        # 0 → unlimited; otherwise clamp to >= 1
+        self.max_sessions = int(max_sessions)  # allow 0
+        self.unlimited = self.max_sessions == 0
         self.max_sessions_per_proxy = max(1, int(max_sessions_per_proxy))
         self._lock = threading.RLock()
         self.reserved = 0
@@ -119,11 +124,23 @@ class SessionBudget:
 
     def has_capacity(self) -> bool:
         with self._lock:
-            return not self.stopped and self.reserved < self.max_sessions
+            if self.stopped:
+                return False
+            if self.unlimited:
+                return True
+            return self.reserved < self.max_sessions
 
     def is_exhausted(self) -> bool:
         with self._lock:
+            if self.unlimited:
+                return self.stopped  # only stops explicitly
             return self.stopped or self.completed >= self.max_sessions
+
+    def set_max_sessions(self, new_max: int) -> None:
+        """Dynamically expand max_sessions when new proxies are added to pool."""
+        with self._lock:
+            if not self.unlimited and new_max > self.max_sessions:
+                self.max_sessions = new_max
 
     def stop(self) -> None:
         with self._lock:
@@ -131,18 +148,30 @@ class SessionBudget:
 
     def reserve(self) -> bool:
         with self._lock:
-            if self.stopped or self.reserved >= self.max_sessions:
+            if self.stopped:
+                return False
+            if self.unlimited:
+                self.reserved += 1
+                return True
+            if self.reserved >= self.max_sessions:
                 return False
             self.reserved += 1
             return True
 
     def can_use_proxy(self, proxy_id: str) -> bool:
         with self._lock:
+            if self.unlimited:
+                return True  # in unlimited mode proxies are reset by the controller
             return self.proxy_counts.get(proxy_id, 0) < self.max_sessions_per_proxy
 
     def mark_proxy(self, proxy_id: str) -> None:
         with self._lock:
             self.proxy_counts[proxy_id] = self.proxy_counts.get(proxy_id, 0) + 1
+
+    def reset_proxy_counts(self) -> None:
+        """Clear per-proxy usage counters (called when proxy pool loops)."""
+        with self._lock:
+            self.proxy_counts.clear()
 
     def record(self, status: str) -> None:
         with self._lock:
@@ -153,6 +182,13 @@ class SessionBudget:
                 self.warned += 1
             else:
                 self.failed += 1
+
+    def record_session(self, proxy_id: Optional[str], status: str) -> None:
+        """Helper to record session status and increment proxy count."""
+        with self._lock:
+            self.record(status)
+            if proxy_id:
+                self.proxy_counts[proxy_id] = self.proxy_counts.get(proxy_id, 0) + 1
 
     def covered_all(self, total_proxies: int) -> bool:
         with self._lock:
@@ -169,13 +205,14 @@ class SessionBudget:
         with self._lock:
             return {
                 "max_sessions": self.max_sessions,
+                "unlimited": self.unlimited,
                 "max_sessions_per_proxy": self.max_sessions_per_proxy,
                 "reserved": self.reserved,
                 "completed": self.completed,
                 "passed": self.passed,
                 "warned": self.warned,
                 "failed": self.failed,
-                "remaining": max(0, self.max_sessions - self.completed),
+                "remaining": (0 if self.unlimited else max(0, self.max_sessions - self.completed)),
                 "proxy_counts": dict(self.proxy_counts),
                 "stopped": self.stopped,
             }
