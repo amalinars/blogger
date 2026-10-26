@@ -394,6 +394,9 @@ def monetag_worker_thread_loop(
             caller_id=caller_id,
             exclusive=True,
             verify_alive=False,
+            target=target_name,
+            max_uses_per_day=max_uses,
+            cooldown_seconds=cooldown_hrs * 3600,
         )
 
         if not proxy:

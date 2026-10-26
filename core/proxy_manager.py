@@ -134,6 +134,10 @@ class ProxyManager:
         item.setdefault("leased_by", None)
         item.setdefault("lease_time", None)
 
+        # Modular target usage flags (misal: adsterra, youtube)
+        if "target_usage" not in item or not isinstance(item["target_usage"], dict):
+            item["target_usage"] = {}
+
         # Hapus key lama status jika bentrok
         if "status" in item and item["status"] in ("idle", "in_use", "active", "alive", "dead"):
             del item["status"]
@@ -450,11 +454,18 @@ class ProxyManager:
         caller_id: Optional[str] = None,
         exclusive: bool = True,
         verify_alive: bool = False,
+        target: Optional[str] = None,
+        max_uses_per_day: int = 2,
+        cooldown_seconds: float = 6 * 3600,
+        window_seconds: float = 24 * 3600,
+        auto_record: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Mengambil proxy sehat berikutnya dengan rotasi berkelanjutan (cursor persisten).
         - Dimulai dari cursor terakhir yang tersimpan di proxies.json.
         - Proxy DEAD atau IN_USE dilewati.
+        - Jika target ditentukan: proxy dicek terhadap kuota harian (max_uses_per_day)
+          dan cooldown (cooldown_seconds). Otomatis di-reset jika sudah lewat window_seconds (24 jam).
         - Proxy UNKNOWN divalidasi langsung sebelum dialokasikan.
         - Jika verify_alive=True: status ALIVE di-recheck langsung (tidak langsung dipercaya).
         - Menandai proxy menjadi IN_USE dan memperbarui cursor rotasi secara persisten.
@@ -470,59 +481,75 @@ class ProxyManager:
             cursor = data.get("cursor", 0) % total
             lease_token = caller_id or f"lease_{uuid.uuid4().hex[:8]}"
 
-            # Loop maksimal 1 putaran penuh dari posisi cursor
-            for offset in range(total):
-                idx = (cursor + offset) % total
-                candidate = proxies[idx]
+            # Dua putaran bertingkat (Two-Tier Priority Queue):
+            # Putaran 1 (require_fresh=True): Wajib cari proxy yang count == 0 (Fresh / belum pernah dipakai)
+            # Putaran 2 (require_fresh=False): Jika stok fresh 0/2 habis total, baru ambil yang sekunder (1/2, lolos cooldown)
+            passes = [True, False] if target else [False]
 
-                # 1. Lewati jika sedang digunakan (jika exclusive)
-                if exclusive and candidate.get("usage") == USAGE_IN_USE:
-                    continue
+            for require_fresh in passes:
+                # Loop maksimal 1 putaran penuh dari posisi cursor
+                for offset in range(total):
+                    idx = (cursor + offset) % total
+                    candidate = proxies[idx]
 
-                # 2. Lewati jika DEAD
-                if candidate.get("health") == HEALTH_DEAD:
-                    continue
-
-                # 3. Jika COOLDOWN, cek apakah sudah selesai cooldownnya
-                if candidate.get("health") == HEALTH_COOLDOWN:
-                    last_chk = candidate.get("last_checked", 0) or 0
-                    if (time.time() - last_chk) < 60:  # 60 detik masa pendinginan
-                        continue
-                    # Selesai cooldown, kembalikan ke ALIVE untuk dicoba
-                    candidate["health"] = HEALTH_ALIVE
-
-                # 4. Jika UNKNOWN, harus divalidasi terlebih dahulu
-                if candidate.get("health") == HEALTH_UNKNOWN:
-                    # Validasi
-                    proxy_url = candidate.get("proxy_url")
-                    if not proxy_url:
-                        candidate["health"] = HEALTH_DEAD
+                    # 1. Lewati jika sedang digunakan (jika exclusive)
+                    if exclusive and candidate.get("usage") == USAGE_IN_USE:
                         continue
 
-                    # Lepas lock sementara untuk network call
-                    test_res = self._test_proxy_network(proxy_url)
-                    candidate["last_checked"] = time.time()
-                    if test_res["success"]:
+                    # 2. Lewati jika DEAD
+                    if candidate.get("health") == HEALTH_DEAD:
+                        continue
+
+                    # 3. Cek modular target usage jika target ditentukan
+                    if target:
+                        t_usage = candidate.setdefault("target_usage", {})
+                        if not isinstance(t_usage, dict):
+                            t_usage = {}
+                            candidate["target_usage"] = t_usage
+                        t_data = t_usage.get(target)
+                        if t_data and isinstance(t_data, dict):
+                            count = int(t_data.get("count", 0) or 0)
+                            last_used = float(t_data.get("last_used") or 0)
+                            now = time.time()
+
+                            # 3a. Auto-reset jika sudah lewat 24 jam sejak pemakaian terakhir -> kembali jadi Fresh (0/2)
+                            if last_used > 0 and (now - last_used) >= window_seconds:
+                                t_data["count"] = 0
+                                t_data["history"] = []
+                                count = 0
+
+                            # 3b. PRIORITAS FRESH: Jika putaran 1, lewati jika sudah pernah dipakai (count > 0)
+                            if require_fresh and count > 0:
+                                continue
+
+                            # 3c. Lewati jika kuota pemakaian per hari sudah habis
+                            if count >= max_uses_per_day:
+                                continue
+
+                            # 3d. Lewati jika masih dalam masa cooldown antar pemakaian (misal jeda 6 jam)
+                            if count > 0 and (now - last_used) < cooldown_seconds:
+                                continue
+                        else:
+                            # Belum pernah ada data pemakaian untuk target ini -> otomatis count = 0 (Fresh)
+                            count = 0
+
+                    # 4. Jika COOLDOWN kesehatan jaringan, cek apakah sudah selesai cooldownnya
+                    if candidate.get("health") == HEALTH_COOLDOWN:
+                        last_chk = candidate.get("last_checked", 0) or 0
+                        if (time.time() - last_chk) < 60:  # 60 detik masa pendinginan
+                            continue
+                        # Selesai cooldown, kembalikan ke ALIVE untuk dicoba
                         candidate["health"] = HEALTH_ALIVE
-                        candidate["ip_detected"] = test_res["ip"]
-                        candidate["latency_ms"] = test_res["latency_ms"]
-                        candidate["fail_count"] = 0
-                        candidate["last_error"] = None
-                    else:
-                        candidate["health"] = HEALTH_DEAD
-                        candidate["last_error"] = test_res["error"]
-                        # Lanjutkan rotasi mencari yang lain
-                        continue
 
-                # 5. Jika ALIVE dan memenuhi syarat, alokasikan!
-                if candidate.get("health") == HEALTH_ALIVE:
-                    # Jika verify_alive=True, re-verifikasi koneksi proxy di jaringan langsung!
-                    if verify_alive:
+                    # 5. Jika UNKNOWN, harus divalidasi terlebih dahulu
+                    if candidate.get("health") == HEALTH_UNKNOWN:
+                        # Validasi
                         proxy_url = candidate.get("proxy_url")
                         if not proxy_url:
                             candidate["health"] = HEALTH_DEAD
                             continue
 
+                        # Lepas lock sementara untuk network call
                         test_res = self._test_proxy_network(proxy_url)
                         candidate["last_checked"] = time.time()
                         if test_res["success"]:
@@ -534,21 +561,75 @@ class ProxyManager:
                         else:
                             candidate["health"] = HEALTH_DEAD
                             candidate["last_error"] = test_res["error"]
-                            # Proxy mati terkonfirmasi, lewati dan cari kandidat berikutnya
+                            # Lanjutkan rotasi mencari yang lain
                             continue
 
-                    if exclusive:
-                        candidate["usage"] = USAGE_IN_USE
-                        candidate["leased_by"] = lease_token
-                        candidate["lease_time"] = time.time()
+                    # 6. Jika ALIVE dan memenuhi syarat, alokasikan!
+                    if candidate.get("health") == HEALTH_ALIVE:
+                        # Jika verify_alive=True, re-verifikasi koneksi proxy di jaringan langsung!
+                        if verify_alive:
+                            proxy_url = candidate.get("proxy_url")
+                            if not proxy_url:
+                                candidate["health"] = HEALTH_DEAD
+                                continue
 
-                    # Simpan cursor berikutnya (setelah kandidat ini)
-                    data["cursor"] = (idx + 1) % total
-                    self._save_raw(data)
+                            test_res = self._test_proxy_network(proxy_url)
+                            candidate["last_checked"] = time.time()
+                            if test_res["success"]:
+                                candidate["health"] = HEALTH_ALIVE
+                                candidate["ip_detected"] = test_res["ip"]
+                                candidate["latency_ms"] = test_res["latency_ms"]
+                                candidate["fail_count"] = 0
+                                candidate["last_error"] = None
+                            else:
+                                candidate["health"] = HEALTH_DEAD
+                                candidate["last_error"] = test_res["error"]
+                                # Proxy mati terkonfirmasi, lewati dan cari kandidat berikutnya
+                                continue
 
-                    allocated = dict(candidate)
-                    allocated["lease_token"] = lease_token
-                    return allocated
+                        target_info = None
+                        if target:
+                            t_usage = candidate.setdefault("target_usage", {})
+                            if not isinstance(t_usage, dict):
+                                t_usage = {}
+                                candidate["target_usage"] = t_usage
+                            t_data = t_usage.setdefault(target, {"count": 0, "last_used": None, "history": []})
+                            now = time.time()
+                            last = float(t_data.get("last_used") or 0)
+                            if last > 0 and (now - last) >= window_seconds:
+                                t_data["count"] = 0
+                                t_data["history"] = []
+
+                            if auto_record:
+                                t_data["count"] = int(t_data.get("count", 0) or 0) + 1
+                                t_data["last_used"] = now
+                                hist = t_data.setdefault("history", [])
+                                hist.append(now)
+                                if len(hist) > 50:
+                                    t_data["history"] = hist[-50:]
+
+                            target_info = {
+                                "target": target,
+                                "count": int(t_data.get("count", 0) or 0),
+                                "max_uses": max_uses_per_day,
+                                "last_used": t_data.get("last_used"),
+                                "cooldown_seconds": cooldown_seconds,
+                            }
+
+                        if exclusive:
+                            candidate["usage"] = USAGE_IN_USE
+                            candidate["leased_by"] = lease_token
+                            candidate["lease_time"] = time.time()
+
+                        # Simpan cursor berikutnya (setelah kandidat ini)
+                        data["cursor"] = (idx + 1) % total
+                        self._save_raw(data)
+
+                        allocated = dict(candidate)
+                        allocated["lease_token"] = lease_token
+                        if target_info:
+                            allocated["target_info"] = target_info
+                        return allocated
 
             # Jika sudah 1 putaran tidak ada proxy yang bisa dipakai:
             # Tetap simpan cursor agar posisi tidak tersendat di index mati
@@ -614,6 +695,204 @@ class ProxyManager:
                     return True
 
             return False
+
+    # =========================================================================
+    # 3b. MODULAR TARGET USAGE TRACKER (ADSTERRA, YOUTUBE, DLL)
+    # =========================================================================
+
+    def record_target_usage(
+        self,
+        identifier: str,
+        target: str,
+        window_seconds: float = 24 * 3600,
+    ) -> bool:
+        """
+        Mencatat pemakaian proxy untuk target tertentu (misal: 'adsterra', 'youtube').
+        Menambah count, memperbarui last_used, dan menyimpan riwayat epoch.
+        Otomatis me-reset count jika pemakaian terakhir sudah melebihi window 24 jam.
+        """
+        with self._lock:
+            data = self._load_raw()
+            proxies = data.get("proxies", [])
+            for p in proxies:
+                matches_id = (p.get("id") == identifier or p.get("proxy_url") == identifier)
+                matches_token = (p.get("leased_by") == identifier)
+                if matches_id or matches_token:
+                    t_usage = p.setdefault("target_usage", {})
+                    if not isinstance(t_usage, dict):
+                        t_usage = {}
+                        p["target_usage"] = t_usage
+                    t_data = t_usage.setdefault(target, {"count": 0, "last_used": None, "history": []})
+                    now = time.time()
+                    last = float(t_data.get("last_used") or 0)
+                    if last > 0 and (now - last) >= window_seconds:
+                        t_data["count"] = 0
+                        t_data["history"] = []
+
+                    t_data["count"] = int(t_data.get("count", 0) or 0) + 1
+                    t_data["last_used"] = now
+                    hist = t_data.setdefault("history", [])
+                    hist.append(now)
+                    if len(hist) > 50:
+                        t_data["history"] = hist[-50:]
+                    self._save_raw(data)
+                    return True
+            return False
+
+    def get_target_usage(
+        self,
+        identifier: str,
+        target: str,
+        max_uses_per_day: int = 2,
+        cooldown_seconds: float = 6 * 3600,
+        window_seconds: float = 24 * 3600,
+    ) -> Dict[str, Any]:
+        """
+        Mengambil status pemakaian proxy untuk target tertentu beserta sisa cooldown.
+        """
+        with self._lock:
+            data = self._load_raw()
+            for p in data.get("proxies", []):
+                if p.get("id") == identifier or p.get("proxy_url") == identifier or p.get("leased_by") == identifier:
+                    t_usage = p.get("target_usage") or {}
+                    t_data = t_usage.get(target) or {}
+                    count = int(t_data.get("count", 0) or 0)
+                    last_used = float(t_data.get("last_used") or 0)
+                    now = time.time()
+                    if last_used > 0 and (now - last_used) >= window_seconds:
+                        count = 0
+                    cooldown_remaining = max(0.0, cooldown_seconds - (now - last_used)) if (count > 0 and last_used > 0) else 0.0
+                    return {
+                        "id": p.get("id"),
+                        "target": target,
+                        "count": count,
+                        "max_uses": max_uses_per_day,
+                        "last_used": last_used if last_used > 0 else None,
+                        "cooldown_remaining": round(cooldown_remaining, 1),
+                        "can_use": count < max_uses_per_day and cooldown_remaining <= 0,
+                    }
+            return {"target": target, "count": 0, "can_use": False, "status": "NOT_FOUND"}
+
+    def get_target_usage_summary(
+        self,
+        proxy_or_id: Union[str, Dict[str, Any]],
+        target: str = "monetag",
+        max_uses_per_day: int = 2,
+        cooldown_seconds: float = 6 * 3600,
+    ) -> Dict[str, Any]:
+        """Format ringkasan pemakaian IP per target (misal: 'Hit 1/2 (Baru)' atau 'Hit 2/2 (Sesi 2)')."""
+        p_id = proxy_or_id.get("id") if isinstance(proxy_or_id, dict) else str(proxy_or_id)
+        info = self.get_target_usage(
+            p_id,
+            target=target,
+            max_uses_per_day=max_uses_per_day,
+            cooldown_seconds=cooldown_seconds,
+        )
+        count = int(info.get("count", 0) or 0)
+        curr = min(count + 1, max_uses_per_day)
+        if count == 0:
+            summary = f"Hit {curr}/{max_uses_per_day} (Baru)"
+        elif count == 1:
+            summary = f"Hit {curr}/{max_uses_per_day} (Sesi 2)"
+        else:
+            summary = f"Hit {count}/{max_uses_per_day} (Habis)"
+        return {
+            "current_hit": curr,
+            "count": count,
+            "max_uses": max_uses_per_day,
+            "summary_text": summary,
+            "can_use": info.get("can_use", True),
+        }
+
+    def record_target_hit(
+        self,
+        proxy_or_id: Union[str, Dict[str, Any]],
+        target: str = "monetag",
+        window_seconds: float = 24 * 3600,
+    ) -> bool:
+        """Alias praktis untuk record_target_usage yang menerima dict proxy atau ID string."""
+        p_id = proxy_or_id.get("id") if isinstance(proxy_or_id, dict) else str(proxy_or_id)
+        return self.record_target_usage(identifier=p_id, target=target, window_seconds=window_seconds)
+
+    def get_proxy_info(self, proxy: Dict[str, Any]) -> Dict[str, Any]:
+        """Mengekstrak informasi dasar IP, negara, dan id dari dictionary proxy."""
+        ip = proxy.get("ip_detected") or proxy.get("host", "?")
+        country = proxy.get("country", "?")
+        return {"ip": ip, "country": country, "id": proxy.get("id")}
+
+    def reset_target_usage(self, target: Optional[str] = None) -> int:
+        """
+        Mereset status target_usage (jika target=None, reset seluruh target).
+        """
+        with self._lock:
+            data = self._load_raw()
+            reset_count = 0
+            for p in data.get("proxies", []):
+                t_usage = p.get("target_usage")
+                if isinstance(t_usage, dict):
+                    if target:
+                        if target in t_usage:
+                            del t_usage[target]
+                            reset_count += 1
+                    else:
+                        if t_usage:
+                            t_usage.clear()
+                            reset_count += 1
+            if reset_count > 0:
+                self._save_raw(data)
+            return reset_count
+
+    def get_target_stats(
+        self,
+        target: str,
+        max_uses_per_day: int = 2,
+        cooldown_seconds: float = 6 * 3600,
+        window_seconds: float = 24 * 3600,
+    ) -> Dict[str, Any]:
+        """
+        Melihat statistik ketersediaan proxy pool khusus untuk target tertentu.
+        """
+        with self._lock:
+            data = self._load_raw()
+            now = time.time()
+            fresh = 0
+            in_cooldown = 0
+            ready_secondary = 0
+            exhausted = 0
+            alive_total = 0
+
+            for p in data.get("proxies", []):
+                if p.get("health") != HEALTH_ALIVE:
+                    continue
+                alive_total += 1
+                t_usage = p.get("target_usage") or {}
+                t_data = t_usage.get(target) or {}
+                count = int(t_data.get("count", 0) or 0)
+                last_used = float(t_data.get("last_used") or 0)
+
+                if last_used > 0 and (now - last_used) >= window_seconds:
+                    count = 0
+
+                if count == 0:
+                    fresh += 1
+                elif count >= max_uses_per_day:
+                    exhausted += 1
+                else:
+                    elapsed = now - last_used if last_used > 0 else 0
+                    if elapsed < cooldown_seconds:
+                        in_cooldown += 1
+                    else:
+                        ready_secondary += 1
+
+            return {
+                "target": target,
+                "alive_total": alive_total,
+                "fresh": fresh,
+                "ready_secondary": ready_secondary,
+                "in_cooldown": in_cooldown,
+                "exhausted": exhausted,
+                "available_now": fresh + ready_secondary,
+            }
 
     # =========================================================================
     # 4. PENANGANAN KEGAGALAN SAAT DIGUNAKAN
@@ -718,9 +997,69 @@ def get_manager(filepath: str = DEFAULT_PROXY_FILE) -> ProxyManager:
 
 
 # API functions yang dapat langsung dipanggil oleh modul lain:
-def acquire_proxy(caller_id: Optional[str] = None, exclusive: bool = True) -> Optional[Dict[str, Any]]:
-    """Mengambil proxy sehat berikutnya dengan continuous rotation."""
-    return get_manager().acquire_proxy(caller_id=caller_id, exclusive=exclusive)
+def acquire_proxy(
+    caller_id: Optional[str] = None,
+    exclusive: bool = True,
+    verify_alive: bool = False,
+    target: Optional[str] = None,
+    max_uses_per_day: int = 2,
+    cooldown_seconds: float = 6 * 3600,
+    window_seconds: float = 24 * 3600,
+    auto_record: bool = False,
+) -> Optional[Dict[str, Any]]:
+    """Mengambil proxy sehat berikutnya dengan continuous rotation dan target usage check."""
+    return get_manager().acquire_proxy(
+        caller_id=caller_id,
+        exclusive=exclusive,
+        verify_alive=verify_alive,
+        target=target,
+        max_uses_per_day=max_uses_per_day,
+        cooldown_seconds=cooldown_seconds,
+        window_seconds=window_seconds,
+        auto_record=auto_record,
+    )
+
+
+def record_target_usage(identifier: str, target: str, window_seconds: float = 24 * 3600) -> bool:
+    """Mencatat pemakaian proxy untuk target tertentu."""
+    return get_manager().record_target_usage(identifier=identifier, target=target, window_seconds=window_seconds)
+
+
+def get_target_usage(
+    identifier: str,
+    target: str,
+    max_uses_per_day: int = 2,
+    cooldown_seconds: float = 6 * 3600,
+    window_seconds: float = 24 * 3600,
+) -> Dict[str, Any]:
+    """Melihat status pemakaian proxy untuk target tertentu."""
+    return get_manager().get_target_usage(
+        identifier=identifier,
+        target=target,
+        max_uses_per_day=max_uses_per_day,
+        cooldown_seconds=cooldown_seconds,
+        window_seconds=window_seconds,
+    )
+
+
+def reset_target_usage(target: Optional[str] = None) -> int:
+    """Mereset status target_usage."""
+    return get_manager().reset_target_usage(target=target)
+
+
+def get_target_stats(
+    target: str,
+    max_uses_per_day: int = 2,
+    cooldown_seconds: float = 6 * 3600,
+    window_seconds: float = 24 * 3600,
+) -> Dict[str, Any]:
+    """Melihat statistik ketersediaan proxy khusus untuk target tertentu."""
+    return get_manager().get_target_stats(
+        target=target,
+        max_uses_per_day=max_uses_per_day,
+        cooldown_seconds=cooldown_seconds,
+        window_seconds=window_seconds,
+    )
 
 
 def release_proxy(identifier: str, caller_id: Optional[str] = None) -> bool:
