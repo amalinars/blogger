@@ -35,6 +35,102 @@ def _emit(callback: Optional[Callable[[str, Dict[str, Any]], None]], event_type:
             pass
 
 
+def scroll_to_page_bottom(
+    page: Any,
+    dwell_at_bottom: float = 4.0,
+    humanize: bool = True,
+    click_callback: Optional[Callable[[], None]] = None,
+    log_fn: Optional[Callable[[str, str], None]] = None,
+) -> None:
+    """
+    Scroll natural dari posisi atas hingga MENTOK ke viewport paling bawah (footer).
+    Memastikan seluruh widget iklan ExoClick (Native Recommendation Banner 6066238,
+    Sticky Banner 6066266, Display Banner 6066244, dan Outstream Video 6066272)
+    berada dalam viewport dan mentrigger impresi ke server iklan.
+    """
+    try:
+        max_steps = 45
+        last_y = -1
+        stuck_count = 0
+
+        for step_i in range(1, max_steps + 1):
+            if page.is_closed():
+                break
+
+            # Ukur posisi scroll dan tinggi total halaman secara realtime
+            metrics = page.evaluate("""() => {
+                const doc = document.documentElement;
+                const body = document.body;
+                const scrollY = window.scrollY || window.pageYOffset || 0;
+                const scrollHeight = Math.max(doc.scrollHeight, body.scrollHeight, doc.offsetHeight, body.offsetHeight, 1000);
+                const innerH = window.innerHeight || doc.clientHeight || 800;
+                const atBottom = (scrollY + innerH) >= (scrollHeight - 40);
+                return { scrollY, scrollHeight, innerH, atBottom };
+            }""")
+
+            cur_y = metrics.get("scrollY", 0)
+            total_h = metrics.get("scrollHeight", 1000)
+            at_bottom = metrics.get("atBottom", False)
+
+            if at_bottom:
+                if log_fn:
+                    log_fn(f"📍 Posisi scroll mencapai viewport terbawah (~{int(cur_y + metrics.get('innerH', 800))}px / {int(total_h)}px).", "cyan")
+                # Berikan wheel scroll tambahan agar benar-benar menyentuh batas paling bawah
+                try:
+                    page.mouse.wheel(0, 350)
+                except Exception:
+                    pass
+                break
+
+            if abs(cur_y - last_y) < 15:
+                stuck_count += 1
+                if stuck_count >= 3:
+                    if log_fn:
+                        log_fn(f"📍 Batas halaman terbawah tercapai ({int(cur_y)}px).", "cyan")
+                    break
+            else:
+                stuck_count = 0
+
+            last_y = cur_y
+
+            # Scroll turun bertahap menyerupai membaca teks (chunk 280 - 520px)
+            chunk = random.randint(280, 520)
+            if humanize:
+                human_scroll(page, scroll_amount=chunk, pause_range=(0.15, 0.35))
+                # 35% kemungkinan gerakkan mouse santai
+                if random.random() < 0.35:
+                    human_wander(page, duration_seconds=random.uniform(0.6, 1.2))
+            else:
+                try:
+                    page.mouse.wheel(0, chunk)
+                except Exception:
+                    break
+                time.sleep(0.3)
+
+            # Peluang klik interaktif saat sedang scrolling
+            if click_callback and random.random() < 0.30:
+                click_callback()
+
+            time.sleep(random.uniform(0.3, 0.7))
+
+        # Dwell di bagian bawah (area Native Banner widget dan Sticky Banner)
+        if not page.is_closed():
+            if humanize:
+                human_wander(page, duration_seconds=random.uniform(1.2, 2.5))
+            time.sleep(dwell_at_bottom)
+
+            # Scroll naik sedikit seolah membaca widget artikel rekomendasi
+            if humanize and random.random() < 0.75:
+                human_scroll(page, scroll_amount=-random.randint(180, 350), pause_range=(0.2, 0.4))
+                human_wander(page, duration_seconds=random.uniform(1.0, 1.8))
+                # Lalu turun lagi mentok
+                human_scroll(page, scroll_amount=random.randint(220, 380), pause_range=(0.15, 0.3))
+                time.sleep(1.0)
+
+    except Exception:
+        pass
+
+
 def run_exoclick_session(
     worker_id: int,
     proxy_data: Optional[Dict[str, Any]],
@@ -168,33 +264,23 @@ def run_exoclick_session(
             except Exception:
                 pass
 
-        # Step 3: Humanized interaction pada halaman utama untuk memicu tag iklan ExoClick
-        step("MEMICU IKLAN EXOCLICK", "Interaksi humanized, banner & popunder trigger...")
-        dwell_page = random.uniform(
-            dwell_page_cfg.get("min", 6.0),
-            dwell_page_cfg.get("max", 14.0),
-        )
+        # Step 3: Scroll ke bawah sampai MENTOK dan picu seluruh format iklan ExoClick
+        step("MEMICU IKLAN EXOCLICK", "Scroll mentok ke bawah & picu Native Banner...")
+        log("📜 Membaca artikel & scrolling natural sampai mentok ke footer (Native & Outstream)...", "cyan")
 
-        page_end_time = time.time() + dwell_page
         click_attempts = 0
         max_clicks = random.randint(
             config.get("popunder_click_count", {}).get("min", 1),
             config.get("popunder_click_count", {}).get("max", 2),
         )
 
-        while time.time() < page_end_time and not page.is_closed():
-            if humanize_enabled:
-                # Gerakan kursor santai kurva Bézier
-                human_wander(page, duration_seconds=random.uniform(1.0, 2.0))
-                # Scrolling alami naik-turun (memicu viewability banner & native widget)
-                human_scroll(page, scroll_amount=random.randint(180, 420))
-
-            # Lakukan klik acak pada area konten untuk memicu Popunder ExoClick
-            if click_attempts < max_clicks and random.random() < 0.70:
+        def on_scroll_click():
+            nonlocal click_attempts
+            if click_attempts < max_clicks and not page.is_closed():
                 try:
                     vp = page.viewport_size or {"width": 1280, "height": 800}
-                    click_x = random.randint(100, vp["width"] - 100)
-                    click_y = random.randint(180, vp["height"] - 180)
+                    click_x = random.randint(120, vp["width"] - 120)
+                    click_y = random.randint(200, vp["height"] - 200)
                     human_click(page, (click_x, click_y))
                     click_attempts += 1
                     log(f"👆 Klik pemicu popunder ke-{click_attempts} di ({click_x}, {click_y})", "dim")
@@ -202,7 +288,19 @@ def run_exoclick_session(
                 except Exception:
                     pass
 
-            time.sleep(random.uniform(0.6, 1.4))
+        # Scroll bertahap dan pasti sampai mentok paling bawah
+        scroll_to_page_bottom(
+            page=page,
+            dwell_at_bottom=random.uniform(4.0, 7.0),
+            humanize=humanize_enabled,
+            click_callback=on_scroll_click,
+            log_fn=log,
+        )
+
+        # Pastikan klik pemicu popunder tereksekusi jika belum sempat terpencet saat scroll
+        while click_attempts < max_clicks and not page.is_closed() and not popups_opened:
+            on_scroll_click()
+            time.sleep(1.0)
 
         # Step 4: Menangani Popunder yang terbuka
         if popups_opened:
