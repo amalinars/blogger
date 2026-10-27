@@ -1,5 +1,5 @@
 {
-  "cursor": 164,
+  "cursor": 201,
   "proxies": [
     {
       "country": "UNITED STATES",
@@ -5752,14 +5752,14 @@
       "proxy_url": "http://TvsYsI1gwRhPptLj:6TVuR2EjfQtMiVol@geo.floppydata.com:10080",
       "id": "proxy_164_e87508",
       "health": "ALIVE",
-      "usage": "IN_USE",
+      "usage": "IDLE",
       "last_checked": 1793033460.3847787,
       "latency_ms": 1171.6,
       "ip_detected": "73.35.13.118",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": "exoclick_worker_1793087837249",
-      "lease_time": 1793087837.2547176,
+      "leased_by": null,
+      "lease_time": null,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -5769,10 +5769,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046013.4735713,
+          "count": 2,
+          "last_used": 1793088002.4426856,
           "history": [
-            1793046013.4735713
+            1793046013.4735713,
+            1793088002.4426856
           ]
         }
       }
@@ -5787,14 +5788,14 @@
       "proxy_url": "http://FqfSrXLibMnI7tSj:0eQ5LhxOWFrKrmaW@geo.floppydata.com:10080",
       "id": "proxy_165_0c8144",
       "health": "ALIVE",
-      "usage": "IN_USE",
+      "usage": "IDLE",
       "last_checked": 1793033471.2595184,
       "latency_ms": 510.59,
       "ip_detected": "86.183.128.149",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": "exoclick_worker_1793087923614",
-      "lease_time": 1793087923.6188374,
+      "leased_by": null,
+      "lease_time": null,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -5804,10 +5805,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046046.6354756,
+          "count": 2,
+          "last_used": 1793088083.2320125,
           "history": [
-            1793046046.6354756
+            1793046046.6354756,
+            1793088083.2320125
           ]
         }
       }
@@ -5822,14 +5824,14 @@
       "proxy_url": "http://gcnJ2EaB15tM8St1:qN3lUsZ2Uz9zPcUT@geo.floppydata.com:10080",
       "id": "proxy_166_043dd9",
       "health": "ALIVE",
-      "usage": "IN_USE",
+      "usage": "IDLE",
       "last_checked": 1793033500.4915822,
       "latency_ms": 646.43,
       "ip_detected": "90.86.49.98",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": "exoclick_worker_1793087923791",
-      "lease_time": 1793087923.794677,
+      "leased_by": null,
+      "lease_time": null,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -5839,10 +5841,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046054.2018468,
+          "count": 2,
+          "last_used": 1793088127.3128633,
           "history": [
-            1793046054.2018468
+            1793046054.2018468,
+            1793088127.3128633
           ]
         }
       }
@@ -5857,14 +5860,14 @@
       "proxy_url": "http://PlmmtXE4rgYailna:bcUs1lzCtx6JStcn@geo.floppydata.com:10080",
       "id": "proxy_167_660a07",
       "health": "ALIVE",
-      "usage": "IN_USE",
+      "usage": "IDLE",
       "last_checked": 1793033513.4050205,
       "latency_ms": 642.89,
       "ip_detected": "184.162.144.58",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": "exoclick_worker_1793087936686",
-      "lease_time": 1793087936.6898081,
+      "leased_by": null,
+      "lease_time": null,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -5874,10 +5877,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046063.61249,
+          "count": 2,
+          "last_used": 1793088099.5001192,
           "history": [
-            1793046063.61249
+            1793046063.61249,
+            1793088099.5001192
           ]
         }
       }
@@ -5909,10 +5913,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046111.6868367,
+          "count": 2,
+          "last_used": 1793088175.1875415,
           "history": [
-            1793046111.6868367
+            1793046111.6868367,
+            1793088175.1875415
           ]
         }
       }
@@ -5944,10 +5949,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046091.7158968,
+          "count": 2,
+          "last_used": 1793088256.6714497,
           "history": [
-            1793046091.7158968
+            1793046091.7158968,
+            1793088256.6714497
           ]
         }
       }
@@ -5979,10 +5985,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046141.425285,
+          "count": 2,
+          "last_used": 1793088267.0296352,
           "history": [
-            1793046141.425285
+            1793046141.425285,
+            1793088267.0296352
           ]
         }
       }
@@ -6014,10 +6021,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046144.0953317,
+          "count": 2,
+          "last_used": 1793088351.4464083,
           "history": [
-            1793046144.0953317
+            1793046144.0953317,
+            1793088351.4464083
           ]
         }
       }
@@ -6049,10 +6057,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046152.5868433,
+          "count": 2,
+          "last_used": 1793088377.8743415,
           "history": [
-            1793046152.5868433
+            1793046152.5868433,
+            1793088377.8743415
           ]
         }
       }
@@ -6084,10 +6093,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046186.3077643,
+          "count": 2,
+          "last_used": 1793088410.3448138,
           "history": [
-            1793046186.3077643
+            1793046186.3077643,
+            1793088410.3448138
           ]
         }
       }
@@ -6119,10 +6129,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046210.8406231,
+          "count": 2,
+          "last_used": 1793088419.45497,
           "history": [
-            1793046210.8406231
+            1793046210.8406231,
+            1793088419.45497
           ]
         }
       }
@@ -6154,10 +6165,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046238.4931135,
+          "count": 2,
+          "last_used": 1793088461.316169,
           "history": [
-            1793046238.4931135
+            1793046238.4931135,
+            1793088461.316169
           ]
         }
       }
@@ -6209,10 +6221,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046230.0163708,
+          "count": 2,
+          "last_used": 1793088518.9299064,
           "history": [
-            1793046230.0163708
+            1793046230.0163708,
+            1793088518.9299064
           ]
         }
       }
@@ -6244,10 +6257,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046239.504267,
+          "count": 2,
+          "last_used": 1793088580.5354474,
           "history": [
-            1793046239.504267
+            1793046239.504267,
+            1793088580.5354474
           ]
         }
       }
@@ -6279,10 +6293,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046301.0758226,
+          "count": 2,
+          "last_used": 1793088576.135656,
           "history": [
-            1793046301.0758226
+            1793046301.0758226,
+            1793088576.135656
           ]
         }
       }
@@ -6314,10 +6329,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046282.8295813,
+          "count": 2,
+          "last_used": 1793088611.6110592,
           "history": [
-            1793046282.8295813
+            1793046282.8295813,
+            1793088611.6110592
           ]
         }
       }
@@ -6349,10 +6365,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046318.3884795,
+          "count": 2,
+          "last_used": 1793088695.2292328,
           "history": [
-            1793046318.3884795
+            1793046318.3884795,
+            1793088695.2292328
           ]
         }
       }
@@ -6384,10 +6401,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046314.563186,
+          "count": 2,
+          "last_used": 1793088748.6541367,
           "history": [
-            1793046314.563186
+            1793046314.563186,
+            1793088748.6541367
           ]
         }
       }
@@ -6419,10 +6437,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046338.6247475,
+          "count": 2,
+          "last_used": 1793088716.3212516,
           "history": [
-            1793046338.6247475
+            1793046338.6247475,
+            1793088716.3212516
           ]
         }
       }
@@ -6454,10 +6473,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046384.2654448,
+          "count": 2,
+          "last_used": 1793088772.6342928,
           "history": [
-            1793046384.2654448
+            1793046384.2654448,
+            1793088772.6342928
           ]
         }
       }
@@ -6489,10 +6509,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046397.2718241,
+          "count": 2,
+          "last_used": 1793088856.0576212,
           "history": [
-            1793046397.2718241
+            1793046397.2718241,
+            1793088856.0576212
           ]
         }
       }
@@ -6524,10 +6545,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046403.0274372,
+          "count": 2,
+          "last_used": 1793088854.8295836,
           "history": [
-            1793046403.0274372
+            1793046403.0274372,
+            1793088854.8295836
           ]
         }
       }
@@ -6559,10 +6581,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046401.340735,
+          "count": 2,
+          "last_used": 1793088960.3020546,
           "history": [
-            1793046401.340735
+            1793046401.340735,
+            1793088960.3020546
           ]
         }
       }
@@ -6594,10 +6617,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046440.7310498,
+          "count": 2,
+          "last_used": 1793088935.8257737,
           "history": [
-            1793046440.7310498
+            1793046440.7310498,
+            1793088935.8257737
           ]
         }
       }
@@ -6629,10 +6653,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046489.2598543,
+          "count": 2,
+          "last_used": 1793089037.7568548,
           "history": [
-            1793046489.2598543
+            1793046489.2598543,
+            1793089037.7568548
           ]
         }
       }
@@ -6664,10 +6689,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046515.6233044,
+          "count": 2,
+          "last_used": 1793089044.3966746,
           "history": [
-            1793046515.6233044
+            1793046515.6233044,
+            1793089044.3966746
           ]
         }
       }
@@ -6699,10 +6725,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046515.897126,
+          "count": 2,
+          "last_used": 1793089108.9999735,
           "history": [
-            1793046515.897126
+            1793046515.897126,
+            1793089108.9999735
           ]
         }
       }
@@ -6734,10 +6761,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046515.9644456,
+          "count": 2,
+          "last_used": 1793089115.488388,
           "history": [
-            1793046515.9644456
+            1793046515.9644456,
+            1793089115.488388
           ]
         }
       }
@@ -6769,10 +6797,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046519.0141425,
+          "count": 2,
+          "last_used": 1793089186.131789,
           "history": [
-            1793046519.0141425
+            1793046519.0141425,
+            1793089186.131789
           ]
         }
       }
@@ -6804,10 +6833,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046590.5616348,
+          "count": 2,
+          "last_used": 1793089204.4528964,
           "history": [
-            1793046590.5616348
+            1793046590.5616348,
+            1793089204.4528964
           ]
         }
       }
@@ -6839,10 +6869,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046603.2114294,
+          "count": 2,
+          "last_used": 1793089273.1186552,
           "history": [
-            1793046603.2114294
+            1793046603.2114294,
+            1793089273.1186552
           ]
         }
       }
@@ -6874,10 +6905,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046619.467006,
+          "count": 2,
+          "last_used": 1793089278.1513813,
           "history": [
-            1793046619.467006
+            1793046619.467006,
+            1793089278.1513813
           ]
         }
       }
@@ -6909,10 +6941,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046620.316921,
+          "count": 2,
+          "last_used": 1793089361.05456,
           "history": [
-            1793046620.316921
+            1793046620.316921,
+            1793089361.05456
           ]
         }
       }
@@ -6944,10 +6977,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046624.164198,
+          "count": 2,
+          "last_used": 1793089375.756641,
           "history": [
-            1793046624.164198
+            1793046624.164198,
+            1793089375.756641
           ]
         }
       }
@@ -6979,10 +7013,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046668.2864947,
+          "count": 2,
+          "last_used": 1793089430.168131,
           "history": [
-            1793046668.2864947
+            1793046668.2864947,
+            1793089430.168131
           ]
         }
       }
@@ -7014,10 +7049,11 @@
           ]
         },
         "exoclick": {
-          "count": 1,
-          "last_used": 1793046685.9399605,
+          "count": 2,
+          "last_used": 1793089449.4102514,
           "history": [
-            1793046685.9399605
+            1793046685.9399605,
+            1793089449.4102514
           ]
         }
       }
@@ -7032,14 +7068,14 @@
       "proxy_url": "http://iZ2bnyQ7vxaylpvg:Pr4OQ19mHOS9hzrx@geo.floppydata.com:10080",
       "id": "proxy_201_3e8b45",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1793033982.7886684,
       "latency_ms": 797.59,
       "ip_detected": "74.101.160.97",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null,
+      "leased_by": "exoclick_worker_1793089366073",
+      "lease_time": 1793089366.076941,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -7067,14 +7103,14 @@
       "proxy_url": "http://v2J1rwUSPJ3lHsJX:twhfBJdbrhXs83ni@geo.floppydata.com:10080",
       "id": "proxy_202_124dc5",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1793033991.1362832,
       "latency_ms": 688.96,
       "ip_detected": "38.126.93.43",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null,
+      "leased_by": "exoclick_worker_1793089380394",
+      "lease_time": 1793089380.3976326,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -7102,14 +7138,14 @@
       "proxy_url": "http://uk2soB4dJnH1RLQn:QtOFlS8kzYYFPzGK@geo.floppydata.com:10080",
       "id": "proxy_203_1ab7f4",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1793034051.766759,
       "latency_ms": 1796.89,
       "ip_detected": "88.189.17.196",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null,
+      "leased_by": "exoclick_worker_1793089433611",
+      "lease_time": 1793089433.6264935,
       "target_usage": {
         "monetag": {
           "count": 1,
@@ -7137,14 +7173,14 @@
       "proxy_url": "http://ENdTPTWiXSqt6ys4:aX7cIzz0pnBbGPIM@geo.floppydata.com:10080",
       "id": "proxy_204_2160b3",
       "health": "ALIVE",
-      "usage": "IDLE",
+      "usage": "IN_USE",
       "last_checked": 1793034055.4856167,
       "latency_ms": 618.79,
       "ip_detected": "99.225.158.145",
       "fail_count": 0,
       "last_error": null,
-      "leased_by": null,
-      "lease_time": null,
+      "leased_by": "exoclick_worker_1793089454362",
+      "lease_time": 1793089454.3694112,
       "target_usage": {
         "monetag": {
           "count": 1,

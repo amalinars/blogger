@@ -29,8 +29,8 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from camoufox.sync_api import Camoufox
 
-from automation.adsterra.engine import build_camoufox_kwargs, resolve_geo_profile
-from automation.adsterra.qa import SessionBudget, country_label
+from automation.engine import build_camoufox_kwargs, resolve_geo_profile
+from automation.session import SessionBudget, country_label
 from automation.browser_verifier import BrowserVerifier
 from automation.monetag.humanizer import human_click, human_move, human_scroll, human_wander
 from core.proxy_manager import ProxyManager

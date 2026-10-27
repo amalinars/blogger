@@ -3,8 +3,6 @@
 import { useEffect, useRef } from 'react';
 import {
   getAdProvider,
-  ADSTERRA_POPUNDER_SRC,
-  ADSTERRA_SOCIALBAR_SRC,
   MONETAG_MULTITAG_SRC,
   MONETAG_MULTITAG_ZONE,
   EXOCLICK_POPUNDER_CODE,
@@ -64,8 +62,8 @@ export function AdNetworkManager() {
 
       // 4. Load ExoClick AdProvider Script & serve all widgets
       serveExoClick();
-    } else if (provider === 'monetag') {
-      // Load Monetag MultiTag script
+    } else {
+      // Load Monetag MultiTag script as default fallback
       if (!document.getElementById('monetag-multitag')) {
         const script = document.createElement('script');
         script.id = 'monetag-multitag';
@@ -74,26 +72,6 @@ export function AdNetworkManager() {
         script.dataset.cfasync = 'false';
         script.async = true;
         document.head.appendChild(script);
-      }
-    } else {
-      // Load Adsterra Popunder
-      if (!document.getElementById('adsterra-popunder')) {
-        const popScript = document.createElement('script');
-        popScript.id = 'adsterra-popunder';
-        popScript.src = ADSTERRA_POPUNDER_SRC;
-        popScript.dataset.cfasync = 'false';
-        popScript.async = true;
-        document.body.appendChild(popScript);
-      }
-
-      // Load Adsterra Social Bar
-      if (!document.getElementById('adsterra-socialbar')) {
-        const barScript = document.createElement('script');
-        barScript.id = 'adsterra-socialbar';
-        barScript.src = ADSTERRA_SOCIALBAR_SRC;
-        barScript.dataset.cfasync = 'false';
-        barScript.async = true;
-        document.body.appendChild(barScript);
       }
     }
   }, []);

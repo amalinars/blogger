@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Unified modern native desktop GUI for Bot Shortlink (Adsterra & Monetag).
+"""Unified modern native desktop GUI for Bot Shortlink (Monetag & ExoClick).
 
 Built with PySide6 (Qt). Mendukung pemilahan target iklan:
 1. 💎 Hanya Monetag: Memaksa web memunculkan iklan MultiTag & Direct Link Monetag.
-2. ⚡ Hanya Adsterra: Memaksa web memunculkan iklan Popunder, Social Bar & Smartlink Adsterra.
-3. 🔄 Keduanya (Rotasi 50:50): Web memunculkan iklan Monetag & Adsterra secara seimbang bergantian.
+2. 🎯 Hanya ExoClick: Memaksa web memunculkan iklan Popunder, Push, Banner & Native ExoClick.
+3. 🔄 Rotasi (50:50): Web memunculkan iklan Monetag & ExoClick secara seimbang bergantian.
 """
 
 from __future__ import annotations
@@ -49,8 +49,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from automation.adsterra.flow_qa import flow_worker_thread_loop
-from automation.adsterra.qa import SessionBudget, country_label, load_config
+from automation.engine import load_config
+from automation.session import SessionBudget, country_label
 from automation.monetag.flow import monetag_worker_thread_loop
 from automation.exoclick.flow import exoclick_worker_thread_loop
 from core.proxy_manager import ProxyManager
@@ -208,7 +208,7 @@ class EventBridge(QObject):
 
 
 class RunController(QObject):
-    """Mengelola thread worker, rotasi proxy, dan budget untuk Adsterra atau Monetag."""
+    """Mengelola thread worker, rotasi proxy, dan budget untuk Monetag atau ExoClick."""
 
     def __init__(self, bridge: EventBridge):
         super().__init__()
@@ -256,11 +256,9 @@ class RunController(QObject):
 
         network_label = {
             "monetag": "💎 Hanya Monetag",
-            "adsterra": "⚡ Hanya Adsterra",
             "exoclick": "🎯 Hanya ExoClick",
-            "all": "🔄 Semua Jaringan (Rotasi 3 Network)",
-            "both": "🔄 Keduanya (Rotasi 50:50)",
-        }.get(network_choice, "🔄 Semua Jaringan")
+            "both": "🔄 Rotasi Monetag & ExoClick (50:50)",
+        }.get(network_choice, "🔄 Rotasi Monetag & ExoClick")
 
         self.emit("log_message", {
             "message": (
@@ -286,7 +284,7 @@ class RunController(QObject):
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
                 # Reset hit target (kembali 0/2) agar mode unlimited berputar looping tanpa henti
-                target = network_choice if network_choice in ("monetag", "adsterra", "exoclick") else None
+                target = network_choice if network_choice in ("monetag", "exoclick") else None
                 reset_hits = self.proxy_manager.reset_target_usage(target)
                 self.budget.reset_proxy_counts()
                 self.emit("log_message", {
@@ -298,34 +296,24 @@ class RunController(QObject):
             if self.stop_event.is_set():
                 break
 
-            # Tentukan worker loop: monetag, adsterra, exoclick, atau rotasi seimbang
+            # Tentukan worker loop: monetag, exoclick, atau rotasi seimbang
             if network_choice == "monetag":
                 worker_fn = monetag_worker_thread_loop
                 worker_tag = "Monetag"
                 target_label = "💎 Monetag"
                 target_style = "magenta"
-            elif network_choice == "adsterra":
-                worker_fn = flow_worker_thread_loop
-                worker_tag = "Adsterra"
-                target_label = "⚡ Adsterra"
-                target_style = "bold yellow"
             elif network_choice == "exoclick":
                 worker_fn = exoclick_worker_thread_loop
                 worker_tag = "ExoClick"
                 target_label = "🎯 ExoClick"
                 target_style = "bold cyan"
             else:
-                r_idx = wid % 3
-                if r_idx == 1:
+                is_m = (wid % 2 == 1)
+                if is_m:
                     worker_fn = monetag_worker_thread_loop
                     worker_tag = "Monetag"
                     target_label = "💎 Monetag"
                     target_style = "magenta"
-                elif r_idx == 2:
-                    worker_fn = flow_worker_thread_loop
-                    worker_tag = "Adsterra"
-                    target_label = "⚡ Adsterra"
-                    target_style = "bold yellow"
                 else:
                     worker_fn = exoclick_worker_thread_loop
                     worker_tag = "ExoClick"
@@ -383,7 +371,7 @@ class RunController(QObject):
 class Dashboard(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Bot Shortlink — Controller Dasbor Adsterra & Monetag")
+        self.setWindowTitle("Bot Shortlink — Controller Dasbor Monetag & ExoClick")
         self.resize(1240, 810)
         self.workers_state: Dict[int, Dict[str, Any]] = {}
         self.concurrency = 3
@@ -423,7 +411,7 @@ class Dashboard(QMainWindow):
         # Header row
         header = QHBoxLayout()
         title_block = QVBoxLayout()
-        t = QLabel("Bot Shortlink & Ad Controller (Adsterra, Monetag & ExoClick)")
+        t = QLabel("Bot Shortlink & Ad Controller (Monetag & ExoClick)")
         t.setObjectName("title")
         self.target_label = QLabel("alamat: —")
         self.target_label.setObjectName("subtitle")
@@ -463,16 +451,14 @@ class Dashboard(QMainWindow):
         self.ad_network_combo = QComboBox()
         self.ad_network_combo.addItems([
             "💎 Hanya Monetag (MultiTag & Direct Link)",
-            "⚡ Hanya Adsterra (Popunder & Smartlink)",
             "🎯 Hanya ExoClick (Popunder, Push, Banner, Native)",
-            "🔄 Semua Jaringan (Rotasi 3 Network)",
+            "🔄 Rotasi Monetag & ExoClick (50:50)",
         ])
         self.ad_network_combo.setToolTip(
             "Pilih jaringan iklan yang akan dimunculkan di website:\n"
             "💎 Hanya Monetag: Website dipaksa HANYA memunculkan iklan Monetag.\n"
-            "⚡ Hanya Adsterra: Website dipaksa HANYA memunculkan iklan Adsterra.\n"
             "🎯 Hanya ExoClick: Website dipaksa HANYA memunculkan iklan ExoClick.\n"
-            "🔄 Semua Jaringan: Web bergantian memunculkan Monetag, Adsterra & ExoClick."
+            "🔄 Rotasi: Web bergantian memunculkan Monetag & ExoClick secara seimbang."
         )
         self.ad_network_combo.currentIndexChanged.connect(self._on_settings_changed)
         grid.addWidget(self.ad_network_combo, 0, 1)
@@ -549,7 +535,7 @@ class Dashboard(QMainWindow):
         self.direct_chance_spin.setSingleStep(5)
         self.direct_chance_spin.setSuffix(" % (Aman)")
         self.direct_chance_spin.setToolTip(
-            "Persentase sesi yang membuka Direct Link Monetag / Smartlink Adsterra.\n"
+            "Persentase sesi yang membuka Direct Link Monetag.\n"
             "Disarankan 40% - 60% agar CTR tampak alami dan aman bagi akun ad network."
         )
         grid.addWidget(self.direct_chance_spin, 2, 3)
@@ -636,7 +622,7 @@ class Dashboard(QMainWindow):
         proxy_layout.setSpacing(10)
 
         # Proxy Filter & Action Card
-        pt_header_card, pt_header_layout = self._card("STATUS & KONTROL PEMAKAIAN PROXY (ADSTERRA & MONETAG)")
+        pt_header_card, pt_header_layout = self._card("STATUS & KONTROL PEMAKAIAN PROXY (MONETAG & EXOCLICK)")
         pt_row = QHBoxLayout()
         pt_row.setSpacing(12)
 
@@ -670,7 +656,7 @@ class Dashboard(QMainWindow):
 
         self.btn_reset_proxy_hits = QPushButton("♻️ Reset Semua Hit (0/2)")
         self.btn_reset_proxy_hits.setStyleSheet("background-color: #7952b3;")
-        self.btn_reset_proxy_hits.setToolTip("Mereset pemakaian Adsterra, Monetag, dan ExoClick menjadi 0/2 untuk seluruh proxy.")
+        self.btn_reset_proxy_hits.setToolTip("Mereset pemakaian Monetag dan ExoClick menjadi 0/2 untuk seluruh proxy.")
         self.btn_reset_proxy_hits.clicked.connect(self._on_manual_reset_hits)
         pt_row.addWidget(self.btn_reset_proxy_hits)
         pt_header_layout.addLayout(pt_row)
@@ -678,10 +664,10 @@ class Dashboard(QMainWindow):
 
         # Proxy Table Card
         proxy_table_card, proxy_table_layout = self._card()
-        self.proxy_table = QTableWidget(0, 10)
+        self.proxy_table = QTableWidget(0, 9)
         self.proxy_table.setHorizontalHeaderLabels([
             "No", "IP Proxy", "Negara", "Status Jaringan",
-            "Hit Adsterra", "Hit Monetag", "Hit ExoClick", "Sedang Dipakai Worker", "Terakhir Digunakan", "Latency"
+            "Hit Monetag", "Hit ExoClick", "Sedang Dipakai Worker", "Terakhir Digunakan", "Latency"
         ])
         self.proxy_table.setAlternatingRowColors(True)
         self.proxy_table.verticalHeader().setVisible(False)
@@ -691,8 +677,8 @@ class Dashboard(QMainWindow):
         self.proxy_table.horizontalHeader().setStretchLastSection(True)
 
         pt_column_widths = (
-            (0, 45), (1, 130), (2, 95), (3, 110),
-            (4, 110), (5, 110), (6, 110), (7, 160), (8, 120), (9, 70)
+            (0, 45), (1, 140), (2, 100), (3, 120),
+            (4, 120), (5, 120), (6, 170), (7, 130), (8, 80)
         )
         for col, width in pt_column_widths:
             self.proxy_table.setColumnWidth(col, width)
@@ -716,7 +702,7 @@ class Dashboard(QMainWindow):
 
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Siap — pilih iklan target lalu tekan Mulai.")
-        self._append_log("Aplikasi siap. Controller Adsterra, Monetag & ExoClick aktif.", "cyan")
+        self._append_log("Aplikasi siap. Controller Monetag & ExoClick aktif.", "cyan")
 
     def _on_url_input_changed(self, text: str) -> None:
         self.target_label.setText(f"alamat: {text.strip() or '-'}")
@@ -724,7 +710,7 @@ class Dashboard(QMainWindow):
     def _on_settings_changed(self) -> None:
         self._update_pipeline_banner()
         net_idx = self.ad_network_combo.currentIndex()
-        net_names = ["Hanya Monetag", "Hanya Adsterra", "Hanya ExoClick", "Semua Jaringan (Rotasi 3 Network)"]
+        net_names = ["Hanya Monetag", "Hanya ExoClick", "Rotasi Monetag & ExoClick"]
         self._append_log(f"Iklan target diatur: {net_names[net_idx]}", "cyan")
 
     def _update_pipeline_banner(self) -> None:
@@ -755,46 +741,9 @@ class Dashboard(QMainWindow):
             ]
             if hasattr(self, "hint_label"):
                 self.hint_label.setText(
-                    "💎 Target Monetag: Web otomatis memuat iklan MultiTag & Direct Link Monetag saja (bebas popunder Adsterra)."
+                    "💎 Target Monetag: Web otomatis memuat iklan MultiTag & Direct Link Monetag."
                 )
-        elif net_idx == 1:  # Adsterra
-            if flow_idx == 0:
-                steps_info = [
-                    ("1. 🛡️ Audit IP", "#38d6d6"),
-                    ("➔", "#6b7280"),
-                    ("2. 🌐 Buka Artikel", "#38d6d6"),
-                    ("➔", "#6b7280"),
-                    ("3. 📜 Baca Artikel", "#5aa9ff"),
-                    ("➔", "#6b7280"),
-                    ("4. 🎨 Dwell Iklan", "#ffcc33"),
-                    ("➔", "#6b7280"),
-                    ("5. 📑 Popunder / 🔗 Smartlink", "#c77dff"),
-                    ("➔", "#6b7280"),
-                    ("6. ✅ Selesai", "#3ddc84"),
-                ]
-            else:
-                steps_info = [
-                    ("1. 🛡️ Audit IP", "#38d6d6"),
-                    ("➔", "#6b7280"),
-                    ("2. 🌐 Buka Web", "#38d6d6"),
-                    ("➔", "#6b7280"),
-                    ("3. 1️⃣ Step 1", "#ffcc33"),
-                    ("➔", "#6b7280"),
-                    ("4. 2️⃣ Step 2", "#ffcc33"),
-                    ("➔", "#6b7280"),
-                    ("5. 3️⃣ Step 3", "#ffcc33"),
-                    ("➔", "#6b7280"),
-                    ("6. 📜 Jelajah Web", "#5aa9ff"),
-                    ("➔", "#6b7280"),
-                    ("7. 📑 Popunder / 🔗 Smartlink", "#c77dff"),
-                    ("➔", "#6b7280"),
-                    ("8. ✅ Selesai", "#3ddc84"),
-                ]
-            if hasattr(self, "hint_label"):
-                self.hint_label.setText(
-                    "⚡ Target Adsterra: Web otomatis memuat Popunder, Social Bar & Smartlink Adsterra."
-                )
-        elif net_idx == 2:  # ExoClick
+        elif net_idx == 1:  # ExoClick
             steps_info = [
                 ("1. 🛡️ Audit IP", "#38d6d6"),
                 ("➔", "#6b7280"),
@@ -812,23 +761,23 @@ class Dashboard(QMainWindow):
                 self.hint_label.setText(
                     "🎯 Target ExoClick: Web otomatis memuat Popunder, In-Page Push, Native Banner, & Display Banner ExoClick."
                 )
-        else:  # Semua Jaringan
+        else:  # Rotasi Monetag & ExoClick
             steps_info = [
                 ("1. 🛡️ Audit IP", "#38d6d6"),
                 ("➔", "#6b7280"),
-                ("2. 🌐 Web Target (3 Net)", "#38d6d6"),
+                ("2. 🌐 Web Target (Rotasi)", "#38d6d6"),
                 ("➔", "#6b7280"),
                 ("3. 📜 Interaksi Natural", "#5aa9ff"),
                 ("➔", "#6b7280"),
                 ("4. 📑 Dwell Popunder / Banner", "#c77dff"),
                 ("➔", "#6b7280"),
-                ("5. 🔗 Dwell Smartlink / Direct", "#ffcc33"),
+                ("5. 🔗 Dwell Direct Link", "#ffcc33"),
                 ("➔", "#6b7280"),
                 ("6. ✅ Selesai", "#3ddc84"),
             ]
             if hasattr(self, "hint_label"):
                 self.hint_label.setText(
-                    "🔄 Target Semua Jaringan: Browser bergantian memunculkan Monetag, Adsterra, & ExoClick secara otomatis."
+                    "🔄 Target Rotasi: Browser bergantian memunculkan Monetag & ExoClick secara otomatis."
                 )
 
         for text, color in steps_info:
@@ -845,22 +794,19 @@ class Dashboard(QMainWindow):
         net_idx = self.ad_network_combo.currentIndex()
         flow_idx = self.flow_mode_combo.currentIndex()
 
-        # Tentukan target network: 'monetag' | 'adsterra' | 'exoclick' | 'all'
+        # Tentukan target network: 'monetag' | 'exoclick' | 'both'
         if net_idx == 0:
             target_net = "monetag"
         elif net_idx == 1:
-            target_net = "adsterra"
-        elif net_idx == 2:
             target_net = "exoclick"
         else:
-            target_net = "all"
+            target_net = "both"
 
         cfg["target_network"] = target_net
-        cfg["target_name"] = target_net if target_net in ("monetag", "adsterra", "exoclick") else "adsterra"
+        cfg["target_name"] = target_net if target_net in ("monetag", "exoclick") else "monetag"
         cfg["traffic_mode"] = "direct_article" if flow_idx == 0 else "shortlink"
         cfg["direct_link_url"] = "https://uplcm.com/4/12124796"
 
-        # Injeksi parameter URL ?ad_network=... agar website langsung memunculkan iklan yang dipilih!
         raw_url = self.target_url_input.text().strip() or "https://article.riztama.my.id/"
         parsed = urlparse(raw_url)
         target_host = parsed.netloc or "article.riztama.my.id"
@@ -870,10 +816,7 @@ class Dashboard(QMainWindow):
         elif target_net == "monetag":
             final_target_url = f"{target_scheme}://{target_host}/m/"
         else:
-            qs = parse_qs(parsed.query)
-            qs["ad_network"] = [target_net]
-            new_query = urlencode(qs, doseq=True)
-            final_target_url = urlunparse(parsed._replace(query=new_query))
+            final_target_url = f"{target_scheme}://{target_host}/m/"
 
         cfg["target_url"] = final_target_url
         cfg["concurrency"] = int(self.workers_spin.value())
@@ -908,17 +851,10 @@ class Dashboard(QMainWindow):
             if net_idx == 0:
                 t_net, t_style = "💎 Monetag", "magenta"
             elif net_idx == 1:
-                t_net, t_style = "⚡ Adsterra", "bold yellow"
-            elif net_idx == 2:
                 t_net, t_style = "🎯 ExoClick", "bold cyan"
             else:
-                r_idx = wid % 3
-                if r_idx == 1:
-                    t_net, t_style = "💎 Monetag", "magenta"
-                elif r_idx == 2:
-                    t_net, t_style = "⚡ Adsterra", "bold yellow"
-                else:
-                    t_net, t_style = "🎯 ExoClick", "bold cyan"
+                is_m = (wid % 2 == 1)
+                t_net, t_style = ("💎 Monetag", "magenta") if is_m else ("🎯 ExoClick", "bold cyan")
             self.workers_state[wid] = {
                 "target_net": t_net,
                 "target_net_style": t_style,
@@ -1203,7 +1139,6 @@ class Dashboard(QMainWindow):
             is_active = (ip in active_worker_ips) or (p.get("usage") == "IN_USE")
 
             tu = p.get("target_usage") or {}
-            ad_hit = (tu.get("adsterra") or {}).get("count", 0)
             mn_hit = (tu.get("monetag") or {}).get("count", 0)
             exo_hit = (tu.get("exoclick") or {}).get("count", 0)
 
@@ -1211,9 +1146,9 @@ class Dashboard(QMainWindow):
                 in_use_count += 1
             if health == "COOLDOWN":
                 cooldown_count += 1
-            if ad_hit == 0 and mn_hit == 0 and exo_hit == 0:
+            if mn_hit == 0 and exo_hit == 0:
                 fresh_count += 1
-            if ad_hit > 0 or mn_hit > 0 or exo_hit > 0:
+            if mn_hit > 0 or exo_hit > 0:
                 used_count += 1
 
             if search_q and (search_q not in ip.lower() and search_q not in c_name.lower()):
@@ -1221,9 +1156,9 @@ class Dashboard(QMainWindow):
 
             if f_idx == 1 and not is_active:
                 continue
-            elif f_idx == 2 and (ad_hit == 0 and mn_hit == 0 and exo_hit == 0):
+            elif f_idx == 2 and (mn_hit == 0 and exo_hit == 0):
                 continue
-            elif f_idx == 3 and (ad_hit > 0 or mn_hit > 0 or exo_hit > 0):
+            elif f_idx == 3 and (mn_hit > 0 or exo_hit > 0):
                 continue
             elif f_idx == 4 and health != "COOLDOWN":
                 continue
@@ -1238,7 +1173,7 @@ class Dashboard(QMainWindow):
         display_list = filtered[:350]
         if self.proxy_table.rowCount() != len(display_list):
             self.proxy_table.setRowCount(len(display_list))
-        center_cols = (0, 2, 3, 4, 5, 6, 7, 8, 9)
+        center_cols = (0, 2, 3, 4, 5, 6, 7, 8)
 
         for r, p in enumerate(display_list):
             ip = p.get("ip_detected") or p.get("host", "?")
@@ -1247,14 +1182,11 @@ class Dashboard(QMainWindow):
             is_active = ip in active_worker_ips
 
             tu = p.get("target_usage") or {}
-            ad_data = tu.get("adsterra") or {}
-            ad_hit = ad_data.get("count", 0)
             mn_data = tu.get("monetag") or {}
             mn_hit = mn_data.get("count", 0)
             exo_data = tu.get("exoclick") or {}
             exo_hit = exo_data.get("count", 0)
 
-            ad_str = f"{ad_hit}/2 (Fresh)" if ad_hit == 0 else (f"{ad_hit}/2 (Hit 1)" if ad_hit == 1 else f"{ad_hit}/2 (Limit)")
             mn_str = f"{mn_hit}/2 (Fresh)" if mn_hit == 0 else (f"{mn_hit}/2 (Hit 1)" if mn_hit == 1 else f"{mn_hit}/2 (Limit)")
             exo_str = f"{exo_hit}/2 (Fresh)" if exo_hit == 0 else (f"{exo_hit}/2 (Hit 1)" if exo_hit == 1 else f"{exo_hit}/2 (Limit)")
 
@@ -1274,10 +1206,9 @@ class Dashboard(QMainWindow):
             w_str = active_worker_ips.get(ip, "- (Idle)")
             w_color = "#38d6d6" if is_active else "#6b7280"
 
-            l_ad = ad_data.get("last_used") or 0
             l_mn = mn_data.get("last_used") or 0
             l_exo = exo_data.get("last_used") or 0
-            latest = max(l_ad, l_mn, l_exo)
+            latest = max(l_mn, l_exo)
             if latest > 0:
                 last_used_str = time.strftime("%H:%M:%S", time.localtime(latest))
             else:
@@ -1291,7 +1222,6 @@ class Dashboard(QMainWindow):
                 ip,
                 c_name,
                 status_str,
-                ad_str,
                 mn_str,
                 exo_str,
                 w_str,
@@ -1300,11 +1230,10 @@ class Dashboard(QMainWindow):
             ]
             row_colors = {
                 3: status_color,
-                4: "#3ddc84" if ad_hit == 0 else ("#ffcc33" if ad_hit == 1 else "#ff5c5c"),
-                5: "#3ddc84" if mn_hit == 0 else ("#ffcc33" if mn_hit == 1 else "#ff5c5c"),
-                6: "#3ddc84" if exo_hit == 0 else ("#ffcc33" if exo_hit == 1 else "#ff5c5c"),
-                7: w_color,
-                8: "#d7dae0" if latest > 0 else "#6b7280",
+                4: "#3ddc84" if mn_hit == 0 else ("#ffcc33" if mn_hit == 1 else "#ff5c5c"),
+                5: "#3ddc84" if exo_hit == 0 else ("#ffcc33" if exo_hit == 1 else "#ff5c5c"),
+                6: w_color,
+                7: "#d7dae0" if latest > 0 else "#6b7280",
             }
             for c, val in enumerate(row_cells):
                 item = self.proxy_table.item(r, c)
@@ -1331,14 +1260,11 @@ class Dashboard(QMainWindow):
                 target_name = "monetag"
                 net_tag = "MONETAG"
             elif net_idx == 1:
-                target_name = "adsterra"
-                net_tag = "ADSTERRA"
-            elif net_idx == 2:
                 target_name = "exoclick"
                 net_tag = "EXOCLICK"
             else:
-                target_name = "adsterra"
-                net_tag = "ROTASI 3 NET"
+                target_name = "monetag"
+                net_tag = "ROTASI"
 
             stats = self._shared_pm.get_stats()
             max_u = int(self.max_uses_spin.value()) if hasattr(self, "max_uses_spin") else 2
@@ -1421,11 +1347,9 @@ class Dashboard(QMainWindow):
                 c_flag = get_country_flag(c_name)
                 is_active = (ip in act_ips) or (p.get("usage") == "IN_USE")
                 tu = p.get("target_usage") or {}
-                ad_hit = (tu.get("adsterra") or {}).get("count", 0)
                 mn_hit = (tu.get("monetag") or {}).get("count", 0)
                 exo_hit = (tu.get("exoclick") or {}).get("count", 0)
                 last_u = max(
-                    (tu.get("adsterra") or {}).get("last_used", 0) or 0,
                     (tu.get("monetag") or {}).get("last_used", 0) or 0,
                     (tu.get("exoclick") or {}).get("last_used", 0) or 0,
                 )
@@ -1437,7 +1361,6 @@ class Dashboard(QMainWindow):
                     "health": p.get("health", "ALIVE"),
                     "is_active": is_active,
                     "used_by": act_ips.get(ip, None),
-                    "adsterra_hit": ad_hit,
                     "monetag_hit": mn_hit,
                     "exoclick_hit": exo_hit,
                     "last_used": last_u,

@@ -77,7 +77,7 @@ export default function RootLayout({
         <div className="route-grid" aria-hidden="true" />
         {children}
 
-        {/* Dynamic 50/50 Ad Network Loader (Adsterra / Monetag MultiTag) */}
+        {/* Dynamic Ad Network Loader (Monetag MultiTag) */}
         <AdNetworkManager />
       </body>
     </html>

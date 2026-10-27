@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Camoufox browser setup for Adsterra ad-render QA sessions."""
+"""Unified Camoufox browser setup and launch engine for bot automation."""
 
 import random
 from functools import lru_cache
@@ -8,8 +8,7 @@ from typing import Any, Dict, Optional
 from camoufox import DefaultAddons
 from camoufox.sync_api import Camoufox
 
-# Fallback country -> (timezone, locale) map used when GeoIP lookup is
-# unavailable. The IP-based lookup always wins when it succeeds.
+# Fallback country -> (timezone, locale) map used when GeoIP lookup is unavailable.
 COUNTRY_GEO_FALLBACK: Dict[str, tuple] = {
     "US": ("America/New_York", "en-US"),
     "USA": ("America/New_York", "en-US"),
@@ -61,11 +60,7 @@ def _lookup_ip_geo(ip: str) -> Optional[Dict[str, Any]]:
 
 
 def resolve_geo_profile(proxy_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Return the timezone/locale profile that matches the proxy's exit IP.
-
-    The result is used both for the Camoufox launch options (so the browser
-    clock/locale match the IP) and for the GUI report.
-    """
+    """Return the timezone/locale profile that matches the proxy exit IP."""
     proxy_data = proxy_data or {}
     raw_country = str(
         proxy_data.get("country_code")
@@ -156,7 +151,7 @@ def build_camoufox_kwargs(
     allow_third_party_cookies: bool = True,
     extra_prefs: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Build launch options that keep ad networks reachable for verification."""
+    """Build launch options that keep ad networks reachable and popunders permitted."""
     proxy_dict = get_proxy_credentials(proxy_data) if proxy_data else None
     geo_profile = resolve_geo_profile(proxy_data)
 
@@ -183,9 +178,6 @@ def build_camoufox_kwargs(
         "browser.link.open_newwindow.restriction": 0,
     }
     if allow_third_party_cookies:
-        # Ad networks (Adsterra included) rely on third-party cookies for
-        # frequency capping and impression deduplication. Firefox's Total
-        # Cookie Protection silently breaks those cookies, so disable it.
         user_prefs.update({
             "network.cookie.cookieBehavior": 0,
             "network.cookie.lifetimePolicy": 0,
@@ -209,8 +201,6 @@ def build_camoufox_kwargs(
         "firefox_user_prefs": user_prefs,
     }
 
-    # Keep the browser clock/locale tied to the proxy exit IP. GeoIP already
-    # does this at launch, but the explicit fallback covers unknown IPs.
     if geo_profile.get("locale"):
         kwargs["locale"] = geo_profile["locale"]
     if geo_profile.get("timezone") and geo_profile.get("source") != "geoip":
@@ -241,3 +231,24 @@ def create_camoufox_session(
         allow_third_party_cookies=allow_third_party_cookies,
     )
     return Camoufox(**kwargs)
+
+
+def load_config() -> Dict[str, Any]:
+    import json
+    from pathlib import Path
+    cfg_file = Path(__file__).resolve().parent / "monetag" / "config.json"
+    if cfg_file.exists():
+        try:
+            with open(cfg_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {
+        "target_url": "https://article.riztama.my.id/m/",
+        "headless": True,
+        "humanize": True,
+        "run_browser_verifier": True,
+        "concurrency": 2,
+        "max_sessions_per_run": 8,
+    }
+

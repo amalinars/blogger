@@ -11,7 +11,7 @@ declare global {
 
 export function VideoAdSlot({ className = '' }: { className?: string }) {
   const [provider, setProvider] = useState<AdProvider>(() =>
-    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+    typeof window !== 'undefined' ? getAdProvider() : 'monetag'
   );
   const loaded = useRef(false);
 

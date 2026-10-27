@@ -11,7 +11,7 @@ declare global {
 
 export function NativeAdSlot({ className = '' }: { className?: string }) {
   const [provider, setProvider] = useState<AdProvider>(() =>
-    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+    typeof window !== 'undefined' ? getAdProvider() : 'monetag'
   );
   const loaded = useRef(false);
 
@@ -24,15 +24,12 @@ export function NativeAdSlot({ className = '' }: { className?: string }) {
 
     if (currentProvider === 'exoclick') {
       serveExoClick();
-    } else {
-      // Load Adsterra Native Banner script
-      const script = document.createElement('script');
-      script.async = true;
-      script.setAttribute('data-cfasync', 'false');
-      script.src = 'https://bauval.org/21/eff1cc809a63f65a58e6ad5541eb7757';
-      document.body.appendChild(script);
     }
   }, []);
+
+  if (provider !== 'exoclick') {
+    return null;
+  }
 
   return (
     <div
@@ -47,16 +44,9 @@ export function NativeAdSlot({ className = '' }: { className?: string }) {
         </span>
       </div>
 
-      {provider === 'exoclick' ? (
-        <div className="min-h-[140px] w-full flex justify-center exoclick-native-container overflow-hidden">
-          <ins className="eas6a97888e20" data-zoneid={String(EXOCLICK_NATIVE_ZONE_ID)} />
-        </div>
-      ) : (
-        <div
-          id="container-eff1cc809a63f65a58e6ad5541eb7757"
-          className="min-h-[140px] w-full"
-        />
-      )}
+      <div className="min-h-[140px] w-full flex justify-center exoclick-native-container overflow-hidden">
+        <ins className="eas6a97888e20" data-zoneid={String(EXOCLICK_NATIVE_ZONE_ID)} />
+      </div>
     </div>
   );
 }

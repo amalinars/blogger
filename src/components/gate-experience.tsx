@@ -6,9 +6,6 @@ import { BannerSlot } from '@/components/banner-ad-loader';
 import { NativeAdSlot } from '@/components/native-ad-loader';
 import { VideoAdSlot } from '@/components/video-ad-loader';
 import {
-  BANNER_LEADERBOARD,
-  BANNER_MED_RECT,
-  BANNER_SKYSCRAPER,
   getActiveSmartlink,
   getAdProvider,
   resetExoClickPop,
@@ -34,7 +31,7 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   const [showDestination, setShowDestination] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
   const [provider, setProvider] = useState<string>(() =>
-    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+    typeof window !== 'undefined' ? getAdProvider() : 'monetag'
   );
   const [videoSlotIndex, setVideoSlotIndex] = useState<number>(0);
   const finalRef = useRef<HTMLElement | null>(null);
@@ -180,11 +177,13 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
       </header>
 
       {/* Top Banner Leaderboard: full-width below header */}
-      <div className="relative z-10 border-b border-line bg-base">
-        <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
-          <BannerSlot banner={BANNER_LEADERBOARD} />
+      {provider === 'exoclick' && (
+        <div className="relative z-10 border-b border-line bg-base">
+          <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
+            <BannerSlot width={728} height={90} />
+          </div>
         </div>
-      </div>
+      )}
 
       <main
         id="main"
@@ -292,10 +291,11 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
             </p>
 
             {/* Sidebar banners */}
-            <div className="mt-6 flex flex-col items-center gap-4">
-              <BannerSlot banner={BANNER_MED_RECT} />
-              {provider !== 'exoclick' && <BannerSlot banner={BANNER_SKYSCRAPER} />}
-            </div>
+            {provider === 'exoclick' && (
+              <div className="mt-6 flex flex-col items-center gap-4">
+                <BannerSlot width={300} height={250} />
+              </div>
+            )}
           </div>
 
           <div className="min-w-0 space-y-5">

@@ -1,4 +1,0 @@
-"zone name","placement name","placement id","codes & smartlinks"
-read.riztama.my.id,Popunder_1,31819971,"<script src=""https://pl31920470.profitableratecpmnetwork.com/49/c7/ce/49c7cec8999e07745020694cb2ce20e2.js""></script>"
-read.riztama.my.id,Smartlink_1,31819973,https://www.profitableratecpmnetwork.com/wfbxac2hpn?key=49e072f6e7743835ebfbaa0961eff226
-read.riztama.my.id,SocialBar_1,31819974,"<script data-cfasync=""false"" src=""https://bauval.org/14/d1b08f4dfc08883f7373da4a28f604b2""></script>"

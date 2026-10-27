@@ -1,28 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { BannerAd } from '@/lib/ads';
 import { getAdProvider, AdProvider, EXOCLICK_BANNER_ZONE_ID, serveExoClick } from '@/lib/ads';
 
-// All BannerSlot instances share one promise chain so atOptions is never
-// overwritten before the previous Adsterra script has finished executing.
-let bannerQueue: Promise<void> = Promise.resolve();
-
-function enqueue(loader: () => Promise<void>): Promise<void> {
-  bannerQueue = bannerQueue.then(loader, loader);
-  return bannerQueue;
-}
-
 type BannerSlotProps = {
-  banner: BannerAd;
   className?: string;
+  height?: number;
+  width?: number;
 };
 
-export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
+export function BannerSlot({ className = '', height = 90, width = 728 }: BannerSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
   const started = useRef(false);
   const [provider, setProvider] = useState<AdProvider>(() =>
-    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+    typeof window !== 'undefined' ? getAdProvider() : 'monetag'
   );
 
   useEffect(() => {
@@ -35,35 +26,11 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
 
     if (currentProvider === 'exoclick') {
       serveExoClick();
-      return;
     }
-
-    enqueue(
-      () =>
-        new Promise<void>((resolve) => {
-          (window as unknown as Record<string, unknown>)['atOptions'] = {
-            key: banner.key,
-            format: 'iframe',
-            height: banner.height,
-            width: banner.width,
-            params: {},
-          };
-
-          const script = document.createElement('script');
-          script.src = banner.src;
-          script.async = false;
-          script.dataset.cfasync = 'false';
-          script.onload = () => resolve();
-          script.onerror = () => resolve();
-          el.appendChild(script);
-        }),
-    );
-  }, [banner]);
+  }, []);
 
   if (provider === 'exoclick') {
-    // Tampilkan banner di Leaderboard (atas) dan Medium Rectangle (sidebar).
-    // Sembunyikan untuk Skyscraper (160x600) agar layout sidebar tetap rapi dan proporsional.
-    if (banner.height > 300 && banner.width <= 200) {
+    if (height > 300 && width <= 200) {
       return null;
     }
 
@@ -77,12 +44,5 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
     );
   }
 
-  return (
-    <div
-      ref={ref}
-      id={`container-${banner.key}`}
-      className={`flex justify-center overflow-hidden ${className}`}
-      style={{ minHeight: banner.height }}
-    />
-  );
+  return null;
 }

@@ -36,9 +36,10 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.proxy_manager import ProxyManager
 from core.telemetry_reporter import get_telemetry_reporter
-from automation.adsterra.qa import SessionBudget, load_config
-from automation.adsterra.flow_qa import flow_worker_thread_loop
-from automation.monetag.flow import run_monetag_session
+from automation.engine import load_config
+from automation.session import SessionBudget
+from automation.monetag.flow import monetag_worker_thread_loop, run_monetag_session
+from automation.exoclick.flow import exoclick_worker_thread_loop
 
 # ANSI Color codes untuk terminal modern
 RESET = "\033[0m"
@@ -185,9 +186,9 @@ class BotRunnerCLI:
 
         self.workers_state: Dict[int, Dict[str, Any]] = {}
         for wid in range(1, self.args.workers + 1):
-            t_net = "💎 Monetag" if self.args.target == "monetag" else "⚡ Adsterra"
+            t_net = "💎 Monetag" if self.args.target == "monetag" else "🎯 ExoClick"
             if self.args.target == "both":
-                t_net = "💎 Monetag" if wid % 2 == 1 else "⚡ Adsterra"
+                t_net = "💎 Monetag" if wid % 2 == 1 else "🎯 ExoClick"
             self.workers_state[wid] = {
                 "worker_id": wid,
                 "target_net": t_net,
@@ -359,11 +360,11 @@ class BotRunnerCLI:
                 is_active = bool(ip in active_ips)
                 health = p.get("health", "ALIVE")
                 tu = p.get("target_usage") or {}
-                ad_hit = (tu.get("adsterra") or {}).get("count", 0)
                 mn_hit = (tu.get("monetag") or {}).get("count", 0)
-                l_ad = (tu.get("adsterra") or {}).get("last_used", 0) or 0
+                exo_hit = (tu.get("exoclick") or {}).get("count", 0)
                 l_mn = (tu.get("monetag") or {}).get("last_used", 0) or 0
-                last_used = max(l_ad, l_mn)
+                l_exo = (tu.get("exoclick") or {}).get("last_used", 0) or 0
+                last_used = max(l_mn, l_exo)
 
                 p_list.append({
                     "ip": ip,
@@ -373,8 +374,8 @@ class BotRunnerCLI:
                     "health": health,
                     "is_active": is_active,
                     "used_by": active_ips.get(ip, None),
-                    "adsterra_hit": ad_hit,
                     "monetag_hit": mn_hit,
+                    "exoclick_hit": exo_hit,
                     "last_used": last_used,
                     "latency_ms": p.get("latency_ms", 0),
                 })
@@ -422,7 +423,7 @@ class BotRunnerCLI:
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
-                t = self.args.target if self.args.target in ("monetag", "adsterra") else None
+                t = self.args.target if self.args.target in ("monetag", "exoclick") else None
                 reset_hits = self.proxy_manager.reset_target_usage(t)
                 self.budget.reset_proxy_counts()
                 print(f"\n{YELLOW}♻️ [Mode Tanpa Batas] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
@@ -432,13 +433,13 @@ class BotRunnerCLI:
             if self.args.target == "monetag":
                 w_fn = monetag_worker_thread_loop
                 w_tag = "Monetag"
-            elif self.args.target == "adsterra":
-                w_fn = flow_worker_thread_loop
-                w_tag = "Adsterra"
+            elif self.args.target == "exoclick":
+                w_fn = exoclick_worker_thread_loop
+                w_tag = "ExoClick"
             else:
                 is_m = (wid % 2 == 1)
-                w_fn = monetag_worker_thread_loop if is_m else flow_worker_thread_loop
-                w_tag = "Monetag" if is_m else "Adsterra"
+                w_fn = monetag_worker_thread_loop if is_m else exoclick_worker_thread_loop
+                w_tag = "Monetag" if is_m else "ExoClick"
 
             t = threading.Thread(
                 target=w_fn,
@@ -475,14 +476,14 @@ class BotRunnerCLI:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bot Shortlink Runner CLI (Adsterra & Monetag) dengan Telemetry Supabase Realtime.",
+        description="Bot Shortlink Runner CLI (Monetag & ExoClick) dengan Telemetry Supabase Realtime.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "--target",
-        choices=["adsterra", "monetag", "both"],
-        default="adsterra",
-        help="Jaringan iklan target: adsterra, monetag, atau both",
+        choices=["monetag", "exoclick", "both"],
+        default="monetag",
+        help="Jaringan iklan target: monetag, exoclick, atau both",
     )
     parser.add_argument(
         "-w", "--workers",
