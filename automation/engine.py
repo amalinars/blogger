@@ -208,7 +208,14 @@ def build_camoufox_kwargs(
 
     if proxy_dict:
         kwargs["proxy"] = proxy_dict
-        kwargs["geoip"] = geoip_setting
+        try:
+            from camoufox.geolocation import geoip_allowed
+            geoip_allowed()
+            kwargs["geoip"] = geoip_setting
+        except Exception:
+            # Fallback jika modul camoufox[geoip] belum terpasang
+            kwargs["geoip"] = False
+            kwargs["i_know_what_im_doing"] = True
 
     if allow_ads:
         kwargs["exclude_addons"] = [DefaultAddons.UBO]
