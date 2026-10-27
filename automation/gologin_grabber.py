@@ -237,6 +237,10 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
         "os": expected_os,
         "humanize": False,
         "i_know_what_im_doing": True,
+        "firefox_user_prefs": {
+            "dom.webdriver.enabled": False,
+            "marionette.enabled": False,
+        },
     }
     expected_ip = None
     expected_country = None
@@ -327,11 +331,21 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                 # -----------------------------------------------------------
                 # TAHAP 1: INPUT EMAIL & KLIK 'TRY 7 DAYS FOR FREE'
                 # -----------------------------------------------------------
-                print("▶️ [Step 1/4] Membuka https://app.gologin.com/sign_up ...")
-                page.goto("https://app.gologin.com/sign_up", timeout=30000)
-                
-                print("   ✍️ Isi Email & Centang Terms...")
-                page.wait_for_selector('input[placeholder*="email" i], input[type="text"]', timeout=10000)
+                print("▶️ [Step 1/4] Membuka https://app.gologin.com/sign_up ...", flush=True)
+                nav_ok = False
+                for nav_try in range(1, 3):
+                    try:
+                        page.goto("https://app.gologin.com/sign_up", wait_until="domcontentloaded", timeout=45000)
+                        nav_ok = True
+                        break
+                    except Exception as e_nav:
+                        if nav_try == 2:
+                            raise
+                        print(f"   ⚠️ Proxy lambat ({e_nav}), mencoba ulang navigasi...", flush=True)
+                        time.sleep(2)
+
+                print("   ✍️ Isi Email & Centang Terms...", flush=True)
+                page.wait_for_selector('input[placeholder*="email" i], input[type="text"]', timeout=20000)
                 page.fill('input[placeholder*="email" i], input[type="text"]', email)
                 
                 cb = page.query_selector('input[type="checkbox"]')
