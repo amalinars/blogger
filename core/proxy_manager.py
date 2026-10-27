@@ -31,15 +31,52 @@ HEALTH_COOLDOWN = "COOLDOWN"
 USAGE_IDLE = "IDLE"
 USAGE_IN_USE = "IN_USE"
 
-KNOWN_PROXY_ERRORS = (
-    "ProxyError",
-    "ConnectTimeout",
+UNREACHABLE_ERRORS = (
     "ConnectionRefused",
-    "407",
-    "Proxy Authentication Required",
+    "connection refused",
+    "ConnectionReset",
+    "connection reset",
+    "connection closed",
+    "ConnectionClosed",
+    "HostUnreachable",
+    "no route to host",
+    "network unreachable",
+    "NetworkUnreachable",
+    "ENETUNREACH",
+    "EHOSTUNREACH",
+    "ECONNREFUSED",
+    "ECONNRESET",
+    "NameResolutionError",
+    "getaddrinfo failed",
+    "ERR_NAME_NOT_RESOLVED",
+    "ERR_CONNECTION_REFUSED",
+    "ERR_CONNECTION_RESET",
+    "ERR_CONNECTION_CLOSED",
+    "ERR_ADDRESS_UNREACHABLE",
+    "ERR_PROXY_CONNECTION_FAILED",
     "Tunnel connection failed",
+    "Proxy Authentication Required",
+    "407",
+    "ProxyError",
     "SOCKSHTTPConnection",
+    "SSLError",
+    "CERTIFICATE_VERIFY_FAILED",
 )
+
+TIMEOUT_ERRORS = (
+    "Timeout",
+    "timeout",
+    "ConnectTimeout",
+    "ReadTimeout",
+    "TimeoutError",
+    "exceeded",
+    "timed out",
+    "ETIMEDOUT",
+    "ERR_TIMED_OUT",
+    "ERR_CONNECTION_TIMED_OUT",
+)
+
+KNOWN_PROXY_ERRORS = UNREACHABLE_ERRORS + TIMEOUT_ERRORS
 
 
 class ProxyManager:
@@ -738,6 +775,10 @@ class ProxyManager:
                     hist.append(now)
                     if len(hist) > 50:
                         t_data["history"] = hist[-50:]
+                    # Reset kegagalan dan kembalikan ke ALIVE jika berhasil koneksi
+                    p["fail_count"] = 0
+                    if p.get("health") != HEALTH_DEAD:
+                        p["health"] = HEALTH_ALIVE
                     self._save_raw(data)
                     return True
             return False
@@ -901,17 +942,23 @@ class ProxyManager:
     # 4. PENANGANAN KEGAGALAN SAAT DIGUNAKAN
     # =========================================================================
 
-    def report_failure(self, identifier: str, error_message: Optional[str] = None, is_proxy_error: bool = False) -> Dict[str, Any]:
+    def report_failure(self, identifier: Union[str, Dict[str, Any]], error_message: Optional[str] = None, is_proxy_error: bool = False) -> Dict[str, Any]:
         """
-        Melaporkan kegagalan penggunaan proxy.
-        - Membedakan kegagalan proxy dari kegagalan website tujuan/gangguan sesaat.
-        - Tidak langsung menandai DEAD jika bukan kegagalan proxy yang fatal.
-        - Jika is_proxy_error=True atau fail_count mencapai batas: lakukan pengetesan ulang.
-          Jika pengetesan membuktikan proxy mati, status diubah menjadi DEAD.
+        Melaporkan kegagalan penggunaan proxy saat mengakses web target.
+        Aturan:
+        1. Jika error bertipe TIMEOUT (page navigation timeout / slow response / read timeout):
+           -> Status diubah ke COOLDOWN (agar diistirahatkan sementara, tidak langsung dimatikan).
+        2. Jika koneksi TIDAK TERJANGKAU (connection refused, host unreachable, reset, tunnel/proxy dead, dns error):
+           -> Jika sudah 3x mencoba (fail_count >= 3): status diubah menjadi DEAD (mati total).
+           -> Jika belum mencapai 3x: status diberi COOLDOWN untuk dicoba kembali.
+        3. Error fatal level driver/proxy test (test_proxy_network gagal):
+           -> Langsung ditandai DEAD.
         """
+        if isinstance(identifier, dict):
+            identifier = identifier.get("id") or identifier.get("proxy_url") or identifier.get("leased_by") or ""
+
         proxy_id = None
         proxy_url = None
-        suspected_proxy_fault = False
         fail_count = 0
 
         with self._lock:
@@ -927,52 +974,47 @@ class ProxyManager:
 
             err_str = str(error_message or "")
             proxy["last_error"] = err_str
-            proxy["fail_count"] = proxy.get("fail_count", 0) + 1
+            proxy["last_checked"] = time.time()
+            proxy["fail_count"] = int(proxy.get("fail_count", 0) or 0) + 1
             fail_count = proxy["fail_count"]
             proxy_id = proxy.get("id")
             proxy_url = proxy.get("proxy_url")
 
-            # Deteksi apakah error menunjukkan proxy rusak
-            suspected_proxy_fault = is_proxy_error or any(k.lower() in err_str.lower() for k in KNOWN_PROXY_ERRORS)
-            self._save_raw(data)
+            err_lower = err_str.lower()
+            is_timeout = any(k.lower() in err_lower for k in TIMEOUT_ERRORS)
+            is_unreachable = (
+                is_proxy_error
+                or any(k.lower() in err_lower for k in UNREACHABLE_ERRORS)
+            )
 
-        # Jika diduga kuat proxy mati atau gagal berulang kali, lakukan tes kepastian
-        if suspected_proxy_fault or fail_count >= MAX_FAIL_THRESHOLD:
-            if proxy_url:
+            # 1. Jika murni Timeout (lambat/stalled load halaman): Berikan COOLDOWN
+            if is_timeout and not is_unreachable:
+                proxy["health"] = HEALTH_COOLDOWN
+                self._save_raw(data)
+                return dict(proxy)
+
+            # 2. Jika koneksi tidak terjangkau / fatal network error:
+            # Jika sudah 3 kali mencoba -> Dianggap MATI TOTAL (DEAD)
+            if fail_count >= MAX_FAIL_THRESHOLD:
+                proxy["health"] = HEALTH_DEAD
+                proxy["last_error"] = f"DEAD (Koneksi tidak terjangkau {fail_count}x): {err_str[:120]}"
+                self._save_raw(data)
+                return dict(proxy)
+
+            # 3. Jika belum mencapai 3x tapi diduga proxy error, lakukan verifikasi cepat:
+            if is_unreachable and proxy_url:
                 test_res = self._test_proxy_network(proxy_url)
-                with self._lock:
-                    data = self._load_raw()
-                    for p in data["proxies"]:
-                        if p.get("id") == proxy_id:
-                            p["last_checked"] = time.time()
-                            if not test_res["success"]:
-                                p["health"] = HEALTH_DEAD
-                                p["last_error"] = f"Dead confirmed: {test_res['error']}"
-                            else:
-                                # Ternyata jaringannya masih hidup, pasang status COOLDOWN
-                                p["health"] = HEALTH_COOLDOWN
-                                p["latency_ms"] = test_res["latency_ms"]
-                            self._save_raw(data)
-                            return dict(p)
+                if not test_res["success"]:
+                    proxy["health"] = HEALTH_DEAD
+                    proxy["last_error"] = f"Dead confirmed: {test_res['error']}"
+                else:
+                    proxy["health"] = HEALTH_COOLDOWN
+                    proxy["latency_ms"] = test_res.get("latency_ms")
             else:
-                with self._lock:
-                    data = self._load_raw()
-                    for p in data["proxies"]:
-                        if p.get("id") == proxy_id:
-                            p["health"] = HEALTH_DEAD
-                            self._save_raw(data)
-                            return dict(p)
-        else:
-            # Kesalahan sementara (misal website tujuan 502/rate-limit)
-            with self._lock:
-                data = self._load_raw()
-                for p in data["proxies"]:
-                    if p.get("id") == proxy_id:
-                        # Masukkan ke COOLDOWN sementara agar tidak langsung dihantam request lagi
-                        p["health"] = HEALTH_COOLDOWN
-                        p["last_checked"] = time.time()
-                        self._save_raw(data)
-                        return dict(p)
+                proxy["health"] = HEALTH_COOLDOWN
+
+            self._save_raw(data)
+            return dict(proxy)
 
         with self._lock:
             data = self._load_raw()

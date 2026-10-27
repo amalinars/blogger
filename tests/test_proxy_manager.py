@@ -214,6 +214,28 @@ def test_report_failure_transient_vs_fatal(temp_proxy_file):
         assert "Dead confirmed" in res2["last_error"]
 
 
+def test_three_strike_rule_and_timeout_cooldown(temp_proxy_file):
+    """Memverifikasi bahwa timeout selalu diberi COOLDOWN dan koneksi tidak terjangkau mati total pada percobaan ke-3."""
+    pm = ProxyManager(filepath=temp_proxy_file)
+
+    # 1. Timeout -> COOLDOWN
+    res_to = pm.report_failure("p1", error_message="Page.goto: Timeout 30000ms exceeded.")
+    assert res_to["health"] == HEALTH_COOLDOWN
+    assert res_to["fail_count"] == 1
+
+    # 2. Unreachable percobaan ke-2 (mock test network success agar tidak instant dead)
+    with patch.object(pm, "_test_proxy_network", return_value={"success": True, "ip": "1.1.1.1", "latency_ms": 200, "error": None}):
+        res_un1 = pm.report_failure("p1", error_message="ConnectionRefused: Target web unreachable")
+        assert res_un1["health"] == HEALTH_COOLDOWN
+        assert res_un1["fail_count"] == 2
+
+    # 3. Unreachable percobaan ke-3 -> MATI TOTAL (DEAD)
+    res_un2 = pm.report_failure("p1", error_message="ConnectionRefused: Target web unreachable")
+    assert res_un2["health"] == HEALTH_DEAD
+    assert res_un2["fail_count"] == 3
+    assert "DEAD" in res_un2["last_error"]
+
+
 def test_revalidate_dead(temp_proxy_file):
     pm = ProxyManager(filepath=temp_proxy_file)
     # p2 is DEAD. Test revalidate_dead with mocked success.

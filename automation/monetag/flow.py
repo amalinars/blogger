@@ -615,6 +615,7 @@ def monetag_worker_thread_loop(
             budget.record("FAIL")
             if proxy_id:
                 budget.mark_proxy(proxy_id)
+            proxy_manager.report_failure(proxy, error_message=str(e_run))
         finally:
             proxy_manager.release_proxy(proxy)
 
