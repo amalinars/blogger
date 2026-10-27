@@ -212,7 +212,7 @@ def solve_cloudflare_turnstile(page, timeout=10):
     return check_is_solved()
 
 
-def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=None, rounds=2, expected_os="windows"):
+def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=None, rounds=2, expected_os="windows", skip_verifier=False):
     os.makedirs("data", exist_ok=True)
     
     print("==========================================================================")
@@ -246,7 +246,12 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
             "username": proxy_item["username"],
             "password": proxy_item["password"]
         }
-        camoufox_opts["geoip"] = True
+        try:
+            from camoufox.geolocation import geoip_allowed
+            geoip_allowed()
+            camoufox_opts["geoip"] = True
+        except Exception:
+            camoufox_opts["geoip"] = False
         host = proxy_item.get("host", "")
         if re.match(r"^\d+\.\d+\.\d+\.\d+$", host):
             expected_ip = host
@@ -274,25 +279,28 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                 # -----------------------------------------------------------
                 # TAHAP 0: PRE-FLIGHT VERIFIER (LAYER 1 GATEKEEPER)
                 # -----------------------------------------------------------
-                print(f"🛡️ [{round_idx}/{rounds} - Step 0/4] Memverifikasi Keamanan Browser via Core Verifier...")
-                verification = verify_browser(
-                    page,
-                    expected_ip=expected_ip,
-                    expected_os=expected_os,
-                    expected_country=expected_country,
-                    check_ads=False,
-                    strict_mode=False
-                )
+                if not skip_verifier:
+                    print(f"🛡️ [{round_idx}/{rounds} - Step 0/4] Memverifikasi Keamanan Browser via Core Verifier...")
+                    verification = verify_browser(
+                        page,
+                        expected_ip=expected_ip,
+                        expected_os=expected_os,
+                        expected_country=expected_country,
+                        check_ads=False,
+                        strict_mode=False
+                    )
 
-                if not verification.is_safe:
-                    print("\n❌ BROWSER TIDAK LOLOS VERIFIKASI KEAMANAN:")
-                    for iss in verification.issues:
-                        print(f"   • {iss}")
-                    print("🚫 Sesi pendaftaran GoLogin dibatalkan demi keamanan!\n")
-                    break
+                    if not verification.is_safe:
+                        print("\n❌ BROWSER TIDAK LOLOS VERIFIKASI KEAMANAN:")
+                        for iss in verification.issues:
+                            print(f"   • {iss}")
+                        print("🚫 Sesi pendaftaran GoLogin dibatalkan demi keamanan!\n")
+                        break
 
-                actual = verification.actual_state
-                print(f"   ✅ Lolos Audit Keamanan! (Score: {verification.score}/100 | Exit IP: {actual.get('ip')} | Negara: {actual.get('country')})\n")
+                    actual = verification.actual_state
+                    print(f"   ✅ Lolos Audit Keamanan! (Score: {verification.score}/100 | Exit IP: {actual.get('ip')} | Negara: {actual.get('country')})\n")
+                else:
+                    print(f"⏩ [{round_idx}/{rounds} - Step 0/4] Skip Pre-Flight Verifier (Mode Direct Colab)")
 
                 # Intercept semua response API dari api.gologin.com
                 captured_from_api = []
@@ -504,6 +512,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
     parser.add_argument("--proxy-index", type=int, default=None, help="Gunakan proxy index tertentu saja dari Proxy Management")
     parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
+    parser.add_argument("--skip-verifier", action="store_true", help="Lewati preflight audit (berguna untuk direct IP datacenter Colab)")
     args = parser.parse_args()
 
     concurrency = max(1, args.concurrency)
@@ -554,7 +563,12 @@ if __name__ == "__main__":
 
             new_proxies = []
             try:
-                new_proxies = grab_gologin_proxies(headless=args.headless, proxy_item=selected_proxy, rounds=args.rounds)
+                new_proxies = grab_gologin_proxies(
+                    headless=args.headless,
+                    proxy_item=selected_proxy,
+                    rounds=args.rounds,
+                    skip_verifier=args.skip_verifier,
+                )
                 with stats_lock:
                     state["total_added"] += len(new_proxies)
                     total_now = state["total_added"]
