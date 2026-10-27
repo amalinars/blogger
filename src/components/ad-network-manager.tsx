@@ -20,6 +20,10 @@ export function AdNetworkManager() {
     if (initialized.current) return;
     initialized.current = true;
 
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/v/')) {
+      return;
+    }
+
     const provider = getAdProvider();
 
     if (provider === 'exoclick') {
