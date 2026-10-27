@@ -40,11 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Proxy credentials & data
-automation/proxies.json
-automation/proxies.txt
-automation/*proxy*.txt
-automation/*proxy*.json
+# Proxy credentials & lists (any directory)
+*proxies*.json
+*proxies*.txt
+*proxy*.txt
+*proxy*.json
 !automation/proxies.example.json
 
 # Python artifacts
@@ -52,8 +52,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Runtime data & local node stats / proxy lists
+# Runtime data, sessions, state & stats
+*state*.json
+*stats*.json
 /data/*.json
 /data/*.png
 !/data/telemetry_config.json
+
 
