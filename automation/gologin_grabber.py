@@ -564,33 +564,44 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
     return all_captured_proxies
 
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="GoLogin Trial Proxy Grabber with Verifier Gatekeeper")
-    parser.add_argument("--headless", action="store_true", help="Jalankan dalam mode headless")
-    parser.add_argument("-c", "--concurrency", "--workers", dest="concurrency", type=int, default=1, help="Jumlah concurrent workers/browser yang berjalan bersamaan (default: 1)")
-    parser.add_argument("-r", "--rounds", type=int, default=2, help="Jumlah putaran grab per proxy (default: 2 putaran = 10 proxy)")
-    parser.add_argument("-t", "--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
-    parser.add_argument("--proxy-index", type=int, default=None, help="Gunakan proxy index tertentu saja dari Proxy Management")
-    parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
-    parser.add_argument("--skip-verifier", action="store_true", help="Lewati preflight audit (berguna untuk direct IP datacenter Colab)")
-    args = parser.parse_args()
+def run_gologin_harvest_job(
+    target_proxies: int = 50,
+    concurrency: int = 1,
+    rounds: int = 1,
+    headless: bool = True,
+    direct: bool = False,
+    skip_verifier: bool = False,
+    proxy_index: Optional[int] = None,
+    stop_event: Optional[threading.Event] = None,
+    on_log: Optional[Callable[[str, str], None]] = None,
+    on_progress: Optional[Callable[[int, int], None]] = None,
+) -> int:
+    """
+    Menjalankan background multi-threaded harvester GoLogin trial proxies.
+    Dapat dipanggil oleh CLI maupun GUI (PySide6).
+    """
+    if stop_event is None:
+        stop_event = threading.Event()
 
-    concurrency = max(1, args.concurrency)
-    stop_event = threading.Event()
+    def _log(msg: str, style: str = "white"):
+        if on_log:
+            on_log(msg, style)
+        else:
+            print(msg, flush=True)
+
+    concurrency = max(1, concurrency)
     stats_lock = threading.Lock()
     state = {
         "total_added": 0,
-        "target": args.target_proxies,
+        "target": target_proxies,
     }
 
-    print("==========================================================================")
-    print("🌾 GOLOGIN PROXY HARVESTER (AUTO-ROTATING SESSION)")
-    print(f"🎯 Target Proxy Baru : {args.target_proxies} Proxy")
-    print(f"⚡ Concurrency       : {concurrency} Worker(s)")
-    print(f"🔄 Rasio Grab        : 1 Proxy untuk {args.rounds}x Grab Akun GoLogin (~{args.rounds * 5} proxy)")
-    print(f"🖥️ Mode Headless     : {args.headless}")
-    print("==========================================================================\n")
+    _log("=" * 65, "cyan")
+    _log("🌾 GOLOGIN PROXY HARVESTER (AUTO-ROTATING SESSION)", "bold cyan")
+    _log(f"🎯 Target Proxy Baru : {target_proxies} Proxy | Concurrency: {concurrency} Worker(s)", "white")
+    _log(f"🔄 Rasio Grab        : 1 Proxy untuk {rounds}x Grab Akun GoLogin (~{rounds * 5} proxy)", "white")
+    _log(f"🖥️ Mode Headless     : {headless}", "white")
+    _log("=" * 65, "cyan")
 
     def _worker_job(worker_id: int):
         proxy_run_count = 0
@@ -604,49 +615,49 @@ if __name__ == "__main__":
             selected_proxy = None
             is_acquired = False
 
-            if args.direct:
-                print(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menggunakan Direct IP (Internet Lokal)...")
+            if direct:
+                _log(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menggunakan Direct IP (Internet Lokal)...", "cyan")
                 selected_proxy = None
-            elif args.proxy_index is not None:
-                selected_proxy = get_proxy_by_index(args.proxy_index)
+            elif proxy_index is not None:
+                selected_proxy = get_proxy_by_index(proxy_index)
                 if not selected_proxy:
-                    print(f"⚠️ [W{worker_id}] Proxy index {args.proxy_index} tidak ditemukan di Proxy Management.")
+                    _log(f"⚠️ [W{worker_id}] Proxy index {proxy_index} tidak ditemukan di Proxy Management.", "yellow")
                     break
             else:
                 selected_proxy = acquire_proxy(caller_id=caller_id)
                 if selected_proxy:
                     is_acquired = True
-                    print(f"\n🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')})")
+                    _log(f"🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')})", "green")
                 else:
-                    print(f"⚠️ [W{worker_id}] Seluruh proxy di pool sedang digunakan atau DEAD. Menunggu 3 detik...")
+                    _log(f"⚠️ [W{worker_id}] Seluruh proxy di pool sedang digunakan atau DEAD. Menunggu 3 detik...", "yellow")
                     time.sleep(3.0)
                     continue
 
             new_proxies = []
             try:
                 new_proxies = grab_gologin_proxies(
-                    headless=args.headless,
+                    headless=headless,
                     proxy_item=selected_proxy,
-                    rounds=args.rounds,
-                    skip_verifier=args.skip_verifier,
+                    rounds=rounds,
+                    skip_verifier=skip_verifier,
                 )
                 with stats_lock:
                     state["total_added"] += len(new_proxies)
                     total_now = state["total_added"]
-                print("\n" + "=" * 60)
-                print(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{args.target_proxies}")
-                print("=" * 60)
+                _log(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{target_proxies}", "bold green")
+                if on_progress:
+                    on_progress(total_now, target_proxies)
             except Exception as e:
-                print(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}")
+                _log(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", "red")
                 if is_acquired and selected_proxy:
                     is_proxy_err = any(k.lower() in str(e).lower() for k in ["proxy", "timeout", "connection", "reset"])
                     report_failure(selected_proxy.get("id") or selected_proxy.get("proxy_url"), error_message=str(e), is_proxy_error=is_proxy_err)
             finally:
                 if is_acquired and selected_proxy:
                     release_proxy(selected_proxy.get("id") or selected_proxy.get("proxy_url"), caller_id=caller_id)
-                    print(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.")
+                    _log(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.", "dim")
 
-            if args.proxy_index is not None:
+            if proxy_index is not None:
                 break
 
             time.sleep(2.0 + (worker_id * 0.5))
@@ -663,12 +674,36 @@ if __name__ == "__main__":
             time.sleep(1.0)
     except KeyboardInterrupt:
         stop_event.set()
-        print("\n\n🛑 Sesi dihentikan oleh pengguna (Ctrl+C).")
+        _log("\n🛑 Sesi dihentikan oleh pengguna (Ctrl+C).", "yellow")
 
     for t in threads:
         t.join(timeout=3.0)
 
-    print("\n" + "=" * 60)
-    print(f"📊 Total proxy baru yang berhasil terkumpul: {state['total_added']} proxy.")
-    print("💾 Seluruh proxy yang didapat telah aman tersimpan di data/proxies.json.")
-    print("=" * 60)
+    _log("=" * 65, "cyan")
+    _log(f"📊 Total proxy baru yang berhasil terkumpul: {state['total_added']} proxy.", "bold green")
+    _log("💾 Seluruh proxy yang didapat telah aman tersimpan di data/proxies.json.", "green")
+    _log("=" * 65, "cyan")
+    return state["total_added"]
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="GoLogin Trial Proxy Grabber with Verifier Gatekeeper")
+    parser.add_argument("--headless", action="store_true", help="Jalankan dalam mode headless")
+    parser.add_argument("-c", "--concurrency", "--workers", dest="concurrency", type=int, default=1, help="Jumlah concurrent workers/browser yang berjalan bersamaan (default: 1)")
+    parser.add_argument("-r", "--rounds", type=int, default=2, help="Jumlah putaran grab per proxy (default: 2 putaran = 10 proxy)")
+    parser.add_argument("-t", "--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
+    parser.add_argument("--proxy-index", type=int, default=None, help="Gunakan proxy index tertentu saja dari Proxy Management")
+    parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
+    parser.add_argument("--skip-verifier", action="store_true", help="Lewati preflight audit (berguna untuk direct IP datacenter Colab)")
+    args = parser.parse_args()
+
+    run_gologin_harvest_job(
+        target_proxies=args.target_proxies,
+        concurrency=args.concurrency,
+        rounds=args.rounds,
+        headless=args.headless,
+        direct=args.direct,
+        skip_verifier=args.skip_verifier,
+        proxy_index=args.proxy_index,
+    )

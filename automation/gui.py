@@ -23,7 +23,7 @@ PROJECT_ROOT = CURRENT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QObject, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPalette
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -242,27 +242,22 @@ class RunController(QObject):
     def _run(self, config: Dict[str, Any]) -> None:
         hard_max = int(config.get("max_sessions_per_run", 10))
         self.dynamic_proxy_mode = bool(config.get("dynamic_proxy_mode", False))
-        network_choice = str(config.get("target_network", "both")).lower()
+        m_workers = int(config.get("monetag_workers", 0))
+        exo_workers = int(config.get("exoclick_workers", 0))
+        num_workers = m_workers + exo_workers
 
         self.proxy_manager = ProxyManager()
         self.proxy_manager.reset_usage_to_idle()
         self.proxy_manager.reset_cursor(0)
         self.budget = SessionBudget(hard_max, 1)
 
-        num_workers = int(config.get("concurrency", 3))
         stats = self.proxy_manager.get_stats()
         is_unlimited = getattr(self.budget, "unlimited", False)
         mode_lbl = "Tanpa Batas (∞)" if is_unlimited else str(hard_max)
 
-        network_label = {
-            "monetag": "💎 Hanya Monetag",
-            "exoclick": "🎯 Hanya ExoClick",
-            "both": "🔄 Rotasi Monetag & ExoClick (50:50)",
-        }.get(network_choice, "🔄 Rotasi Monetag & ExoClick")
-
         self.emit("log_message", {
             "message": (
-                f"Menyiapkan {num_workers} browser [{network_label}]. Mode: {mode_lbl}. "
+                f"Menyiapkan {num_workers} browser ({m_workers} Monetag + {exo_workers} ExoClick). Mode: {mode_lbl}. "
                 f"Stok IP aktif: {stats.get('alive', 0)}."
             ),
             "style": "cyan",
@@ -277,69 +272,90 @@ class RunController(QObject):
             self.bridge.finished.emit()
             return
 
+        if num_workers == 0:
+            self.emit("log_message", {
+                "message": "Tidak ada worker yang diaktifkan (Monetag: 0, ExoClick: 0).",
+                "style": "red",
+            })
+            self.running = False
+            self.bridge.finished.emit()
+            return
+
         pool_lock = threading.Lock()
 
         def _reset_pool() -> None:
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
-                # Reset hit target (kembali 0/2) agar mode unlimited berputar looping tanpa henti
-                target = network_choice if network_choice in ("monetag", "exoclick") else None
-                reset_hits = self.proxy_manager.reset_target_usage(target)
+                # Reset hit target untuk kedua network agar mode unlimited berputar looping tanpa henti
+                reset_hits = self.proxy_manager.reset_target_usage(None)
                 self.budget.reset_proxy_counts()
                 self.emit("log_message", {
                     "message": f"♻️ Mode Tanpa Batas: Pool proxy direset kembali ke 0/2 ({reset_hits} IP) untuk rotasi tanpa henti.",
                     "style": "cyan",
                 })
 
-        for wid in range(1, num_workers + 1):
+        wid = 1
+        # 1. Spawn Monetag Workers
+        for _ in range(m_workers):
             if self.stop_event.is_set():
                 break
-
-            # Tentukan worker loop: monetag, exoclick, atau rotasi seimbang
-            if network_choice == "monetag":
-                worker_fn = monetag_worker_thread_loop
-                worker_tag = "Monetag"
-                target_label = "💎 Monetag"
-                target_style = "magenta"
-            elif network_choice == "exoclick":
-                worker_fn = exoclick_worker_thread_loop
-                worker_tag = "ExoClick"
-                target_label = "🎯 ExoClick"
-                target_style = "bold cyan"
-            else:
-                is_m = (wid % 2 == 1)
-                if is_m:
-                    worker_fn = monetag_worker_thread_loop
-                    worker_tag = "Monetag"
-                    target_label = "💎 Monetag"
-                    target_style = "magenta"
-                else:
-                    worker_fn = exoclick_worker_thread_loop
-                    worker_tag = "ExoClick"
-                    target_label = "🎯 ExoClick"
-                    target_style = "bold cyan"
+            w_cfg = dict(config)
+            w_cfg["target_url"] = config.get("monetag_target_url")
+            w_cfg["target_network"] = "monetag"
+            w_cfg["target_name"] = "monetag"
 
             self.emit("worker_init", {
                 "worker_id": wid,
-                "target_network": target_label,
-                "target_network_style": target_style,
+                "target_network": "💎 Monetag",
+                "target_network_style": "magenta",
             })
 
             thread = threading.Thread(
-                target=worker_fn,
+                target=monetag_worker_thread_loop,
                 args=(
-                    wid, config, self.proxy_manager, self.budget,
+                    wid, w_cfg, self.proxy_manager, self.budget,
                     self._worker_event, self.stop_event,
                 ),
                 kwargs={"reset_pool_callback": _reset_pool if getattr(self.budget, "unlimited", False) else None},
                 daemon=True,
-                name=f"{worker_tag}-Worker-{wid}",
+                name=f"Monetag-Worker-{wid}",
             )
             thread.start()
             self.threads.append(thread)
+            wid += 1
+            if wid <= num_workers:
+                time.sleep(1.8)
 
-            if wid < num_workers:
+        # 2. Spawn ExoClick Workers
+        for _ in range(exo_workers):
+            if self.stop_event.is_set():
+                break
+            w_cfg = dict(config)
+            w_cfg["target_url"] = config.get("exoclick_target_url")
+            w_cfg["target_network"] = "exoclick"
+            w_cfg["target_name"] = "exoclick"
+
+            self.emit("worker_init", {
+                "worker_id": wid,
+                "target_network": "🎯 ExoClick",
+                "target_network_style": "bold cyan",
+            })
+
+            thread = threading.Thread(
+                target=exoclick_worker_thread_loop,
+                args=(
+                    wid, w_cfg, self.proxy_manager, self.budget,
+                    self._worker_event, self.stop_event,
+                ),
+                kwargs={"reset_pool_callback": _reset_pool if getattr(self.budget, "unlimited", False) else None},
+                daemon=True,
+                name=f"ExoClick-Worker-{wid}",
+            )
+            thread.start()
+            self.threads.append(thread)
+            wid += 1
+            if wid <= num_workers:
                 time.sleep(1.8)
 
         while not self.stop_event.is_set():
@@ -368,19 +384,75 @@ class RunController(QObject):
         self.stop_event.set()
 
 
+class HarvesterThread(QThread):
+    """Worker background thread untuk GoLogin Proxy Grabber di dalam GUI."""
+
+    log_signal = Signal(str, str)         # (message, style)
+    progress_signal = Signal(int, int)    # (added, target)
+    finished_signal = Signal(int)         # (total_added)
+
+    def __init__(
+        self,
+        target_proxies: int = 100,
+        concurrency: int = 2,
+        rounds: int = 2,
+        headless: bool = True,
+        direct: bool = False,
+        skip_verifier: bool = False,
+    ):
+        super().__init__()
+        self.target_proxies = target_proxies
+        self.concurrency = concurrency
+        self.rounds = rounds
+        self.headless = headless
+        self.direct = direct
+        self.skip_verifier = skip_verifier
+        self.stop_event = threading.Event()
+
+    def run(self) -> None:
+        from automation.gologin_grabber import run_gologin_harvest_job
+
+        def _log(msg: str, style: str = "white") -> None:
+            self.log_signal.emit(msg, style)
+
+        def _prog(added: int, target: int) -> None:
+            self.progress_signal.emit(added, target)
+
+        try:
+            total = run_gologin_harvest_job(
+                target_proxies=self.target_proxies,
+                concurrency=self.concurrency,
+                rounds=self.rounds,
+                headless=self.headless,
+                direct=self.direct,
+                skip_verifier=self.skip_verifier,
+                stop_event=self.stop_event,
+                on_log=_log,
+                on_progress=_prog,
+            )
+            self.finished_signal.emit(total)
+        except Exception as e:
+            self.log_signal.emit(f"⚠️ Terjadi error pada runner Harvester: {e}", "red")
+            self.finished_signal.emit(0)
+
+    def stop(self) -> None:
+        self.stop_event.set()
+
+
 class Dashboard(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Bot Shortlink — Controller Dasbor Monetag & ExoClick")
-        self.resize(1240, 810)
+        self.resize(1260, 830)
         self.workers_state: Dict[int, Dict[str, Any]] = {}
-        self.concurrency = 3
+        self.concurrency = 5
         self._controller_lock = threading.Lock()
 
         self.bridge = EventBridge()
         self.bridge.event.connect(self._on_event)
         self.bridge.finished.connect(self._on_run_finished)
         self.controller: Optional[RunController] = None
+        self.harvester_thread: Optional[HarvesterThread] = None
         self._shared_pm = ProxyManager()
 
         self._build_ui()
@@ -388,6 +460,14 @@ class Dashboard(QMainWindow):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
         self.timer.start(1000)
+
+    def closeEvent(self, event) -> None:
+        if self.controller and self.controller.running:
+            self.controller.stop()
+        if self.harvester_thread and self.harvester_thread.isRunning():
+            self.harvester_thread.stop()
+            self.harvester_thread.wait(2000)
+        super().closeEvent(event)
 
     def _card(self, title: str = "") -> QFrame:
         frame = QFrame()
@@ -406,14 +486,14 @@ class Dashboard(QMainWindow):
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
         root.setContentsMargins(18, 16, 18, 12)
-        root.setSpacing(14)
+        root.setSpacing(12)
 
         # Header row
         header = QHBoxLayout()
         title_block = QVBoxLayout()
         t = QLabel("Bot Shortlink & Ad Controller (Monetag & ExoClick)")
         t.setObjectName("title")
-        self.target_label = QLabel("alamat: —")
+        self.target_label = QLabel("Monetag: https://article.riztama.my.id/m/  |  ExoClick: https://article.riztama.my.id/v/")
         self.target_label.setObjectName("subtitle")
         title_block.addWidget(t)
         title_block.addWidget(self.target_label)
@@ -440,62 +520,108 @@ class Dashboard(QMainWindow):
         self.progress.setFormat("0 / 0 kunjungan")
         root.addWidget(self.progress)
 
-        # Control Card
-        ctrl_card, ctrl_layout = self._card("PENGATURAN TARGET IKLAN & POLA BROWSER")
-        grid = QGridLayout()
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(10)
+        # Control Card: Dedicated Monetag & ExoClick Settings
+        ctrl_card, ctrl_layout = self._card("PENGATURAN TARGET IKLAN & POLA BROWSER (MONETAG & EXOCLICK)")
+        ctrl_layout.setSpacing(8)
 
-        # Row 0: Network Choice, Flow Mode, Browser Count, Headless, Start / Stop
-        grid.addWidget(QLabel("Iklan Web yang Muncul"), 0, 0)
-        self.ad_network_combo = QComboBox()
-        self.ad_network_combo.addItems([
-            "💎 Hanya Monetag (MultiTag & Direct Link)",
-            "🎯 Hanya ExoClick (Popunder, Push, Banner, Native)",
-            "🔄 Rotasi Monetag & ExoClick (50:50)",
-        ])
-        self.ad_network_combo.setToolTip(
-            "Pilih jaringan iklan yang akan dimunculkan di website:\n"
-            "💎 Hanya Monetag: Website dipaksa HANYA memunculkan iklan Monetag.\n"
-            "🎯 Hanya ExoClick: Website dipaksa HANYA memunculkan iklan ExoClick.\n"
-            "🔄 Rotasi: Web bergantian memunculkan Monetag & ExoClick secara seimbang."
-        )
-        self.ad_network_combo.setCurrentIndex(1)
-        self.ad_network_combo.currentIndexChanged.connect(self._on_settings_changed)
-        grid.addWidget(self.ad_network_combo, 0, 1)
+        # Split Panels: Monetag (Left) and ExoClick (Right)
+        panels_row = QHBoxLayout()
+        panels_row.setSpacing(12)
 
-        grid.addWidget(QLabel("Alur Kerja Bot"), 0, 2)
+        # ── 1. SUB-CARD MONETAG ──
+        m_frame = QFrame()
+        m_frame.setObjectName("card")
+        m_frame.setStyleSheet("background-color: #21252d; border: 1px solid #4a2f68; border-radius: 8px;")
+        m_box = QVBoxLayout(m_frame)
+        m_box.setContentsMargins(10, 8, 10, 8)
+        m_box.setSpacing(6)
+
+        m_title = QLabel("💎 Pengaturan Monetag (MultiTag & Direct Link)")
+        m_title.setStyleSheet("color: #c77dff; font-weight: 700; font-size: 13px;")
+        m_box.addWidget(m_title)
+
+        m_grid = QGridLayout()
+        m_grid.setHorizontalSpacing(8)
+        m_grid.setVerticalSpacing(6)
+
+        m_grid.addWidget(QLabel("Browser / Worker:"), 0, 0)
+        self.monetag_workers_spin = QSpinBox()
+        self.monetag_workers_spin.setRange(0, 20)
+        self.monetag_workers_spin.setValue(2)
+        self.monetag_workers_spin.setToolTip("Jumlah browser khusus Monetag (0 = nonaktifkan Monetag).")
+        self.monetag_workers_spin.valueChanged.connect(self._update_worker_summary)
+        m_grid.addWidget(self.monetag_workers_spin, 0, 1)
+
+        m_grid.addWidget(QLabel("Rasio Direct Link:"), 0, 2)
+        self.direct_chance_spin = QSpinBox()
+        self.direct_chance_spin.setRange(10, 100)
+        self.direct_chance_spin.setValue(50)
+        self.direct_chance_spin.setSingleStep(5)
+        self.direct_chance_spin.setSuffix(" % (Aman)")
+        self.direct_chance_spin.setToolTip("Persentase sesi Monetag yang membuka Direct Link (disarankan 40%-60%).")
+        m_grid.addWidget(self.direct_chance_spin, 0, 3)
+
+        m_grid.addWidget(QLabel("URL Target Monetag:"), 1, 0)
+        self.monetag_url_input = QLineEdit()
+        self.monetag_url_input.setText("https://article.riztama.my.id/m/")
+        self.monetag_url_input.setToolTip("Halaman website target yang memuat script MultiTag Monetag.")
+        self.monetag_url_input.textChanged.connect(self._update_worker_summary)
+        m_grid.addWidget(self.monetag_url_input, 1, 1, 1, 3)
+
+        m_box.addLayout(m_grid)
+        panels_row.addWidget(m_frame, 1)
+
+        # ── 2. SUB-CARD EXOCLICK ──
+        e_frame = QFrame()
+        e_frame.setObjectName("card")
+        e_frame.setStyleSheet("background-color: #21252d; border: 1px solid #1a4f6e; border-radius: 8px;")
+        e_box = QVBoxLayout(e_frame)
+        e_box.setContentsMargins(10, 8, 10, 8)
+        e_box.setSpacing(6)
+
+        e_title = QLabel("🎯 Pengaturan ExoClick (Popunder, Push, Banner, Native)")
+        e_title.setStyleSheet("color: #38d6d6; font-weight: 700; font-size: 13px;")
+        e_box.addWidget(e_title)
+
+        e_grid = QGridLayout()
+        e_grid.setHorizontalSpacing(8)
+        e_grid.setVerticalSpacing(6)
+
+        e_grid.addWidget(QLabel("Browser / Worker:"), 0, 0)
+        self.exoclick_workers_spin = QSpinBox()
+        self.exoclick_workers_spin.setRange(0, 20)
+        self.exoclick_workers_spin.setValue(3)
+        self.exoclick_workers_spin.setToolTip("Jumlah browser khusus ExoClick (0 = nonaktifkan ExoClick).")
+        self.exoclick_workers_spin.valueChanged.connect(self._update_worker_summary)
+        e_grid.addWidget(self.exoclick_workers_spin, 0, 1)
+
+        e_grid.addWidget(QLabel("Alur Kerja Bot:"), 0, 2)
         self.flow_mode_combo = QComboBox()
         self.flow_mode_combo.addItems([
-            "⚡ Fast Ads Dwell (Cepat & Langsung Dwell Iklan ~15s)",
-            "🔗 Shortlink 3-Langkah (Countdown Timer ~70s)",
+            "🔗 Shortlink 3-Langkah (~70s)",
+            "⚡ Fast Ads Dwell (~15s)",
         ])
-        self.flow_mode_combo.setToolTip(
-            "⚡ Fast Ads Dwell: Membuka artikel langsung, dwell banner/popunder/smartlink tanpa tunggu step.\n"
-            "🔗 Shortlink: Mengikuti 3 langkah verifikasi gate shortlink."
-        )
-        self.flow_mode_combo.currentIndexChanged.connect(self._on_settings_changed)
-        grid.addWidget(self.flow_mode_combo, 0, 3)
+        self.flow_mode_combo.setToolTip("Pilih alur kerja penjelajahan halaman artikel & verifikasi gateway shortlink.")
+        self.flow_mode_combo.currentIndexChanged.connect(self._update_worker_summary)
+        e_grid.addWidget(self.flow_mode_combo, 0, 3)
 
-        grid.addWidget(QLabel("Jumlah Browser"), 0, 4)
-        self.workers_spin = QSpinBox()
-        self.workers_spin.setRange(1, 30)
-        init_cfg = load_config()
-        self.workers_spin.setValue(int(init_cfg.get("concurrency", 3)))
-        self.workers_spin.setToolTip("Berapa browser dibuka bersamaan. Tiap browser memakai proxy residensial sendiri.")
-        grid.addWidget(self.workers_spin, 0, 5)
+        e_grid.addWidget(QLabel("URL Target ExoClick:"), 1, 0)
+        self.exoclick_url_input = QLineEdit()
+        self.exoclick_url_input.setText("https://article.riztama.my.id/v/")
+        self.exoclick_url_input.setToolTip("Halaman website target yang memuat script iklan ExoClick.")
+        self.exoclick_url_input.textChanged.connect(self._update_worker_summary)
+        e_grid.addWidget(self.exoclick_url_input, 1, 1, 1, 3)
 
-        self.start_btn = QPushButton("▶  Mulai")
-        self.start_btn.clicked.connect(self._start_run)
-        self.stop_btn = QPushButton("■  Berhenti")
-        self.stop_btn.setObjectName("stopBtn")
-        self.stop_btn.setEnabled(False)
-        self.stop_btn.clicked.connect(self._stop_run)
-        grid.addWidget(self.start_btn, 0, 6, 2, 1)
-        grid.addWidget(self.stop_btn, 0, 7, 2, 1)
+        e_box.addLayout(e_grid)
+        panels_row.addWidget(e_frame, 1)
 
-        # Row 1: Visit Mode, Cooldown, Custom Sessions, Headless Checkbox
-        grid.addWidget(QLabel("Mode Kunjungan"), 1, 0)
+        ctrl_layout.addLayout(panels_row)
+
+        # ── 3. COMMON CONTROLS & EXECUTION ROW ──
+        comm_row = QHBoxLayout()
+        comm_row.setSpacing(10)
+
+        comm_row.addWidget(QLabel("Mode Kunjungan:"))
         self.visit_mode_combo = QComboBox()
         self.visit_mode_combo.addItems([
             "Sesuai Jumlah Proxy (Dinamis)",
@@ -503,54 +629,48 @@ class Dashboard(QMainWindow):
             "Custom",
         ])
         self.visit_mode_combo.currentIndexChanged.connect(self._on_visit_mode_changed)
-        grid.addWidget(self.visit_mode_combo, 1, 1)
-
-        grid.addWidget(QLabel("Jeda Cooldown IP"), 1, 2)
-        self.cooldown_spin = QSpinBox()
-        self.cooldown_spin.setRange(1, 24)
-        self.cooldown_spin.setValue(6)
-        self.cooldown_spin.setSuffix(" Jam")
-        grid.addWidget(self.cooldown_spin, 1, 3)
+        comm_row.addWidget(self.visit_mode_combo)
 
         self.sessions_spin = QSpinBox()
         self.sessions_spin.setRange(1, 9999)
         self.sessions_spin.setValue(10)
         self.sessions_spin.setVisible(False)
-        grid.addWidget(self.sessions_spin, 1, 4)
+        comm_row.addWidget(self.sessions_spin)
 
-        self.headless_check = QCheckBox("Headless (Sembunyikan browser)")
-        self.headless_check.setChecked(bool(init_cfg.get("headless", False)))
-        grid.addWidget(self.headless_check, 1, 5)
+        comm_row.addWidget(QLabel("Jeda Cooldown:"))
+        self.cooldown_spin = QSpinBox()
+        self.cooldown_spin.setRange(1, 24)
+        self.cooldown_spin.setValue(6)
+        self.cooldown_spin.setSuffix(" Jam")
+        comm_row.addWidget(self.cooldown_spin)
 
-        # Row 2: Target URL, Direct Link Ratio & Max Uses per Day
-        grid.addWidget(QLabel("URL Target"), 2, 0)
-        self.target_url_input = QLineEdit()
-        self.target_url_input.setText(str(init_cfg.get("target_url") or "https://article.riztama.my.id/"))
-        self.target_url_input.textChanged.connect(self._on_url_input_changed)
-        grid.addWidget(self.target_url_input, 2, 1)
-
-        grid.addWidget(QLabel("Rasio Direct Link"), 2, 2)
-        self.direct_chance_spin = QSpinBox()
-        self.direct_chance_spin.setRange(10, 100)
-        self.direct_chance_spin.setValue(50)
-        self.direct_chance_spin.setSingleStep(5)
-        self.direct_chance_spin.setSuffix(" % (Aman)")
-        self.direct_chance_spin.setToolTip(
-            "Persentase sesi yang membuka Direct Link Monetag.\n"
-            "Disarankan 40% - 60% agar CTR tampak alami dan aman bagi akun ad network."
-        )
-        grid.addWidget(self.direct_chance_spin, 2, 3)
-
-        grid.addWidget(QLabel("Maks IP/Hari"), 2, 4)
+        comm_row.addWidget(QLabel("Maks IP/Hari:"))
         self.max_uses_spin = QSpinBox()
         self.max_uses_spin.setRange(1, 5)
         self.max_uses_spin.setValue(2)
-        grid.addWidget(self.max_uses_spin, 2, 5)
+        comm_row.addWidget(self.max_uses_spin)
 
-        grid.setColumnStretch(1, 1)
-        grid.setColumnStretch(3, 1)
-        grid.setColumnStretch(5, 0)
-        ctrl_layout.addLayout(grid)
+        init_cfg = load_config()
+        self.headless_check = QCheckBox("Headless")
+        self.headless_check.setChecked(bool(init_cfg.get("headless", False)))
+        comm_row.addWidget(self.headless_check)
+
+        self.worker_summary_label = QLabel("👥 Total: 5 Browser (2 Monetag + 3 ExoClick)")
+        self.worker_summary_label.setStyleSheet("color: #38d6d6; font-weight: 700; font-size: 13px;")
+        comm_row.addWidget(self.worker_summary_label)
+
+        comm_row.addStretch(1)
+
+        self.start_btn = QPushButton("▶  Mulai")
+        self.start_btn.clicked.connect(self._start_run)
+        self.stop_btn = QPushButton("■  Berhenti")
+        self.stop_btn.setObjectName("stopBtn")
+        self.stop_btn.setEnabled(False)
+        self.stop_btn.clicked.connect(self._stop_run)
+        comm_row.addWidget(self.start_btn)
+        comm_row.addWidget(self.stop_btn)
+
+        ctrl_layout.addLayout(comm_row)
 
         self.hint_label = QLabel("")
         self.hint_label.setObjectName("subtitle")
@@ -688,12 +808,16 @@ class Dashboard(QMainWindow):
         proxy_layout.addWidget(proxy_table_card, stretch=1)
 
         self.tabs.addTab(tab_proxy, "🌐 Pool & Status Pemakaian Proxy")
-        self.tabs.currentChanged.connect(self._on_tab_changed)
 
+        # ── TAB 3: GOLOGIN PROXY HARVESTER ──
+        tab_harvester = self._build_harvester_tab()
+        self.tabs.addTab(tab_harvester, "🌾 GoLogin Proxy Harvester")
+
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         root.addWidget(self.tabs, stretch=1)
 
-        # Log card (tetap di paling bawah)
-        log_card, log_layout = self._card("LOG AKTIVITAS")
+        # Log card (tetap di paling bawah untuk bot main runner)
+        log_card, log_layout = self._card("LOG AKTIVITAS BOT")
         self.log = QPlainTextEdit()
         self.log.setReadOnly(True)
         self.log.setMaximumBlockCount(400)
@@ -702,17 +826,213 @@ class Dashboard(QMainWindow):
         root.addWidget(log_card)
 
         self.setStatusBar(QStatusBar())
-        self.statusBar().showMessage("Siap — pilih iklan target lalu tekan Mulai.")
+        self.statusBar().showMessage("Siap — atur worker Monetag & ExoClick lalu tekan Mulai.")
         self._append_log("Aplikasi siap. Controller Monetag & ExoClick aktif.", "cyan")
 
-    def _on_url_input_changed(self, text: str) -> None:
-        self.target_label.setText(f"alamat: {text.strip() or '-'}")
+    def _build_harvester_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(6, 8, 6, 6)
+        layout.setSpacing(10)
 
-    def _on_settings_changed(self) -> None:
+        # Control Card
+        ctrl_card, ctrl_layout = self._card("KONTROL HARVESTER GOLOGIN (AUTO-GRAB PROXY RESIDENSIAL)")
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
+
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(8)
+
+        grid.addWidget(QLabel("Target Proxy Baru:"), 0, 0)
+        self.harv_target_spin = QSpinBox()
+        self.harv_target_spin.setRange(5, 3000)
+        self.harv_target_spin.setValue(100)
+        self.harv_target_spin.setSingleStep(25)
+        self.harv_target_spin.setSuffix(" IP")
+        self.harv_target_spin.setToolTip("Target jumlah proxy baru yang ingin dikumpulkan sebelum otomatis berhenti.")
+        grid.addWidget(self.harv_target_spin, 0, 1)
+
+        grid.addWidget(QLabel("Browser Concurrency:"), 0, 2)
+        self.harv_concurrency_spin = QSpinBox()
+        self.harv_concurrency_spin.setRange(1, 10)
+        self.harv_concurrency_spin.setValue(2)
+        self.harv_concurrency_spin.setToolTip("Jumlah browser yang aktif bersamaan saat membuat akun GoLogin dan panen proxy.")
+        grid.addWidget(self.harv_concurrency_spin, 0, 3)
+
+        grid.addWidget(QLabel("Rounds per Akun:"), 0, 4)
+        self.harv_rounds_spin = QSpinBox()
+        self.harv_rounds_spin.setRange(1, 10)
+        self.harv_rounds_spin.setValue(2)
+        self.harv_rounds_spin.setToolTip("Jumlah putaran grabbing per akun trial GoLogin (1 putaran = ~5 proxy, 2 putaran = ~10 proxy).")
+        grid.addWidget(self.harv_rounds_spin, 0, 5)
+
+        # Checkboxes row
+        chk_layout = QHBoxLayout()
+        chk_layout.setSpacing(16)
+        self.harv_headless_check = QCheckBox("Mode Headless (Sembunyikan browser)")
+        self.harv_headless_check.setChecked(True)
+        chk_layout.addWidget(self.harv_headless_check)
+
+        self.harv_direct_check = QCheckBox("Paksa Direct IP (Internet Lokal tanpa proxy pool)")
+        self.harv_direct_check.setChecked(False)
+        self.harv_direct_check.setToolTip("Centang jika ingin langsung panen menggunakan IP internet kamu tanpa meminjam proxy dari pool.")
+        chk_layout.addWidget(self.harv_direct_check)
+
+        self.harv_skip_verifier_check = QCheckBox("Lewati Preflight Audit (Skip Verifier)")
+        self.harv_skip_verifier_check.setChecked(False)
+        self.harv_skip_verifier_check.setToolTip("Lewati pengecekan IP awal.")
+        chk_layout.addWidget(self.harv_skip_verifier_check)
+        chk_layout.addStretch(1)
+
+        grid.addLayout(chk_layout, 1, 0, 1, 6)
+        top_row.addLayout(grid, stretch=1)
+
+        # Right: Buttons & Status badge
+        btn_box = QVBoxLayout()
+        btn_box.setSpacing(8)
+        self.harv_start_btn = QPushButton("🌾  Mulai Panen Proxy")
+        self.harv_start_btn.clicked.connect(self._start_harvester)
+        self.harv_stop_btn = QPushButton("■  Berhenti Panen")
+        self.harv_stop_btn.setObjectName("stopBtn")
+        self.harv_stop_btn.setEnabled(False)
+        self.harv_stop_btn.clicked.connect(self._stop_harvester)
+
+        self.harv_status_badge = QLabel("STATUS: IDLE")
+        self.harv_status_badge.setAlignment(Qt.AlignCenter)
+        self.harv_status_badge.setStyleSheet("color: #8b93a1; font-weight: 700; font-size: 12px; background: #1b1f26; border-radius: 4px; padding: 4px;")
+
+        btn_box.addWidget(self.harv_start_btn)
+        btn_box.addWidget(self.harv_stop_btn)
+        btn_box.addWidget(self.harv_status_badge)
+        top_row.addLayout(btn_box)
+
+        ctrl_layout.addLayout(top_row)
+        layout.addWidget(ctrl_card)
+
+        # Progress & Stats Card
+        prog_card, prog_layout = self._card("PROGRES & STATISTIK PANEN")
+        self.harv_progress = QProgressBar()
+        self.harv_progress.setRange(0, 100)
+        self.harv_progress.setValue(0)
+        self.harv_progress.setFormat("0 / 100 proxy baru (0%)")
+        prog_layout.addWidget(self.harv_progress)
+
+        stat_row = QHBoxLayout()
+        stat_row.setSpacing(24)
+        self.harv_stat_added = QLabel("Baru Didapat: 0")
+        self.harv_stat_added.setStyleSheet("color: #3ddc84; font-weight: 700; font-size: 14px;")
+        self.harv_stat_pool = QLabel("Total di Pool: —")
+        self.harv_stat_pool.setStyleSheet("color: #38d6d6; font-weight: 700; font-size: 14px;")
+        self.harv_stat_status = QLabel("Status: Siap memanen proxy")
+        self.harv_stat_status.setStyleSheet("color: #d7dae0; font-size: 13px;")
+
+        stat_row.addWidget(self.harv_stat_added)
+        stat_row.addWidget(self.harv_stat_pool)
+        stat_row.addWidget(self.harv_stat_status)
+        stat_row.addStretch(1)
+        prog_layout.addLayout(stat_row)
+        layout.addWidget(prog_card)
+
+        # Live Log Card
+        log_card, log_layout = self._card("LOG TERMINAL HARVESTER REALTIME")
+        log_bar = QHBoxLayout()
+        log_bar.addWidget(QLabel("Output Log Eksekusi GoLogin Grabber:"))
+        log_bar.addStretch(1)
+        btn_clear_log = QPushButton("🗑️ Bersihkan Log")
+        btn_clear_log.setStyleSheet("padding: 4px 10px; font-size: 11px;")
+        btn_clear_log.clicked.connect(lambda: self.harv_log.setPlainText(""))
+        log_bar.addWidget(btn_clear_log)
+        log_layout.addLayout(log_bar)
+
+        self.harv_log = QPlainTextEdit()
+        self.harv_log.setReadOnly(True)
+        self.harv_log.setMaximumBlockCount(500)
+        self.harv_log.setMinimumHeight(180)
+        log_layout.addWidget(self.harv_log)
+        layout.addWidget(log_card, stretch=1)
+
+        return tab
+
+    def _start_harvester(self) -> None:
+        if self.harvester_thread and self.harvester_thread.isRunning():
+            return
+
+        target = int(self.harv_target_spin.value())
+        concurrency = int(self.harv_concurrency_spin.value())
+        rounds = int(self.harv_rounds_spin.value())
+        headless = bool(self.harv_headless_check.isChecked())
+        direct = bool(self.harv_direct_check.isChecked())
+        skip_verifier = bool(self.harv_skip_verifier_check.isChecked())
+
+        self.harv_start_btn.setEnabled(False)
+        self.harv_stop_btn.setEnabled(True)
+        self.harv_status_badge.setText("🌾 SEDANG MEMANEN...")
+        self.harv_status_badge.setStyleSheet("color: #38d6d6; font-weight: 700; font-size: 12px; background: #1b1f26; border-radius: 4px; padding: 4px;")
+        self.harv_progress.setRange(0, target)
+        self.harv_progress.setValue(0)
+        self.harv_progress.setFormat(f"0 / {target} proxy baru (0%)")
+        self.harv_stat_added.setText("Baru Didapat: 0")
+        self.harv_stat_status.setText("Status: Memulai worker grabber...")
+
+        self.harvester_thread = HarvesterThread(
+            target_proxies=target,
+            concurrency=concurrency,
+            rounds=rounds,
+            headless=headless,
+            direct=direct,
+            skip_verifier=skip_verifier,
+        )
+        self.harvester_thread.log_signal.connect(self._on_harvester_log)
+        self.harvester_thread.progress_signal.connect(self._on_harvester_progress)
+        self.harvester_thread.finished_signal.connect(self._on_harvester_finished)
+        self.harvester_thread.start()
+
+    def _stop_harvester(self) -> None:
+        if self.harvester_thread and self.harvester_thread.isRunning():
+            self.harvester_thread.stop()
+            self.harv_status_badge.setText("⏳ MENGHENTIKAN...")
+            self.harv_status_badge.setStyleSheet("color: #ffcc33; font-weight: 700; font-size: 12px; background: #1b1f26; border-radius: 4px; padding: 4px;")
+            self.harv_stat_status.setText("Status: Menghentikan worker...")
+            self.harv_stop_btn.setEnabled(False)
+
+    def _on_harvester_log(self, message: str, style: str) -> None:
+        ts = datetime.now().strftime("%H:%M:%S")
+        color = STATUS_COLORS.get(style, "#b8c0cc")
+        html = f'<span style="color:#6b7280">[{ts}]</span> <span style="color:{color}">{_esc(message)}</span>'
+        self.harv_log.appendHtml(html)
+
+    def _on_harvester_progress(self, added: int, target: int) -> None:
+        pct = int((added / target) * 100) if target > 0 else 0
+        self.harv_progress.setValue(min(added, target))
+        self.harv_progress.setFormat(f"{added} / {target} proxy baru ({pct}%)")
+        self.harv_stat_added.setText(f"Baru Didapat: {added}")
+        stats = self._shared_pm.get_stats()
+        self.harv_stat_pool.setText(f"Total di Pool: {stats.get('total', 0)} IP")
+        self._refresh_proxy_tab_data(force=True)
+
+    def _on_harvester_finished(self, total_added: int) -> None:
+        self.harv_start_btn.setEnabled(True)
+        self.harv_stop_btn.setEnabled(False)
+        self.harv_status_badge.setText("✅ SELESAI")
+        self.harv_status_badge.setStyleSheet("color: #3ddc84; font-weight: 700; font-size: 12px; background: #1b1f26; border-radius: 4px; padding: 4px;")
+        self.harv_stat_status.setText(f"Selesai! Berhasil panen +{total_added} proxy baru.")
+        stats = self._shared_pm.get_stats()
+        self.harv_stat_pool.setText(f"Total di Pool: {stats.get('total', 0)} IP")
+        self._refresh_proxy_tab_data(force=True)
+        self._append_log(f"🌾 Harvester selesai: +{total_added} proxy baru telah ditambahkan ke pool.", "bold green")
+
+    def _update_worker_summary(self) -> None:
+        m = self.monetag_workers_spin.value() if hasattr(self, "monetag_workers_spin") else 0
+        e = self.exoclick_workers_spin.value() if hasattr(self, "exoclick_workers_spin") else 0
+        total = m + e
+        if hasattr(self, "worker_summary_label"):
+            self.worker_summary_label.setText(f"👥 Total: {total} Browser ({m} Monetag + {e} ExoClick)")
+        if hasattr(self, "target_label"):
+            m_url = self.monetag_url_input.text().strip() if hasattr(self, "monetag_url_input") else ""
+            e_url = self.exoclick_url_input.text().strip() if hasattr(self, "exoclick_url_input") else ""
+            self.target_label.setText(f"Monetag: {m_url or '—'}  |  ExoClick: {e_url or '—'}")
         self._update_pipeline_banner()
-        net_idx = self.ad_network_combo.currentIndex()
-        net_names = ["Hanya Monetag", "Hanya ExoClick", "Rotasi Monetag & ExoClick"]
-        self._append_log(f"Iklan target diatur: {net_names[net_idx]}", "cyan")
 
     def _update_pipeline_banner(self) -> None:
         if not hasattr(self, "pipeline_box"):
@@ -723,67 +1043,59 @@ class Dashboard(QMainWindow):
             if widget:
                 widget.deleteLater()
 
-        net_idx = self.ad_network_combo.currentIndex() if hasattr(self, "ad_network_combo") else 0
-        flow_idx = self.flow_mode_combo.currentIndex() if hasattr(self, "flow_mode_combo") else 0
+        m_w = self.monetag_workers_spin.value() if hasattr(self, "monetag_workers_spin") else 0
+        exo_w = self.exoclick_workers_spin.value() if hasattr(self, "exoclick_workers_spin") else 0
 
-        if net_idx == 0:  # Monetag
+        if m_w > 0 and exo_w > 0:
             steps_info = [
-                ("1. 🛡️ Audit IP", "#38d6d6"),
-                ("➔", "#6b7280"),
-                ("2. 🌐 MultiTag Web", "#38d6d6"),
-                ("➔", "#6b7280"),
-                ("3. 📜 Natural Wander", "#5aa9ff"),
-                ("➔", "#6b7280"),
-                ("4. 📑 Dwell Popunder", "#c77dff"),
-                ("➔", "#6b7280"),
-                ("5. 🔗 Dwell Direct Link", "#ffcc33"),
-                ("➔", "#6b7280"),
-                ("6. ✅ Selesai", "#3ddc84"),
+                ("💎 Monetag:", "#c77dff"),
+                ("1. Audit IP", "#38d6d6"), ("➔", "#6b7280"),
+                ("2. MultiTag", "#38d6d6"), ("➔", "#6b7280"),
+                ("3. Natural Wander", "#5aa9ff"), ("➔", "#6b7280"),
+                ("4. Popunder", "#c77dff"), ("➔", "#6b7280"),
+                ("5. Direct Link", "#ffcc33"), ("➔", "#6b7280"),
+                ("✅ Selesai", "#3ddc84"),
+                ("  |  ", "#454d5a"),
+                ("🎯 ExoClick:", "#38d6d6"),
+                ("1. Audit IP", "#38d6d6"), ("➔", "#6b7280"),
+                ("2. Buka Web", "#38d6d6"), ("➔", "#6b7280"),
+                ("3. In-Page Push", "#ffcc33"), ("➔", "#6b7280"),
+                ("4. Native Banner", "#c77dff"), ("➔", "#6b7280"),
+                ("5. Dwell Popunder", "#ff5c5c"), ("➔", "#6b7280"),
+                ("✅ Selesai", "#3ddc84"),
             ]
             if hasattr(self, "hint_label"):
                 self.hint_label.setText(
-                    "💎 Target Monetag: Web otomatis memuat iklan MultiTag & Direct Link Monetag."
+                    f"💎 Monetag ({m_w} browser) membuka MultiTag & Direct Link. 🎯 ExoClick ({exo_w} browser) membuka Popunder, Push, Native, & Display Banner."
                 )
-        elif net_idx == 1:  # ExoClick
+        elif m_w > 0:
             steps_info = [
-                ("1. 🛡️ Audit IP", "#38d6d6"),
-                ("➔", "#6b7280"),
-                ("2. 🌐 Buka Web", "#38d6d6"),
-                ("➔", "#6b7280"),
-                ("3. 💬 In-Page Push", "#ffcc33"),
-                ("➔", "#6b7280"),
-                ("4. 🖼️ Native Banner", "#c77dff"),
-                ("➔", "#6b7280"),
-                ("5. 📑 Dwell Popunder", "#ff5c5c"),
-                ("➔", "#6b7280"),
+                ("💎 Monetag Flow:", "#c77dff"),
+                ("1. 🛡️ Audit IP", "#38d6d6"), ("➔", "#6b7280"),
+                ("2. 🌐 MultiTag Web", "#38d6d6"), ("➔", "#6b7280"),
+                ("3. 📜 Natural Wander", "#5aa9ff"), ("➔", "#6b7280"),
+                ("4. 📑 Dwell Popunder", "#c77dff"), ("➔", "#6b7280"),
+                ("5. 🔗 Dwell Direct Link", "#ffcc33"), ("➔", "#6b7280"),
                 ("6. ✅ Selesai", "#3ddc84"),
             ]
             if hasattr(self, "hint_label"):
-                self.hint_label.setText(
-                    "🎯 Target ExoClick: Web otomatis memuat Popunder, In-Page Push, Native Banner, & Display Banner ExoClick."
-                )
-        else:  # Rotasi Monetag & ExoClick
+                self.hint_label.setText("💎 Target Monetag Aktif: Seluruh browser menjalankan flow Monetag.")
+        else:
             steps_info = [
-                ("1. 🛡️ Audit IP", "#38d6d6"),
-                ("➔", "#6b7280"),
-                ("2. 🌐 Web Target (Rotasi)", "#38d6d6"),
-                ("➔", "#6b7280"),
-                ("3. 📜 Interaksi Natural", "#5aa9ff"),
-                ("➔", "#6b7280"),
-                ("4. 📑 Dwell Popunder / Banner", "#c77dff"),
-                ("➔", "#6b7280"),
-                ("5. 🔗 Dwell Direct Link", "#ffcc33"),
-                ("➔", "#6b7280"),
+                ("🎯 ExoClick Flow:", "#38d6d6"),
+                ("1. 🛡️ Audit IP", "#38d6d6"), ("➔", "#6b7280"),
+                ("2. 🌐 Buka Web", "#38d6d6"), ("➔", "#6b7280"),
+                ("3. 💬 In-Page Push", "#ffcc33"), ("➔", "#6b7280"),
+                ("4. 🖼️ Native Banner", "#c77dff"), ("➔", "#6b7280"),
+                ("5. 📑 Dwell Popunder", "#ff5c5c"), ("➔", "#6b7280"),
                 ("6. ✅ Selesai", "#3ddc84"),
             ]
             if hasattr(self, "hint_label"):
-                self.hint_label.setText(
-                    "🔄 Target Rotasi: Browser bergantian memunculkan Monetag & ExoClick secara otomatis."
-                )
+                self.hint_label.setText("🎯 Target ExoClick Aktif: Seluruh browser menjalankan flow ExoClick.")
 
         for text, color in steps_info:
             lbl = QLabel(text)
-            lbl.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: {'700' if text != '➔' else '400'};")
+            lbl.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: {'700' if text not in ('➔', '  |  ') else '400'};")
             self.pipeline_box.addWidget(lbl)
         self.pipeline_box.addStretch(1)
 
@@ -792,38 +1104,28 @@ class Dashboard(QMainWindow):
 
     def _build_config(self) -> Dict[str, Any]:
         cfg = load_config()
-        net_idx = self.ad_network_combo.currentIndex()
-        flow_idx = self.flow_mode_combo.currentIndex()
+        m_workers = int(self.monetag_workers_spin.value())
+        exo_workers = int(self.exoclick_workers_spin.value())
+        total_workers = m_workers + exo_workers
 
-        # Tentukan target network: 'monetag' | 'exoclick' | 'both'
-        if net_idx == 0:
-            target_net = "monetag"
-        elif net_idx == 1:
-            target_net = "exoclick"
-        else:
-            target_net = "both"
+        cfg["monetag_workers"] = m_workers
+        cfg["exoclick_workers"] = exo_workers
+        cfg["concurrency"] = total_workers
 
-        cfg["target_network"] = target_net
-        cfg["target_name"] = target_net if target_net in ("monetag", "exoclick") else "monetag"
-        cfg["traffic_mode"] = "direct_article" if flow_idx == 0 else "shortlink"
+        m_raw = self.monetag_url_input.text().strip() or "https://article.riztama.my.id/m/"
+        exo_raw = self.exoclick_url_input.text().strip() or "https://article.riztama.my.id/v/"
+
+        cfg["monetag_target_url"] = m_raw
+        cfg["exoclick_target_url"] = exo_raw
         cfg["direct_link_url"] = "https://uplcm.com/4/12124796"
+        cfg["direct_link_chance"] = float(self.direct_chance_spin.value()) / 100.0
 
-        raw_url = self.target_url_input.text().strip() or "https://article.riztama.my.id/"
-        parsed = urlparse(raw_url)
-        target_host = parsed.netloc or "article.riztama.my.id"
-        target_scheme = parsed.scheme or "https"
-        if target_net == "exoclick":
-            final_target_url = f"{target_scheme}://{target_host}/v/"
-        elif target_net == "monetag":
-            final_target_url = f"{target_scheme}://{target_host}/m/"
-        else:
-            final_target_url = f"{target_scheme}://{target_host}/m/"
+        flow_idx = self.flow_mode_combo.currentIndex()
+        cfg["traffic_mode"] = "direct_article" if flow_idx == 1 else "shortlink"
 
-        cfg["target_url"] = final_target_url
-        cfg["concurrency"] = int(self.workers_spin.value())
         cfg["max_uses_per_day"] = int(self.max_uses_spin.value())
         cfg["proxy_cooldown_hours"] = float(self.cooldown_spin.value())
-        cfg["direct_link_chance"] = float(self.direct_chance_spin.value()) / 100.0
+        cfg["headless"] = bool(self.headless_check.isChecked())
 
         mode = self.visit_mode_combo.currentIndex()
         if mode == 0:
@@ -839,26 +1141,18 @@ class Dashboard(QMainWindow):
             cfg["max_sessions_per_run"] = int(self.sessions_spin.value())
             cfg["dynamic_proxy_mode"] = False
 
-        cfg["headless"] = bool(self.headless_check.isChecked())
-        self.concurrency = cfg["concurrency"]
-        self.target_label.setText(f"alamat: {final_target_url}")
-        self._reset_state(cfg["concurrency"])
+        self.concurrency = total_workers
+        self._reset_state(m_workers, exo_workers)
         return cfg
 
-    def _reset_state(self, concurrency: int) -> None:
+    def _reset_state(self, m_workers: int, exo_workers: int) -> None:
         self.workers_state = {}
-        net_idx = self.ad_network_combo.currentIndex() if hasattr(self, "ad_network_combo") else 0
-        for wid in range(1, concurrency + 1):
-            if net_idx == 0:
-                t_net, t_style = "💎 Monetag", "magenta"
-            elif net_idx == 1:
-                t_net, t_style = "🎯 ExoClick", "bold cyan"
-            else:
-                is_m = (wid % 2 == 1)
-                t_net, t_style = ("💎 Monetag", "magenta") if is_m else ("🎯 ExoClick", "bold cyan")
+        total = m_workers + exo_workers
+        wid = 1
+        for _ in range(m_workers):
             self.workers_state[wid] = {
-                "target_net": t_net,
-                "target_net_style": t_style,
+                "target_net": "💎 Monetag",
+                "target_net_style": "magenta",
                 "proxy_ip": "—",
                 "country": "—",
                 "target_usage": "Hit 1/2 (Baru)",
@@ -875,14 +1169,45 @@ class Dashboard(QMainWindow):
                 "status": "Siap", "status_style": "dim",
                 "sessions_done": 0,
             }
+            wid += 1
+
+        for _ in range(exo_workers):
+            self.workers_state[wid] = {
+                "target_net": "🎯 ExoClick",
+                "target_net_style": "bold cyan",
+                "proxy_ip": "—",
+                "country": "—",
+                "target_usage": "Hit 1/2 (Baru)",
+                "target_usage_style": "dim",
+                "stepper": "⚪ Menunggu",
+                "stepper_style": "dim",
+                "activity": "Menunggu giliran...",
+                "activity_style": "dim",
+                "out_ip": "—",
+                "bot": "—", "bot_style": "dim",
+                "webrtc": "—", "webrtc_style": "dim",
+                "ads": "—", "ads_style": "dim",
+                "vscore": "—", "vscore_style": "dim",
+                "status": "Siap", "status_style": "dim",
+                "sessions_done": 0,
+            }
+            wid += 1
+
         self.table.setRowCount(0)
         self.progress.setValue(0)
         self.log.setPlainText("")
-        self._append_log(f"Menyiapkan {concurrency} browser...", "cyan")
+        self._append_log(f"Menyiapkan {total} browser ({m_workers} Monetag + {exo_workers} ExoClick)...", "cyan")
         self._refresh_table()
         self._refresh_proxy_tab_data(force=True)
 
     def _start_run(self) -> None:
+        m_workers = int(self.monetag_workers_spin.value())
+        exo_workers = int(self.exoclick_workers_spin.value())
+        if m_workers + exo_workers <= 0:
+            self._append_log("⚠️ Tentukan minimal 1 browser (Monetag atau ExoClick)!", "bold yellow")
+            self.statusBar().showMessage("Peringatan: Tentukan minimal 1 browser aktif.")
+            return
+
         with self._controller_lock:
             if self.controller and self.controller.running:
                 return
@@ -910,16 +1235,17 @@ class Dashboard(QMainWindow):
 
     def _set_controls_enabled(self, enabled: bool) -> None:
         for w in (
-            self.ad_network_combo,
+            self.monetag_workers_spin,
+            self.monetag_url_input,
+            self.direct_chance_spin,
+            self.exoclick_workers_spin,
+            self.exoclick_url_input,
             self.flow_mode_combo,
-            self.target_url_input,
-            self.workers_spin,
             self.visit_mode_combo,
             self.sessions_spin,
             self.max_uses_spin,
             self.cooldown_spin,
             self.headless_check,
-            self.direct_chance_spin,
         ):
             w.setEnabled(enabled)
 
@@ -1256,16 +1582,17 @@ class Dashboard(QMainWindow):
 
     def _tick(self) -> None:
         try:
-            net_idx = self.ad_network_combo.currentIndex() if hasattr(self, "ad_network_combo") else 0
-            if net_idx == 0:
+            m_w = self.monetag_workers_spin.value() if hasattr(self, "monetag_workers_spin") else 0
+            exo_w = self.exoclick_workers_spin.value() if hasattr(self, "exoclick_workers_spin") else 0
+            if m_w > 0 and exo_w > 0:
+                target_name = "monetag"
+                net_tag = f"M({m_w})+E({exo_w})"
+            elif m_w > 0:
                 target_name = "monetag"
                 net_tag = "MONETAG"
-            elif net_idx == 1:
+            else:
                 target_name = "exoclick"
                 net_tag = "EXOCLICK"
-            else:
-                target_name = "monetag"
-                net_tag = "ROTASI"
 
             stats = self._shared_pm.get_stats()
             max_u = int(self.max_uses_spin.value()) if hasattr(self, "max_uses_spin") else 2
