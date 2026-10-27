@@ -153,6 +153,17 @@ class BotRunnerCLI:
                 logs.append(f"[{ts}] {msg}")
                 w["logs"] = logs[-15:]
                 w["activity"] = msg[:75]
+                print(f"[{ts}] {CYAN}[W{wid}]{RESET} {msg}", flush=True)
+
+        elif etype == "stepper_update":
+            stage = data.get("stage", "")
+            status = data.get("status", "")
+            w["stepper"] = stage
+            w["activity"] = status
+            logs.append(f"[{ts}] {stage} - {status}")
+            w["logs"] = logs[-15:]
+            if stage or status:
+                print(f"[{ts}] {CYAN}[W{wid}]{RESET} ⏳ {stage} — {status}", flush=True)
 
         elif etype == "proxy_assigned":
             c_name = data.get("country", "Unknown")
