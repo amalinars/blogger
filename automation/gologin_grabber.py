@@ -212,6 +212,8 @@ def solve_cloudflare_turnstile(page, timeout=10):
     return check_is_solved()
 
 
+_browser_launch_lock = threading.Lock()
+
 def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=None, rounds=2, expected_os="windows", skip_verifier=False):
     os.makedirs("data", exist_ok=True)
     
@@ -240,6 +242,11 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
         "firefox_user_prefs": {
             "dom.webdriver.enabled": False,
             "marionette.enabled": False,
+            "dom.ipc.processCount": 1,
+            "browser.sessionstore.resume_from_crash": False,
+            "browser.cache.disk.enable": False,
+            "media.autoplay.default": 5,
+            "media.autoplay.blocking_policy": 2,
         },
     }
     expected_ip = None
@@ -267,7 +274,11 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
 
     all_captured_proxies = []
 
-    with Camoufox(**camoufox_opts) as browser:
+    camoufox_cm = Camoufox(**camoufox_opts)
+    with _browser_launch_lock:
+        browser = camoufox_cm.__enter__()
+        time.sleep(1.2)
+    try:
         for round_idx in range(1, rounds + 1):
             email = generate_random_email()
             print(f"\n--------------------------------------------------------------------------")
@@ -332,25 +343,36 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                 # TAHAP 1: INPUT EMAIL & KLIK 'TRY 7 DAYS FOR FREE'
                 # -----------------------------------------------------------
                 print("▶️ [Step 1/4] Membuka https://app.gologin.com/sign_up ...", flush=True)
-                nav_ok = False
-                for nav_try in range(1, 3):
-                    try:
-                        page.goto("https://app.gologin.com/sign_up", wait_until="domcontentloaded", timeout=45000)
-                        nav_ok = True
-                        break
-                    except Exception as e_nav:
-                        if nav_try == 2:
-                            raise
-                        print(f"   ⚠️ Proxy lambat ({e_nav}), mencoba ulang navigasi...", flush=True)
-                        time.sleep(2)
-
-                print("   ✍️ Menunggu form pendaftaran GoLogin & Turnstile...", flush=True)
-                # Cek jika ada Turnstile yang muncul di awal sebelum form dirender
-                solve_cloudflare_turnstile(page, timeout=6)
-
-                # Selector fleksibel: GoLogin menggunakan <input name="email" placeholder="Your email"> (tanpa type="text")
                 email_sel = 'input[name="email"], input[placeholder*="email" i], input[type="email"], input[placeholder*="mail" i], input[type="text"]'
-                page.wait_for_selector(email_sel, timeout=45000)
+
+                email_found = False
+                for attempt in range(1, 4):
+                    try:
+                        if attempt > 1:
+                            print(f"   🔄 [Percobaan {attempt}/3] Reload sign_up (mengatasi koneksi/proxy macet)...", flush=True)
+                            page.goto("https://app.gologin.com/sign_up", wait_until="domcontentloaded", timeout=35000)
+                        else:
+                            page.goto("https://app.gologin.com/sign_up", wait_until="domcontentloaded", timeout=40000)
+                    except Exception as e_nav:
+                        print(f"   ⚠️ Navigasi lambat ({e_nav}), memeriksa form...", flush=True)
+
+                    print("   ✍️ Menunggu form pendaftaran GoLogin & Turnstile...", flush=True)
+                    solve_cloudflare_turnstile(page, timeout=5)
+
+                    try:
+                        page.wait_for_selector(email_sel, timeout=12000)
+                        email_found = True
+                        break
+                    except Exception:
+                        solve_cloudflare_turnstile(page, timeout=5)
+                        if page.query_selector(email_sel):
+                            email_found = True
+                            break
+                        print("   ⏳ Form belum ter-render (halaman blank/stalled). Mengulang load...", flush=True)
+
+                if not email_found:
+                    page.wait_for_selector(email_sel, timeout=25000)
+
                 page.fill(email_sel, email)
                 
                 cb = page.query_selector('input[type="checkbox"]')
@@ -519,6 +541,11 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
             if round_idx < rounds and captured_in_round:
                 print("⏳ Menunggu jeda 3 detik sebelum putaran pendaftaran berikutnya...")
                 time.sleep(3)
+    finally:
+        try:
+            camoufox_cm.__exit__(None, None, None)
+        except Exception:
+            pass
 
     # Simpan hasil akumulasi seluruh putaran ke Proxy Management
     if all_captured_proxies:
@@ -622,14 +649,14 @@ if __name__ == "__main__":
             if args.proxy_index is not None:
                 break
 
-            time.sleep(2.0)
+            time.sleep(2.0 + (worker_id * 0.5))
 
     threads = []
     for wid in range(1, concurrency + 1):
         t = threading.Thread(target=_worker_job, args=(wid,), daemon=True)
         threads.append(t)
         t.start()
-        time.sleep(1.0)
+        time.sleep(4.0)
 
     try:
         while any(t.is_alive() for t in threads) and not stop_event.is_set():
