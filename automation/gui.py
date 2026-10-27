@@ -460,6 +460,7 @@ class Dashboard(QMainWindow):
             "🎯 Hanya ExoClick: Website dipaksa HANYA memunculkan iklan ExoClick.\n"
             "🔄 Rotasi: Web bergantian memunculkan Monetag & ExoClick secara seimbang."
         )
+        self.ad_network_combo.setCurrentIndex(1)
         self.ad_network_combo.currentIndexChanged.connect(self._on_settings_changed)
         grid.addWidget(self.ad_network_combo, 0, 1)
 

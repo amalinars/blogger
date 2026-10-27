@@ -412,7 +412,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--target",
         choices=["monetag", "exoclick", "both"],
-        default="monetag",
+        default="exoclick",
         help="Jaringan iklan target: monetag, exoclick, atau both",
     )
     parser.add_argument(
