@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { getAdProvider, AdProvider, EXOCLICK_NATIVE_SCRIPT, EXOCLICK_OUTSTREAM_ZONE_ID } from '@/lib/ads';
+import { getAdProvider, AdProvider, EXOCLICK_OUTSTREAM_ZONE_ID, serveExoClick } from '@/lib/ads';
 
 declare global {
   interface Window {
@@ -10,7 +10,9 @@ declare global {
 }
 
 export function VideoAdSlot({ className = '' }: { className?: string }) {
-  const [provider, setProvider] = useState<AdProvider>('adsterra');
+  const [provider, setProvider] = useState<AdProvider>(() =>
+    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+  );
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -21,24 +23,7 @@ export function VideoAdSlot({ className = '' }: { className?: string }) {
     loaded.current = true;
 
     if (currentProvider === 'exoclick') {
-      // Ensure AdProvider script is initialized
-      if (!document.getElementById('exoclick-native-script')) {
-        const script = document.createElement('script');
-        script.id = 'exoclick-native-script';
-        script.async = true;
-        script.type = 'application/javascript';
-        script.src = EXOCLICK_NATIVE_SCRIPT;
-        script.onload = () => {
-          try {
-            (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-          } catch {}
-        };
-        document.body.appendChild(script);
-      } else {
-        try {
-          (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-        } catch {}
-      }
+      serveExoClick();
     }
   }, []);
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { BannerAd } from '@/lib/ads';
-import { getAdProvider, AdProvider, EXOCLICK_BANNER_ZONE_ID, EXOCLICK_NATIVE_SCRIPT } from '@/lib/ads';
+import { getAdProvider, AdProvider, EXOCLICK_BANNER_ZONE_ID, serveExoClick } from '@/lib/ads';
 
 // All BannerSlot instances share one promise chain so atOptions is never
 // overwritten before the previous Adsterra script has finished executing.
@@ -21,7 +21,9 @@ type BannerSlotProps = {
 export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
   const ref = useRef<HTMLDivElement>(null);
   const started = useRef(false);
-  const [provider, setProvider] = useState<AdProvider>('adsterra');
+  const [provider, setProvider] = useState<AdProvider>(() =>
+    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+  );
 
   useEffect(() => {
     const currentProvider = getAdProvider();
@@ -32,24 +34,7 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
     started.current = true;
 
     if (currentProvider === 'exoclick') {
-      // Load ExoClick AdProvider script if not already loaded
-      if (!document.getElementById('exoclick-native-script')) {
-        const script = document.createElement('script');
-        script.id = 'exoclick-native-script';
-        script.async = true;
-        script.type = 'application/javascript';
-        script.src = EXOCLICK_NATIVE_SCRIPT;
-        script.onload = () => {
-          try {
-            (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-          } catch {}
-        };
-        document.body.appendChild(script);
-      } else {
-        try {
-          (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-        } catch {}
-      }
+      serveExoClick();
       return;
     }
 
@@ -76,9 +61,9 @@ export function BannerSlot({ banner, className = '' }: BannerSlotProps) {
   }, [banner]);
 
   if (provider === 'exoclick') {
-    // Hanya tampilkan 1 banner di sidebar (Medium Rectangle).
-    // Sembunyikan untuk Leaderboard dan Skyscraper agar tidak duplikat 3x tampilan grid yang sama.
-    if (banner.width > 320 || banner.height > 300) {
+    // Tampilkan banner di Leaderboard (atas) dan Medium Rectangle (sidebar).
+    // Sembunyikan untuk Skyscraper (160x600) agar layout sidebar tetap rapi dan proporsional.
+    if (banner.height > 300 && banner.width <= 200) {
       return null;
     }
 

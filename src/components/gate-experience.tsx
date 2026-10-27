@@ -11,6 +11,7 @@ import {
   BANNER_SKYSCRAPER,
   getActiveSmartlink,
   getAdProvider,
+  resetExoClickPop,
 } from '@/lib/ads';
 import { GateStep } from '@/components/gate-step';
 import type { GateStepData, SiteDestination } from '@/lib/types';
@@ -32,14 +33,21 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   const [completedCount, setCompletedCount] = useState(0);
   const [showDestination, setShowDestination] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const [provider, setProvider] = useState<string>('adsterra');
+  const [provider, setProvider] = useState<string>(() =>
+    typeof window !== 'undefined' ? getAdProvider() : 'adsterra'
+  );
   const [videoSlotIndex, setVideoSlotIndex] = useState<number>(0);
   const finalRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    setProvider(getAdProvider());
+    const prov = getAdProvider();
+    setProvider(prov);
     if (steps.length > 1) {
-      setVideoSlotIndex(Math.floor(Math.random() * (steps.length - 1)));
+      if (prov === 'exoclick') {
+        setVideoSlotIndex(0);
+      } else {
+        setVideoSlotIndex(Math.floor(Math.random() * (steps.length - 1)));
+      }
     }
   }, [steps.length]);
 
@@ -93,8 +101,9 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   function handleStepComplete(stepIndex: number) {
     if (stepIndex !== completedCount || redirecting) return;
 
-    // Trigger Smartlink on step continue click
-    if (!smartlinkTriggered.current) {
+    if (provider === 'exoclick') {
+      resetExoClickPop();
+    } else if (!smartlinkTriggered.current) {
       smartlinkTriggered.current = true;
       triggerSmartlink();
     }
@@ -110,7 +119,11 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
   function handleDestinationClick() {
     if (redirecting) return;
     setRedirecting(true);
-    triggerSmartlink();
+    if (provider === 'exoclick') {
+      resetExoClickPop();
+    } else {
+      triggerSmartlink();
+    }
   }
 
   return (
@@ -166,14 +179,12 @@ export function GateExperience({ steps, destination }: GateExperienceProps) {
         </div>
       </header>
 
-      {/* Leaderboard: full-width below header (khusus Adsterra) */}
-      {provider !== 'exoclick' && (
-        <div className="relative z-10 border-b border-line bg-base">
-          <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
-            <BannerSlot banner={BANNER_LEADERBOARD} />
-          </div>
+      {/* Top Banner Leaderboard: full-width below header */}
+      <div className="relative z-10 border-b border-line bg-base">
+        <div className="mx-auto max-w-6xl px-5 py-2 sm:px-8">
+          <BannerSlot banner={BANNER_LEADERBOARD} />
         </div>
-      )}
+      </div>
 
       <main
         id="main"

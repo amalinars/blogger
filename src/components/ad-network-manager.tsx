@@ -10,8 +10,7 @@ import {
   EXOCLICK_POPUNDER_CODE,
   EXOCLICK_INPAGE_PUSH_ZONE_ID,
   EXOCLICK_STICKY_ZONE_ID,
-  EXOCLICK_OUTSTREAM_ZONE_ID,
-  EXOCLICK_NATIVE_SCRIPT,
+  serveExoClick,
 } from '@/lib/ads';
 
 export function AdNetworkManager() {
@@ -56,24 +55,8 @@ export function AdNetworkManager() {
         document.body.appendChild(stickyWrapper);
       }
 
-      // Load ExoClick AdProvider Script once & serve widgets
-      if (!document.getElementById('exoclick-native-script')) {
-        const script = document.createElement('script');
-        script.id = 'exoclick-native-script';
-        script.async = true;
-        script.type = 'application/javascript';
-        script.src = EXOCLICK_NATIVE_SCRIPT;
-        script.onload = () => {
-          try {
-            (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-          } catch {}
-        };
-        document.body.appendChild(script);
-      } else {
-        try {
-          (window.AdProvider = window.AdProvider || []).push({ serve: {} });
-        } catch {}
-      }
+      // 4. Load ExoClick AdProvider Script & serve all widgets
+      serveExoClick();
     } else if (provider === 'monetag') {
       // Load Monetag MultiTag script
       if (!document.getElementById('monetag-multitag')) {
