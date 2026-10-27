@@ -1,5 +1,6 @@
 {
-  "target_url": "https://article.riztama.my.id/?ad_network=exoclick",
+  "target_url": "https://article.riztama.my.id/v/",
+  "api_token": "f37e7350811680aeaa25c18e586c763e175db5f8",
   "idzone": 6066234,
   "native_idzone": 6066238,
   "banner_idzone": 6066244,
@@ -28,11 +29,22 @@
     "max": 14.0
   },
   "dwell_popup_seconds": {
-    "min": 10.0,
-    "max": 20.0
+    "min": 12.0,
+    "max": 22.0
+  },
+  "dwell_video_seconds": {
+    "min": 5.0,
+    "max": 9.0
   },
   "popunder_click_count": {
     "min": 1,
     "max": 2
+  },
+  "ctr_boost": {
+    "enabled": true,
+    "native_ad_click_rate": 0.28,
+    "inpage_push_click_rate": 0.22,
+    "banner_click_rate": 0.15,
+    "max_ad_clicks_per_session": 2
   }
 }

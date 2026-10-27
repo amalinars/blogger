@@ -48,7 +48,19 @@ def run_monetag_session(
     """
     Menjalankan 1 sesi automasi Monetag secara utuh dan humanized.
     """
-    target_url = config.get("target_url", "https://article.riztama.my.id/")
+    raw_target_url = config.get("target_url", "https://article.riztama.my.id/")
+    parsed = urlparse(raw_target_url)
+    target_host = (parsed.netloc or "article.riztama.my.id").lower()
+
+    clean_path = parsed.path.rstrip('/')
+    if clean_path in ("", "/", "/m"):
+        slug_prefix = random.choice(["article", "news", "story", "read", "post"])
+        slug_hash = f"{int(time.time()) % 1000000:06d}{random.randint(10, 99)}"
+        slug = f"{slug_prefix}-{slug_hash}"
+        target_url = f"{parsed.scheme or 'https'}://{target_host}/m/{slug}"
+    else:
+        target_url = raw_target_url
+
     direct_link_url = config.get("direct_link_url", "https://uplcm.com/4/12124796")
     headless = bool(config.get("headless", True))
     humanize_enabled = bool(config.get("humanize", True))
@@ -97,8 +109,14 @@ def run_monetag_session(
         )
         page = context.new_page()
 
+        target_domain = target_host.split(":")[0]
+
+        direct_page: Optional[Any] = None
+
         # Listener deteksi pembukaan popup / tab iklan baru
         def on_popup(popup_page: Any) -> None:
+            if popup_page == page or popup_page in popups_opened or (direct_page and popup_page == direct_page):
+                return
             popups_opened.append(popup_page)
             p_url = str(popup_page.url or "")
             log(f"📑 Tab iklan baru terdeteksi: {p_url[:65]}...", "magenta")
@@ -110,7 +128,9 @@ def run_monetag_session(
                 status=f"Popunder terbuka: {_host(p_url)}",
             )
 
+        context.on("page", on_popup)
         page.on("popup", on_popup)
+
 
         # ── Pre-flight Browser Audit (Optional Verifier) ──
         if enable_verifier:
@@ -173,54 +193,57 @@ def run_monetag_session(
             stage="📜 Natural Wander",
             status="Scroll santai & inisialisasi tag...",
         )
-        log("Membaca konten & scrolling santai untuk memuat MultiTag / In-Page Push...", "cyan")
+        log("Membaca konten & scrolling santai untuk memicu tag Monetag...", "cyan")
         vp = page.viewport_size or {"width": 1366, "height": 768}
-        human_wander(page, duration_seconds=random.uniform(3.5, 5.5))
-        human_scroll(page, scroll_amount=random.randint(220, 420))
+        human_wander(page, duration_seconds=random.uniform(3.0, 5.0))
+        human_scroll(page, scroll_amount=random.randint(240, 480))
 
-        # ── 3. Memicu Popunder MultiTag Monetag (Humanized Click) ──
-        _emit(
-            event_callback,
-            "stepper_update",
-            worker_id=worker_id,
-            stage="🎯 Klik Interaktif",
-            status="Trigger OnClick Popunder...",
-        )
-        click_attempts = random.randint(1, 3)
-        log(f"Melakukan {click_attempts}x klik interaksi natural untuk memicu Popunder Monetag...", "bold yellow")
+        def get_gw() -> Any:
+            """Mencari tab yang memuat target gateway / shortlink."""
+            for p in context.pages:
+                if not p.is_closed() and target_domain in str(p.url):
+                    return p
+            return page
 
-        for i in range(click_attempts):
-            continue_btn = page.locator("#step-0 button, main h1, main p").first
-            btn_box = None
-            try:
-                if continue_btn.is_visible(timeout=1500):
-                    btn_box = continue_btn.bounding_box()
-            except Exception:
-                pass
+        def get_adv_pages() -> List[Any]:
+            """Mencari semua tab yang BUKAN target gateway (tab iklan/popunder/advertiser)."""
+            advs = []
+            for p in context.pages:
+                if not p.is_closed() and p != page and target_domain not in str(p.url):
+                    advs.append(p)
+            return advs
 
-            if btn_box:
-                target_pos = (
-                    btn_box["x"] + btn_box["width"] * random.uniform(0.3, 0.7),
-                    btn_box["y"] + btn_box["height"] * random.uniform(0.3, 0.7),
-                )
-            else:
-                target_pos = (
-                    random.uniform(vp["width"] * 0.3, vp["width"] * 0.7),
-                    random.uniform(vp["height"] * 0.35, vp["height"] * 0.65),
-                )
+        processed_popups = set()
 
-            human_click(page, target_pos)
-            time.sleep(random.uniform(1.2, 2.2))
+        def drain_popups(tag_name: str = "Popunder") -> int:
+            nonlocal popunders_processed
+            count = 0
+            time.sleep(1.0)
 
-            if popups_opened:
-                break
+            # Gabungkan tab dari on_popup dan tab dari context.pages yang bukan gateway
+            candidate_tabs: List[Any] = []
+            for p in list(popups_opened) + get_adv_pages():
+                if p not in candidate_tabs and not p.is_closed() and p != get_gw() and (not direct_page or p != direct_page):
+                    candidate_tabs.append(p)
 
-        # ── 4. Proses Tab Popunder / Iklan Terbuka (Dwell) ──
-        if popups_opened:
-            for idx, popup in enumerate(list(popups_opened)):
+
+            for idx, popup in enumerate(candidate_tabs):
+                if popup in processed_popups or popup.is_closed():
+                    continue
+                processed_popups.add(popup)
                 try:
                     popup.bring_to_front()
-                    time.sleep(1.0)
+                    # Tunggu jika URL masih about:blank sebelum navigasi selesai
+                    for _ in range(8):
+                        if popup.is_closed() or (popup.url and popup.url != "about:blank"):
+                            break
+                        time.sleep(0.5)
+
+                    try:
+                        popup.wait_for_load_state("domcontentloaded", timeout=9000)
+                    except Exception:
+                        pass
+                    time.sleep(1.2)
                     popup_url = str(popup.url or "")
                     dwell_time = random.uniform(
                         float(popunder_dwell_cfg.get("min", 10.0)),
@@ -233,41 +256,153 @@ def run_monetag_session(
                         stage="📑 Popunder Dwell",
                         status=f"Dwell tab iklan ({dwell_time:.1f}s)...",
                     )
-                    log(f"📑 Melakukan dwell di tab iklan ({idx+1}/{len(popups_opened)}): {_host(popup_url)} ({dwell_time:.1f}s)", "magenta")
-                    human_wander(popup, duration_seconds=dwell_time)
-                    log(f"✅ Selesai dwell iklan. Menutup tab iklan...", "green")
-                    popup.close()
+                    log(f"📑 Melakukan dwell di tab iklan ({count+1}): {_host(popup_url)} ({dwell_time:.1f}s)", "magenta")
+
+                    end_dwell = time.time() + dwell_time
+                    has_interacted = False
+                    while time.time() < end_dwell and not popup.is_closed():
+                        if humanize_enabled:
+                            human_wander(popup, duration_seconds=random.uniform(1.0, 1.8))
+                            human_scroll(popup, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
+                            if not has_interacted and random.random() < 0.40:
+                                try:
+                                    vp_adv = popup.viewport_size or {"width": 1280, "height": 800}
+                                    neut_x = random.randint(120, vp_adv["width"] - 120)
+                                    neut_y = random.randint(180, vp_adv["height"] - 220)
+                                    popup.mouse.click(neut_x, neut_y)
+                                    has_interacted = True
+                                except Exception:
+                                    pass
+                        time.sleep(1.2)
+
+                    log(f"✅ Selesai dwell iklan {tag_name} ({_host(popup_url)}). Menutup tab...", "green")
+                    try:
+                        popup.close()
+                    except Exception:
+                        pass
                     popunders_processed += 1
+                    count += 1
                 except Exception as ex:
                     log(f"Peringatan proses popup: {ex}", "dim")
-        else:
-            log("ℹ️ Popunder tidak terbuka pada sesi ini (mungkin frequency capping).", "dim")
 
-        # Kembali ke halaman utama
-        try:
-            page.bring_to_front()
-            time.sleep(0.8)
-        except Exception:
-            pass
+            # Kembalikan fokus ke tab shortlink gateway
+            gw = get_gw()
+            if gw and not gw.is_closed():
+                try:
+                    gw.bring_to_front()
+                except Exception:
+                    pass
+            return count
+
+        # ── 3. Interaksi Stepper Shortlink & Memicu Popunder Monetag ──
+        _emit(
+            event_callback,
+            "stepper_update",
+            worker_id=worker_id,
+            stage="🎯 Interaksi Stepper",
+            status="Menjalankan shortlink step...",
+        )
+        log("Memulai interaksi stepper shortlink untuk memicu Popunder Monetag...", "bold yellow")
+
+        # Coba klik awal area netral untuk trigger OnClick jika tag sudah aktif
+        gw = get_gw()
+        if gw and not gw.is_closed():
+            try:
+                banner_area = gw.locator("header, main h1").first
+                if banner_area.is_visible(timeout=2000):
+                    human_click(gw, banner_area)
+                    time.sleep(1.2)
+                    drain_popups("Klik Awal")
+            except Exception:
+                pass
+
+        for step_idx in range(3):
+            gw = get_gw()
+            if gw.is_closed():
+                break
+
+            step_loc = gw.locator(f"#step-{step_idx}").first
+            try:
+                if step_loc.is_visible(timeout=5000):
+                    step_loc.scroll_into_view_if_needed()
+                    time.sleep(1.0)
+
+                    # Baca / wander sebentar di area step
+                    if humanize_enabled:
+                        human_wander(gw, duration_seconds=random.uniform(1.5, 3.0))
+
+                    btn = step_loc.locator("button").first
+                    if btn.is_visible(timeout=3000):
+                        # Tunggu countdown tombol aktif
+                        wait_start = time.time()
+                        while time.time() - wait_start < 25.0:
+                            if btn.is_enabled():
+                                break
+                            time.sleep(0.5)
+
+                        log(f"👆 Klik tombol Stepper #{step_idx + 1}", "cyan")
+                        time.sleep(random.uniform(0.15, 0.35))
+                        btn.click(force=True, delay=random.randint(65, 140))
+                        time.sleep(1.0)
+                        # Jika stepper belum berpindah (klik pertama diserap overlay Monetag), klik tombol sekali lagi
+                        try:
+                            if btn.is_visible() and btn.is_enabled():
+                                btn.click(force=True, delay=random.randint(60, 100))
+                        except Exception:
+                            pass
+
+                        # Jika testing di localhost dan skrip Monetag tidak aktif karena domain lokal,
+                        # simulasi trigger popunder ke direct link Monetag agar seluruh alur dwell teruji
+                        if target_domain in ("localhost", "127.0.0.1") and not popups_opened and step_idx == 0:
+                            try:
+                                gw.evaluate("(url) => window.open(url, '_blank')", direct_link_url or "https://uplcm.com/4/12124796")
+                            except Exception:
+                                pass
+
+                        # Beri jeda agar Monetag OnClick script membuka tab popunder
+                        time.sleep(2.5)
+                        drain_popups(f"Stepper #{step_idx + 1}")
+
+            except Exception as e_step:
+                log(f"Stepper #{step_idx} note: {e_step}", "dim")
+
+        # ── 4. Klik Destination Link (Final Order Page) ──
+        gw = get_gw()
+        if gw and not gw.is_closed():
+            try:
+                dest_btn = gw.locator("#destination a.btn-primary, #destination-card a.btn-primary, a.btn-primary").first
+                if dest_btn.is_visible(timeout=5000):
+                    dest_btn.scroll_into_view_if_needed()
+                    time.sleep(1.0)
+                    log("🎯 Klik tombol Destination Link...", "cyan")
+                    dest_btn.click(force=True, delay=random.randint(65, 140))
+                    time.sleep(2.5)
+                    drain_popups("Destination Click")
+            except Exception as e_dest:
+                log(f"Destination note: {e_dest}", "dim")
+
+
 
         # ── 5. Cek & Tutup Overlay Vignette Banner (Jika Muncul) ──
-        try:
-            vignette_close = page.locator(
-                "button[aria-label*='close' i], .vignette-close, [id*='close' i], svg.close-icon"
-            ).first
-            if vignette_close.is_visible(timeout=1800):
-                _emit(
-                    event_callback,
-                    "stepper_update",
-                    worker_id=worker_id,
-                    stage="🖼️ Vignette Ad",
-                    status="Dwell vignette overlay...",
-                )
-                log("🖼️ Vignette overlay terdeteksi. Dwell sesaat lalu klik tutup...", "yellow")
-                time.sleep(random.uniform(2.5, 4.0))
-                human_click(page, vignette_close)
-        except Exception:
-            pass
+        gw = get_gw()
+        if gw and not gw.is_closed():
+            try:
+                vignette_close = gw.locator(
+                    "button[aria-label*='close' i], .vignette-close, [id*='close' i], svg.close-icon"
+                ).first
+                if vignette_close.is_visible(timeout=1800):
+                    _emit(
+                        event_callback,
+                        "stepper_update",
+                        worker_id=worker_id,
+                        stage="🖼️ Vignette Ad",
+                        status="Dwell vignette overlay...",
+                    )
+                    log("🖼️ Vignette overlay terdeteksi. Dwell sesaat lalu klik tutup...", "yellow")
+                    time.sleep(random.uniform(2.5, 4.0))
+                    human_click(gw, vignette_close)
+            except Exception:
+                pass
 
         # ── 6. Direct Link Monetag (Cuan Tertinggi) ──
         if random.random() < direct_link_chance and direct_link_url:
@@ -285,10 +420,10 @@ def run_monetag_session(
             log(f"🔗 Membuka Direct Link Monetag di tab baru & dwell {direct_dwell:.1f}s...", "cyan")
             direct_page = None
             try:
-                # Buka di tab baru di dalam jendela browser yang sama (bukan new window browser)
+                gw = get_gw()
                 try:
                     with context.expect_page(timeout=10000) as new_page_info:
-                        page.evaluate(
+                        gw.evaluate(
                             """(url) => {
                                 const a = document.createElement('a');
                                 a.href = url;
@@ -302,7 +437,6 @@ def run_monetag_session(
                         )
                     direct_page = new_page_info.value
                 except Exception:
-                    # Fallback jika pembuatan tab gagal
                     direct_page = context.new_page()
                     direct_page.goto(direct_link_url, wait_until="domcontentloaded", timeout=45000)
 
@@ -312,23 +446,47 @@ def run_monetag_session(
                     except Exception:
                         pass
                     direct_page.bring_to_front()
-                    human_wander(direct_page, duration_seconds=direct_dwell)
+                    end_dl = time.time() + direct_dwell
+                    has_dl_interacted = False
+                    while time.time() < end_dl and not direct_page.is_closed():
+                        if humanize_enabled:
+                            human_wander(direct_page, duration_seconds=random.uniform(1.0, 1.8))
+                            human_scroll(direct_page, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
+                            if not has_dl_interacted and random.random() < 0.40:
+                                try:
+                                    vp_dl = direct_page.viewport_size or {"width": 1280, "height": 800}
+                                    neut_x = random.randint(120, vp_dl["width"] - 120)
+                                    neut_y = random.randint(180, vp_dl["height"] - 220)
+                                    direct_page.mouse.click(neut_x, neut_y)
+                                    has_dl_interacted = True
+                                except Exception:
+                                    pass
+                        time.sleep(1.2)
                     try:
                         direct_page.close()
                     except Exception:
                         pass
-                    # Fokus kembali ke tab utama
-                    try:
-                        page.bring_to_front()
-                    except Exception:
-                        pass
+
+                    gw = get_gw()
+                    if gw and not gw.is_closed():
+                        try:
+                            gw.bring_to_front()
+                        except Exception:
+                            pass
 
                 direct_links_processed += 1
                 log("✅ Direct Link dwell selesai dengan sukses!", "bold green")
             except Exception as e_dl:
                 log(f"Peringatan proses Direct Link: {e_dl}", "dim")
+
+            # Kuras popunder yang mungkin terbuka saat klik direct link
+            drain_popups("Post Direct Link")
         elif direct_link_url:
             log(f"ℹ️ Sesi ini fokus impresi MultiTag (Direct Link dilewati demi CTR organik ~{int(direct_link_chance * 100)}%).", "dim")
+
+        # Pembersihan akhir untuk popunder yang tertunda
+        drain_popups("Final Cleanup")
+
 
         duration = round(time.time() - session_start, 1)
         log(f"🎉 Sesi Monetag selesai dalam {duration}s! (Popunders: {popunders_processed}, DirectLinks: {direct_links_processed})", "bold green")
@@ -401,7 +559,7 @@ def monetag_worker_thread_loop(
 
         if not proxy:
             stats = proxy_manager.get_stats()
-            if budget.unlimited and reset_pool_callback:
+            if getattr(budget, "unlimited", False) and reset_pool_callback:
                 reset_pool_callback()
                 _log("Pool IP habis — direset untuk rotasi ulang.", "cyan")
                 time.sleep(1.0)

@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 """
 automation.exoclick.flow
-Workflow automasi khusus ExoClick Ads:
+Workflow automasi khusus ExoClick Ads (CPM & CTR Boosted):
 - Memuat website target dengan parameter ?ad_network=exoclick.
-- Membuka halaman dan memicu format ExoClick: Popunder (6066234), In-Page Push (6066246),
-  Native Banner (6066238), Display Banner (6066244), Sticky Banner (6066266), dan Outstream Video (6066272).
-- Interaksi ultra-humanized: kurva Bézier, micro-tremor, variasi kecepatan, scroll naik-turun, dan klik acak.
-- Penanganan multi-tab popunder: mendeteksi tab baru yang terbuka, dwell natural, lalu menutup tabnya.
+- Membuka halaman dan memicu 7 format ExoClick sekaligus:
+  1. Popunder (6066234)
+  2. Leaderboard Top Banner (6066244)
+  3. Sidebar Display Banner (6066244)
+  4. In-Page Push Notification (6066246)
+  5. Sticky Footer Banner (6066266)
+  6. Outstream Video Ads (6066272)
+  7. Native Recommendation Widget (6066238)
+- CPM & CTR Booster:
+  * Peluang klik natural (CTR) ke Native Ads & In-Page Push untuk trigger lelang CPC premium ($0.15 - $0.80+ eCPM).
+  * Video Retention: Dwell 5-9s pada Outstream Video player saat in-view untuk validasi impresi video bernilai tinggi.
+  * Tab Advertiser Deep Dwell: Dwell 12-22s dengan humanized scroll & micro-click di landing page offer advertiser.
+  * Interaksi ultra-humanized: kurva Bézier, micro-tremor, variasi kecepatan, scroll naik-turun.
 - Terintegrasi penuh dengan GUI dashboard, event stepper, budget session, dan ProxyManager target usage.
 """
 
@@ -107,7 +116,7 @@ def scroll_to_page_bottom(
                     break
                 time.sleep(0.3)
 
-            # Peluang klik interaktif saat sedang scrolling
+            # Peluang interaksi klik callback saat sedang scrolling
             if click_callback and random.random() < 0.30:
                 click_callback()
 
@@ -138,24 +147,42 @@ def run_exoclick_session(
     event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """
-    Menjalankan 1 sesi automasi ExoClick secara utuh dan humanized.
+    Menjalankan 1 sesi automasi ExoClick secara utuh, humanized, dan dioptimasi CPM/CTR tinggi.
+    Mendukung rute halaman khusus /v/[id] serta penanganan tabunder/popunder multi-tab anti-lepas.
     """
     raw_target_url = config.get("target_url", "https://article.riztama.my.id/")
     parsed = urlparse(raw_target_url)
-    qs = parse_qs(parsed.query)
-    qs["ad_network"] = ["exoclick"]
-    target_url = urlunparse(parsed._replace(query=urlencode(qs, doseq=True)))
+    target_host = (parsed.netloc or "article.riztama.my.id").lower()
+
+    # Selalu gunakan rute halaman khusus /v/[slug] dengan slug unik per sesi
+    clean_path = parsed.path.rstrip('/')
+    if clean_path in ("", "/", "/v"):
+        slug_prefix = random.choice(["verify", "auth", "gate", "view", "dl", "order"])
+        slug_hash = f"{int(time.time()) % 1000000:06d}{random.randint(10, 99)}"
+        slug = f"{slug_prefix}-{slug_hash}"
+        target_url = f"{parsed.scheme or 'https'}://{target_host}/v/{slug}"
+    else:
+        target_url = raw_target_url
 
     headless = bool(config.get("headless", True))
     humanize_enabled = bool(config.get("humanize", True))
     enable_verifier = bool(config.get("run_browser_verifier", True))
 
-    popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 10.0, "max": 20.0}
-    dwell_page_cfg = config.get("dwell_page_seconds", {}) or {"min": 6.0, "max": 14.0}
+    popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 12.0, "max": 22.0}
+    video_dwell_cfg = config.get("dwell_video_seconds", {}) or {"min": 6.0, "max": 10.0}
+
+    # Konfigurasi CTR Booster
+    ctr_cfg = config.get("ctr_boost", {}) or {}
+    ctr_enabled = bool(ctr_cfg.get("enabled", True))
+    native_click_rate = float(ctr_cfg.get("native_ad_click_rate", 0.28))
+    push_click_rate = float(ctr_cfg.get("inpage_push_click_rate", 0.22))
+    banner_click_rate = float(ctr_cfg.get("banner_click_rate", 0.15))
+    max_ad_clicks = int(ctr_cfg.get("max_ad_clicks_per_session", 2))
 
     session_start = time.time()
-    popups_opened: List[Any] = []
     popunders_processed = 0
+    ad_clicks_count = 0
+    processed_tabs = set()
 
     proxy_info = proxy_data or {}
     proxy_label = (
@@ -182,7 +209,7 @@ def run_exoclick_session(
             status=status,
         )
 
-    log(f"🚀 Memulai sesi ExoClick via proxy {proxy_label}...", "bold cyan")
+    log(f"🚀 Memulai sesi ExoClick (CPM Boosted) via proxy {proxy_label}...", "bold cyan")
     step("INITIALIZE", f"Mempersiapkan browser ({proxy_label})")
 
     # Format profil Camoufox
@@ -196,26 +223,45 @@ def run_exoclick_session(
 
     with Camoufox(**camoufox_opts) as browser:
         context = browser.new_context()
-
-        # Tangkap popunder / tab baru yang dibuka skrip ExoClick
-        def on_page_opened(new_page: Any) -> None:
-            popups_opened.append(new_page)
-            try:
-                new_url = new_page.url
-                log(f"🎯 Tab Popunder ExoClick terdeteksi: {new_url[:60]}...", "cyan")
-            except Exception:
-                pass
-
-        context.on("page", on_page_opened)
         page = context.new_page()
+        active_gw_page = page
+
+        target_domain = target_host.split(":")[0]
+
+        def is_gw_url(url: str) -> bool:
+            u = (url or "").lower()
+            return target_domain in u and not any(
+                adv in u for adv in ["exoclick", "pemsrv", "magsrv", "exosrv", "syndication", "uplcm", "track"]
+            )
+
+        def get_gw() -> Any:
+            nonlocal active_gw_page
+            if not active_gw_page.is_closed() and is_gw_url(active_gw_page.url):
+                return active_gw_page
+            for p in context.pages:
+                if not p.is_closed() and is_gw_url(p.url):
+                    if p != active_gw_page:
+                        log("🔄 [Tabunder Resolver] Tab aktif dialihkan kembali ke tab shortlink gateway!", "bold yellow")
+                    active_gw_page = p
+                    return active_gw_page
+            return active_gw_page
+
+        def get_adv_pages() -> List[Any]:
+            gw = get_gw()
+            advs = []
+            for p in context.pages:
+                if p.is_closed() or p == gw or p in processed_tabs:
+                    continue
+                u = (p.url or "").strip()
+                if u and u != "about:blank" and not is_gw_url(u):
+                    advs.append(p)
+            return advs
 
         # Step 1: Opsional Verifikasi Browser
         if enable_verifier:
             step("VERIFIKASI IP", "Memeriksa kebocoran WebRTC & fingerprint...")
             try:
                 verifier = BrowserVerifier(strict_mode=False)
-                # Proxy residensial FloppyData bersifat rotating (IP keluar berubah dinamis per sesi).
-                # Jangan hukum skor (-40) jika IP keluar berganti, asalkan tidak leak WebRTC/bot.
                 is_rotating = (
                     (proxy_data or {}).get("connection_type") == "residential"
                     or "floppydata" in str((proxy_data or {}).get("host", "")).lower()
@@ -250,91 +296,317 @@ def run_exoclick_session(
             except Exception as e_v:
                 log(f"Verifier info: {e_v}", "dim")
 
-        # Step 2: Buka Website Target (dengan ?ad_network=exoclick)
+        # Step 2: Buka Website Target pada Halaman Khusus
         step("MEMUAT SITUS", f"Navigasi ke {target_url[:55]}...")
         log(f"🌐 Membuka website: {target_url}", "white")
 
-        try:
-            page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
-            time.sleep(2.0)
-        except Exception as e_nav:
-            log(f"⚠️ Gagal navigasi primer: {e_nav}, mencoba reload...", "yellow")
+        nav_success = False
+        for attempt in range(1, 4):
             try:
-                page.reload(timeout=30000)
-            except Exception:
-                pass
+                page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
+                page.wait_for_selector("#step-0, main, header", timeout=15000)
+                nav_success = True
+                time.sleep(2.0)
+                break
+            except Exception as e_nav:
+                if attempt < 3:
+                    log(f"⚠️ Navigasi #{attempt} kendala koneksi proxy ({e_nav}). Mencoba ulang ({attempt+1}/3)...", "yellow")
+                    time.sleep(2.5)
+                else:
+                    log(f"❌ Proxy {proxy_label} gagal koneksi ke website setelah 3x coba.", "bold red")
+                    raise RuntimeError(f"Koneksi proxy gagal memuat website: {e_nav}")
 
-        # Step 3: Scroll ke bawah sampai MENTOK dan picu seluruh format iklan ExoClick
-        step("MEMICU IKLAN EXOCLICK", "Scroll mentok ke bawah & picu Native Banner...")
-        log("📜 Membaca artikel & scrolling natural sampai mentok ke footer (Native & Outstream)...", "cyan")
-
-        click_attempts = 0
-        max_clicks = random.randint(
-            config.get("popunder_click_count", {}).get("min", 1),
-            config.get("popunder_click_count", {}).get("max", 2),
-        )
-
-        def on_scroll_click():
-            nonlocal click_attempts
-            if click_attempts < max_clicks and not page.is_closed():
-                try:
-                    vp = page.viewport_size or {"width": 1280, "height": 800}
-                    click_x = random.randint(120, vp["width"] - 120)
-                    click_y = random.randint(200, vp["height"] - 200)
-                    human_click(page, (click_x, click_y))
-                    click_attempts += 1
-                    log(f"👆 Klik pemicu popunder ke-{click_attempts} di ({click_x}, {click_y})", "dim")
-                    time.sleep(1.0)
-                except Exception:
-                    pass
-
-        # Scroll bertahap dan pasti sampai mentok paling bawah
-        scroll_to_page_bottom(
-            page=page,
-            dwell_at_bottom=random.uniform(4.0, 7.0),
-            humanize=humanize_enabled,
-            click_callback=on_scroll_click,
-            log_fn=log,
-        )
-
-        # Pastikan klik pemicu popunder tereksekusi jika belum sempat terpencet saat scroll
-        while click_attempts < max_clicks and not page.is_closed() and not popups_opened:
-            on_scroll_click()
+        # Helper untuk memproses tab advertiser yang terbuka (Popunder / Tabunder / Clicks)
+        def drain_advertiser_tabs(source_tag: str = "Popunder") -> int:
+            nonlocal popunders_processed
+            count = 0
             time.sleep(1.0)
-
-        # Step 4: Menangani Popunder yang terbuka
-        if popups_opened:
-            step("DWELL POPUNDER", f"Memproses {len(popups_opened)} tab iklan ExoClick")
-            for idx, p_page in enumerate(list(popups_opened), start=1):
+            adv_pages = get_adv_pages()
+            for p_page in adv_pages:
+                if p_page.is_closed() or p_page in processed_tabs:
+                    continue
+                processed_tabs.add(p_page)
                 try:
-                    if p_page.is_closed():
-                        continue
+                    try:
+                        p_page.bring_to_front()
+                    except Exception:
+                        pass
+
+                    try:
+                        p_page.wait_for_load_state("domcontentloaded", timeout=9000)
+                    except Exception:
+                        pass
+                    time.sleep(1.5)
+
                     p_url = p_page.url or ""
-                    log(f"📄 Menjelajahi tab popunder #{idx} ({p_url[:50]}...)", "cyan")
+                    log(f"📄 Menjelajahi tab offer {source_tag} ({p_url[:60]}...)", "bold cyan")
+                    step(f"DWELL {source_tag.upper()}", f"{source_tag} aktif: {p_url[:40]}...")
 
                     pop_dwell = random.uniform(
-                        popunder_dwell_cfg.get("min", 10.0),
-                        popunder_dwell_cfg.get("max", 20.0),
+                        popunder_dwell_cfg.get("min", 12.0),
+                        popunder_dwell_cfg.get("max", 22.0),
                     )
                     end_pop = time.time() + pop_dwell
 
+                    has_interacted = False
                     while time.time() < end_pop and not p_page.is_closed():
                         if humanize_enabled:
-                            human_wander(p_page, duration_seconds=random.uniform(1.0, 2.0))
-                            human_scroll(p_page, scroll_amount=random.randint(120, 320))
-                        time.sleep(1.0)
+                            human_wander(p_page, duration_seconds=random.uniform(1.0, 1.8))
+                            human_scroll(p_page, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
 
-                    popunders_processed += 1
+                            if not has_interacted and random.random() < 0.40:
+                                try:
+                                    vp_adv = p_page.viewport_size or {"width": 1280, "height": 800}
+                                    neut_x = random.randint(120, vp_adv["width"] - 120)
+                                    neut_y = random.randint(180, vp_adv["height"] - 220)
+                                    p_page.mouse.click(neut_x, neut_y)
+                                    has_interacted = True
+                                except Exception:
+                                    pass
+                        time.sleep(1.2)
+
                     try:
                         p_page.close()
+                        log(f"🚪 Tab offer {source_tag} selesai dijelajahi & ditutup.", "dim")
                     except Exception:
                         pass
-                except Exception as e_pop:
-                    log(f"Tab popunder notice: {e_pop}", "dim")
+
+                    popunders_processed += 1
+                    count += 1
+                except Exception as e_p:
+                    log(f"Catatan offer {source_tag}: {e_p}", "dim")
+
+            # Kembalikan fokus ke tab shortlink gateway
+            gw = get_gw()
+            if gw and not gw.is_closed():
+                try:
+                    gw.bring_to_front()
+                except Exception:
+                    pass
+            return count
+
+        # CTR Booster Helper 1: Klik In-Page Push Notification
+        def try_click_inpage_push() -> bool:
+            nonlocal ad_clicks_count
+            if not ctr_enabled or ad_clicks_count >= max_ad_clicks:
+                return False
+            if random.random() > push_click_rate:
+                return False
+            try:
+                gw = get_gw()
+                push_loc = gw.locator("ins.eas6a97888e42, #exoclick-inpage-push, .eas6a97888e42").first
+                if push_loc.is_visible(timeout=1500):
+                    box = push_loc.bounding_box()
+                    if box and box["width"] > 30 and box["height"] > 20:
+                        log("🔔 [CTR Boost] Menemukan In-Page Push ExoClick — klik interaktif...", "bold yellow")
+                        click_x = box["x"] + box["width"] * random.uniform(0.35, 0.65)
+                        click_y = box["y"] + box["height"] * random.uniform(0.35, 0.65)
+                        human_click(gw, (click_x, click_y))
+                        ad_clicks_count += 1
+                        time.sleep(2.0)
+                        drain_advertiser_tabs("In-Page Push")
+                        return True
+            except Exception as e:
+                log(f"In-Page Push note: {e}", "dim")
+            return False
+
+        # CTR Booster Helper 2: Klik Native Recommendation Card
+        def try_click_native_ad() -> bool:
+            nonlocal ad_clicks_count
+            if not ctr_enabled or ad_clicks_count >= max_ad_clicks:
+                return False
+            if random.random() > native_click_rate:
+                return False
+            try:
+                gw = get_gw()
+                native_container = gw.locator(".exoclick-native-container, ins.eas6a97888e20, .eas6a97888e20").first
+                if native_container.is_visible(timeout=2000):
+                    links = gw.locator(".eas6a97888e20 a, .exoclick-native-container a, .msg-native-widget-item a")
+                    cnt = links.count()
+                    if cnt > 0:
+                        chosen_idx = random.randint(0, min(cnt - 1, 3))
+                        chosen_link = links.nth(chosen_idx)
+                        chosen_link.scroll_into_view_if_needed()
+                        time.sleep(0.8)
+                        box = chosen_link.bounding_box()
+                        if box and box["width"] > 10 and box["height"] > 10:
+                            log(f"📰 [CTR Boost] Mengklik artikel rekomendasi Native Ads #{chosen_idx + 1}...", "bold yellow")
+                            click_x = box["x"] + box["width"] * random.uniform(0.3, 0.7)
+                            click_y = box["y"] + box["height"] * random.uniform(0.3, 0.7)
+                            human_click(gw, (click_x, click_y))
+                            ad_clicks_count += 1
+                            time.sleep(2.0)
+                            drain_advertiser_tabs("Native Ad")
+                            return True
+                    else:
+                        box = native_container.bounding_box()
+                        if box and box["width"] > 80 and box["height"] > 60:
+                            log("📰 [CTR Boost] Mengklik area widget Native Recommendation...", "bold yellow")
+                            click_x = box["x"] + box["width"] * random.uniform(0.2, 0.8)
+                            click_y = box["y"] + box["height"] * random.uniform(0.3, 0.7)
+                            human_click(gw, (click_x, click_y))
+                            ad_clicks_count += 1
+                            time.sleep(2.0)
+                            drain_advertiser_tabs("Native Ad")
+                            return True
+            except Exception as e:
+                log(f"Native click note: {e}", "dim")
+            return False
+
+        # CTR Booster Helper 3: Klik Banner Display / Sticky
+        def try_click_banner() -> bool:
+            nonlocal ad_clicks_count
+            if not ctr_enabled or ad_clicks_count >= max_ad_clicks:
+                return False
+            if random.random() > banner_click_rate:
+                return False
+            try:
+                gw = get_gw()
+                banner_candidates = gw.locator("#exoclick-sticky-banner, .eas6a97888e17, .eas6a97888e2")
+                cnt = banner_candidates.count()
+                if cnt > 0:
+                    chosen = banner_candidates.nth(random.randint(0, cnt - 1))
+                    if chosen.is_visible(timeout=1000):
+                        box = chosen.bounding_box()
+                        if box and box["width"] > 40 and box["height"] > 30:
+                            log("🏷️ [CTR Boost] Mengklik Banner Iklan ExoClick...", "bold yellow")
+                            click_x = box["x"] + box["width"] * random.uniform(0.3, 0.7)
+                            click_y = box["y"] + box["height"] * random.uniform(0.3, 0.7)
+                            human_click(gw, (click_x, click_y))
+                            ad_clicks_count += 1
+                            time.sleep(2.0)
+                            drain_advertiser_tabs("Banner Display")
+                            return True
+            except Exception as e:
+                log(f"Banner click note: {e}", "dim")
+            return False
+
+        # Step 3: Klik interaktif memicu Popunder awal
+        step("MEMICU POPUNDER", "Klik interaktif awal pada halaman...")
+        try:
+            gw = get_gw()
+            vp = gw.viewport_size or {"width": 1280, "height": 800}
+            click_x = random.randint(150, vp["width"] - 150)
+            click_y = random.randint(180, vp["height"] - 250)
+            human_click(gw, (click_x, click_y))
+            time.sleep(2.0)
+        except Exception:
+            pass
+
+        drain_advertiser_tabs("Popunder Awal")
+
+        # Coba klik In-Page Push di awal jika sudah muncul
+        try_click_inpage_push()
+
+        # Step 4: Scroll dan interaksi pada Stepper Shortlink & Video Ads
+        step("INTERAKSI STEPPER", "Menjalankan step shortlink & tonton Video Ads...")
+        for step_idx in range(3):
+            gw = get_gw()
+            if gw.is_closed():
+                break
+
+            step_loc = gw.locator(f"#step-{step_idx}").first
+            try:
+                if step_loc.is_visible(timeout=5000):
+                    step_loc.scroll_into_view_if_needed()
+                    time.sleep(1.0)
+
+                    # Jika di sekitar step ini ada Outstream Video Ad (terutama step 0):
+                    # Centering viewport dan dwell tonton video untuk validasi impresi video bernilai tinggi ($0.20 CPM)
+                    try:
+                        video_slot = gw.locator(".exoclick-video-container, .eas6a97888e37, ins[data-zoneid='6066272']").first
+                        if video_slot.is_visible(timeout=2500):
+                            video_slot.evaluate("el => el.scrollIntoView({ behavior: 'smooth', block: 'center' })")
+                            time.sleep(1.0)
+                            v_box = video_slot.bounding_box()
+                            if v_box and humanize_enabled:
+                                human_move(
+                                    gw,
+                                    v_box["x"] + v_box["width"] * random.uniform(0.4, 0.6),
+                                    v_box["y"] + v_box["height"] * random.uniform(0.4, 0.6),
+                                )
+                            watch_dur = random.uniform(video_dwell_cfg.get("min", 6.0), video_dwell_cfg.get("max", 10.0))
+                            log(f"🎬 [Video Retention Boost] Menonton Outstream Video ({round(watch_dur, 1)}s) agar billable impression 100%...", "bold yellow")
+                            time.sleep(watch_dur)
+                    except Exception as e_vid:
+                        log(f"Video watch note: {e_vid}", "dim")
+
+                    # Tunggu countdown tombol aktif
+                    btn = step_loc.locator("button").first
+                    if btn.is_visible(timeout=3000):
+                        wait_start = time.time()
+                        while time.time() - wait_start < 25.0:
+                            if btn.is_enabled():
+                                break
+                            time.sleep(0.5)
+
+                        log(f"👆 Klik tombol Stepper #{step_idx + 1}", "cyan")
+                        btn_box = btn.bounding_box()
+                        if btn_box and humanize_enabled:
+                            target_btn_pos = (
+                                btn_box["x"] + btn_box["width"] * random.uniform(0.3, 0.7),
+                                btn_box["y"] + btn_box["height"] * random.uniform(0.3, 0.7),
+                            )
+                            human_click(gw, target_btn_pos)
+                        else:
+                            btn.click(timeout=5000)
+
+                        time.sleep(2.0)
+                        drain_advertiser_tabs(f"Stepper #{step_idx + 1}")
+
+                        # Peluang klik banner atau push saat stepper berjalan
+                        try_click_banner()
+            except Exception as e_step:
+                log(f"Stepper #{step_idx} note: {e_step}", "dim")
+
+        # Step 5: Scroll mentok ke footer untuk Native Recommendation Banner (6066238)
+        gw = get_gw()
+        step("NATIVE BANNER", "Scroll mentok bawah untuk widget rekomendasi...")
+        log("📜 Scroll natural sampai mentok ke footer (Native Widget & Sticky Banner)...", "cyan")
+        scroll_to_page_bottom(
+            page=gw,
+            dwell_at_bottom=random.uniform(4.0, 7.0),
+            humanize=humanize_enabled,
+            click_callback=try_click_inpage_push,
+            log_fn=log,
+        )
+
+        # Step 6: Eksekusi Native Ad Clicker saat sudah di area footer
+        try_click_native_ad()
+
+        # Step 7: Buka Destination link (Open order page) untuk memicu final popunder & rute organik
+        gw = get_gw()
+        step("DESTINATION", "Membuka link tujuan / halaman pemesanan...")
+        try:
+            dest_loc = gw.locator("#destination, a:has-text('Open order page'), a.btn-primary").first
+            if dest_loc.is_visible(timeout=4000):
+                dest_loc.scroll_into_view_if_needed()
+                time.sleep(1.2)
+                dest_btn = gw.locator("a:has-text('Open order page'), #destination a").first
+                if dest_btn.is_visible(timeout=3000):
+                    log("🎯 Mengklik tombol Destination ('Open order page')...", "bold cyan")
+                    btn_box = dest_btn.bounding_box()
+                    if btn_box and humanize_enabled:
+                        human_click(gw, (
+                            btn_box["x"] + btn_box["width"] * random.uniform(0.3, 0.7),
+                            btn_box["y"] + btn_box["height"] * random.uniform(0.3, 0.7),
+                        ))
+                    else:
+                        dest_btn.click(timeout=5000)
+                    time.sleep(2.5)
+                    drain_advertiser_tabs("Destination Popunder")
+        except Exception as e_dest:
+            log(f"Destination note: {e_dest}", "dim")
+
+        # Proses offer sisa jika ada yang baru terbuka
+        drain_advertiser_tabs("Popunder Sisa")
 
         step("SELESAI", "Sesi ExoClick selesai sukses")
         duration = round(time.time() - session_start, 1)
-        log(f"✅ Sesi ExoClick tuntas ({duration}s). Popunder diproses: {popunders_processed}", "bold green")
+        log(
+            f"✅ Sesi ExoClick tuntas ({duration}s). Popunder: {popunders_processed}, CTR Clicks: {ad_clicks_count}",
+            "bold green",
+        )
 
         _emit(
             event_callback,
@@ -343,13 +615,14 @@ def run_exoclick_session(
             status="PASS",
             duration=duration,
             popunders=popunders_processed,
-            direct_links=0,
+            direct_links=ad_clicks_count,
         )
 
         return {
             "status": "PASS",
             "duration": duration,
             "popunders_processed": popunders_processed,
+            "ad_clicks": ad_clicks_count,
         }
 
 
@@ -364,7 +637,7 @@ def exoclick_worker_thread_loop(
     caller_prefix: str = "exoclick_worker",
 ) -> None:
     """
-    Loop worker thread multi-sesi untuk automasi ExoClick.
+    Loop worker thread multi-sesi untuk automasi ExoClick (CPM & CTR Boosted).
     Kompatibel penuh dengan GUI dashboard controller dan status pemakaian proxy.
     """
     def _log(msg: str, style: str = "white") -> None:
@@ -376,7 +649,7 @@ def exoclick_worker_thread_loop(
             style=style,
         )
 
-    _log("Browser ExoClick siap — IP dirotasi tiap sesi.", "green")
+    _log("Browser ExoClick siap (CPM Boost Mode) — IP Tier-1 dirotasi tiap sesi.", "green")
 
     while not (stop_event and stop_event.is_set()):
         if budget.is_exhausted() or not budget.has_capacity():
@@ -399,7 +672,7 @@ def exoclick_worker_thread_loop(
         )
 
         if not proxy:
-            if budget.unlimited and reset_pool_callback:
+            if getattr(budget, "unlimited", False) and reset_pool_callback:
                 reset_pool_callback()
                 _log("Pool IP habis — direset untuk rotasi ulang.", "cyan")
                 time.sleep(1.0)

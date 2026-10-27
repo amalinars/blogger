@@ -176,6 +176,11 @@ def build_camoufox_kwargs(
         "privacy.trackingprotection.fingerprinting.enabled": False,
         "privacy.trackingprotection.emailtracking.enabled": False,
         "privacy.donottrackheader.enabled": False,
+        "dom.disable_open_during_load": False,
+        "dom.block_multiple_popups": False,
+        "privacy.popups.showBrowserMessage": False,
+        "browser.link.open_newwindow": 3,
+        "browser.link.open_newwindow.restriction": 0,
     }
     if allow_third_party_cookies:
         # Ad networks (Adsterra included) rely on third-party cookies for

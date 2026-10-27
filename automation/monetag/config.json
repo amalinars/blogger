@@ -1,5 +1,5 @@
 {
-  "target_url": "https://article.riztama.my.id/",
+  "target_url": "https://article.riztama.my.id/m/",
   "direct_link_url": "https://uplcm.com/4/12124796",
   "multitag_zone": "302175",
   "ad_hosts": [
@@ -23,12 +23,12 @@
     "max": 12.0
   },
   "dwell_popup_seconds": {
-    "min": 10.0,
-    "max": 20.0
-  },
-  "dwell_direct_link_seconds": {
     "min": 12.0,
     "max": 25.0
+  },
+  "dwell_direct_link_seconds": {
+    "min": 15.0,
+    "max": 28.0
   },
   "popunder_click_count": {
     "min": 1,

@@ -20,7 +20,10 @@ export function AdNetworkManager() {
     if (initialized.current) return;
     initialized.current = true;
 
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/v/')) {
+    if (
+      typeof window !== 'undefined' &&
+      (window.location.pathname.startsWith('/v/') || window.location.pathname.startsWith('/m/'))
+    ) {
       return;
     }
 

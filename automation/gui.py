@@ -251,7 +251,8 @@ class RunController(QObject):
 
         num_workers = int(config.get("concurrency", 3))
         stats = self.proxy_manager.get_stats()
-        mode_lbl = "Tanpa Batas (∞)" if self.budget.unlimited else str(hard_max)
+        is_unlimited = getattr(self.budget, "unlimited", False)
+        mode_lbl = "Tanpa Batas (∞)" if is_unlimited else str(hard_max)
 
         network_label = {
             "monetag": "💎 Hanya Monetag",
@@ -343,7 +344,7 @@ class RunController(QObject):
                     wid, config, self.proxy_manager, self.budget,
                     self._worker_event, self.stop_event,
                 ),
-                kwargs={"reset_pool_callback": _reset_pool if self.budget.unlimited else None},
+                kwargs={"reset_pool_callback": _reset_pool if getattr(self.budget, "unlimited", False) else None},
                 daemon=True,
                 name=f"{worker_tag}-Worker-{wid}",
             )
@@ -862,10 +863,17 @@ class Dashboard(QMainWindow):
         # Injeksi parameter URL ?ad_network=... agar website langsung memunculkan iklan yang dipilih!
         raw_url = self.target_url_input.text().strip() or "https://article.riztama.my.id/"
         parsed = urlparse(raw_url)
-        qs = parse_qs(parsed.query)
-        qs["ad_network"] = [target_net]
-        new_query = urlencode(qs, doseq=True)
-        final_target_url = urlunparse(parsed._replace(query=new_query))
+        target_host = parsed.netloc or "article.riztama.my.id"
+        target_scheme = parsed.scheme or "https"
+        if target_net == "exoclick":
+            final_target_url = f"{target_scheme}://{target_host}/v/"
+        elif target_net == "monetag":
+            final_target_url = f"{target_scheme}://{target_host}/m/"
+        else:
+            qs = parse_qs(parsed.query)
+            qs["ad_network"] = [target_net]
+            new_query = urlencode(qs, doseq=True)
+            final_target_url = urlunparse(parsed._replace(query=new_query))
 
         cfg["target_url"] = final_target_url
         cfg["concurrency"] = int(self.workers_spin.value())
