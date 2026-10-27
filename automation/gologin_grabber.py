@@ -388,8 +388,11 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                     page.wait_for_timeout(1000)
                     cur_url = page.url
                     if "/quiz" in cur_url or "/download" in cur_url or "/profileList" in cur_url or "/home" in cur_url or "/proxy" in cur_url:
-                        print(f"   ⚡ Berhasil autentikasi ({cur_url}), langsung lompat ke /proxy...")
-                        page.goto("https://app.gologin.com/proxy", timeout=20000)
+                        print(f"   ⚡ Berhasil autentikasi ({cur_url}), langsung lompat ke /proxy...", flush=True)
+                        try:
+                            page.goto("https://app.gologin.com/proxy", wait_until="domcontentloaded", timeout=45000)
+                        except Exception as e_nav_proxy:
+                            print(f"   ⚠️ Proxy lambat saat buka /proxy ({e_nav_proxy}), melanjutkan...", flush=True)
                         break
 
                     # Jika masih tertahan di /sign_up, periksa apakah Cloudflare Turnstile muncul
@@ -406,9 +409,12 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                 # -----------------------------------------------------------
                 # TAHAP 4: GRAB LIST PROXY DI HALAMAN /PROXY (DENGAN TUNGGU UI)
                 # -----------------------------------------------------------
-                print("▶️ [Step 4/4] Membuka halaman /proxy dan menunggu UI tabel dimuat penuh...")
+                print("▶️ [Step 4/4] Membuka halaman /proxy dan menunggu UI tabel dimuat penuh...", flush=True)
                 if "/proxy" not in page.url:
-                    page.goto("https://app.gologin.com/proxy", timeout=25000)
+                    try:
+                        page.goto("https://app.gologin.com/proxy", wait_until="domcontentloaded", timeout=45000)
+                    except Exception as e_nav_proxy2:
+                        print(f"   ⚠️ Proxy lambat ({e_nav_proxy2}), melanjutkan...", flush=True)
 
                 # 1. Tunggu sampai tabel UI / baris proxy benar-benar muncul di layar
                 print("   ⏳ Menunggu tabel proxy ter-render di UI browser...")
