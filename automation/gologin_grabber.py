@@ -344,36 +344,41 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                         print(f"   ⚠️ Proxy lambat ({e_nav}), mencoba ulang navigasi...", flush=True)
                         time.sleep(2)
 
-                print("   ✍️ Isi Email & Centang Terms...", flush=True)
-                page.wait_for_selector('input[placeholder*="email" i], input[type="text"]', timeout=20000)
-                page.fill('input[placeholder*="email" i], input[type="text"]', email)
+                print("   ✍️ Menunggu form pendaftaran GoLogin & Turnstile...", flush=True)
+                # Cek jika ada Turnstile yang muncul di awal sebelum form dirender
+                solve_cloudflare_turnstile(page, timeout=6)
+
+                # Selector fleksibel: GoLogin menggunakan <input name="email" placeholder="Your email"> (tanpa type="text")
+                email_sel = 'input[name="email"], input[placeholder*="email" i], input[type="email"], input[placeholder*="mail" i], input[type="text"]'
+                page.wait_for_selector(email_sel, timeout=45000)
+                page.fill(email_sel, email)
                 
                 cb = page.query_selector('input[type="checkbox"]')
                 if cb and not cb.is_checked():
                     cb.click()
                     
-                print("   🚀 Klik 'Try 7 days for Free'...")
+                print("   🚀 Klik 'Try 7 days for Free'...", flush=True)
                 page.click('button:has-text("Try 7 days for Free")')
-                solve_cloudflare_turnstile(page, timeout=5)
+                solve_cloudflare_turnstile(page, timeout=8)
 
                 # -----------------------------------------------------------
                 # TAHAP 2: INPUT DUA PASSWORD & CREATE ACCOUNT
                 # -----------------------------------------------------------
-                print("▶️ [Step 2/4] Mengisi Password & Create Account...")
-                page.wait_for_selector('input[type="password"]', timeout=10000)
+                print("▶️ [Step 2/4] Mengisi Password & Create Account...", flush=True)
+                page.wait_for_selector('input[type="password"]', timeout=30000)
                 
                 pwd_inputs = page.query_selector_all('input[type="password"]')
                 for p in pwd_inputs:
                     p.fill(password)
 
-                page.wait_for_timeout(300)
+                page.wait_for_timeout(400)
                 # Cek apakah ada Cloudflare Turnstile sebelum tombol diklik
-                solve_cloudflare_turnstile(page, timeout=4)
+                solve_cloudflare_turnstile(page, timeout=6)
 
                 page.click('button:has-text("Create an account")')
-                print("   🚀 Tombol 'Create an account' diklik!")
+                print("   🚀 Tombol 'Create an account' diklik!", flush=True)
                 # Cek kembali jika Turnstile muncul sesaat setelah klik
-                solve_cloudflare_turnstile(page, timeout=5)
+                solve_cloudflare_turnstile(page, timeout=8)
 
                 # -----------------------------------------------------------
                 # TAHAP 3: BYPASS ONBOARDING (LANGSUNG MENUJU /PROXY)
@@ -492,6 +497,15 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
                 else:
                     print(f"❌ Putaran #{round_idx} gagal mendapatkan proxy.")
                     page.screenshot(path=f"data/gologin_grab_error_round_{round_idx}.png")
+            except Exception as e_round:
+                try:
+                    os.makedirs("data", exist_ok=True)
+                    err_path = f"data/gologin_grab_error_round_{round_idx}.png"
+                    page.screenshot(path=err_path)
+                    print(f"   📸 Screenshot error disimpan ke: {err_path}")
+                except Exception:
+                    pass
+                raise e_round
             finally:
                 context.close()
 
