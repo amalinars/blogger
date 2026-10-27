@@ -52,6 +52,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Adsterra QA run artifacts
-/data/adsterra_qa/
+# Runtime data & local node stats / proxy lists
+/data/*.json
+/data/*.png
+!/data/telemetry_config.json
 
