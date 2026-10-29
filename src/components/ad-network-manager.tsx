@@ -9,6 +9,7 @@ import {
   EXOCLICK_INPAGE_PUSH_ZONE_ID,
   EXOCLICK_STICKY_ZONE_ID,
   serveExoClick,
+  HILLTOPADS_CONFIG,
 } from '@/lib/ads';
 
 export function AdNetworkManager() {
@@ -20,7 +21,9 @@ export function AdNetworkManager() {
 
     if (
       typeof window !== 'undefined' &&
-      (window.location.pathname.startsWith('/v/') || window.location.pathname.startsWith('/m/'))
+      (window.location.pathname.startsWith('/v/') ||
+        window.location.pathname.startsWith('/m/') ||
+        window.location.pathname.startsWith('/h/'))
     ) {
       return;
     }
@@ -62,6 +65,39 @@ export function AdNetworkManager() {
 
       // 4. Load ExoClick AdProvider Script & serve all widgets
       serveExoClick();
+    } else if (provider === 'hilltop') {
+      // 1. Load HilltopAds Popunder script
+      if (!document.getElementById('hilltop-popunder-global') && HILLTOPADS_CONFIG.popunder.scriptSrc) {
+        const script = document.createElement('script');
+        script.id = 'hilltop-popunder-global';
+        (script as any).settings = {};
+        script.src = HILLTOPADS_CONFIG.popunder.scriptSrc;
+        script.async = true;
+        script.referrerPolicy = 'no-referrer-when-downgrade';
+        document.head.appendChild(script);
+      }
+
+      // 2. Load HilltopAds MultiTag script
+      if (!document.getElementById('hilltop-multitag-global') && HILLTOPADS_CONFIG.multitag.scriptSrc) {
+        const script = document.createElement('script');
+        script.id = 'hilltop-multitag-global';
+        (script as any).settings = {};
+        script.src = HILLTOPADS_CONFIG.multitag.scriptSrc;
+        script.async = true;
+        script.referrerPolicy = 'no-referrer-when-downgrade';
+        document.head.appendChild(script);
+      }
+
+      // 3. Load HilltopAds In-Page Push script
+      if (!document.getElementById('hilltop-inpage-push-global') && HILLTOPADS_CONFIG.inpage_push.scriptSrc) {
+        const script = document.createElement('script');
+        script.id = 'hilltop-inpage-push-global';
+        (script as any).settings = {};
+        script.src = HILLTOPADS_CONFIG.inpage_push.scriptSrc;
+        script.async = true;
+        script.referrerPolicy = 'no-referrer-when-downgrade';
+        document.head.appendChild(script);
+      }
     } else {
       // Load Monetag MultiTag script as default fallback
       if (!document.getElementById('monetag-multitag')) {

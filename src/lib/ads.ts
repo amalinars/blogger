@@ -49,17 +49,58 @@ window.resetExoClickPop = function() {
 };
 })();`;
 
-// Ad Provider split (Monetag / ExoClick)
-export type AdProvider = 'monetag' | 'exoclick';
+export const HILLTOP_POPUNDER_SRC =
+  '//direct-league.com/cHDG9s6/b.2g5wlZShW/QB9/Nzz/UT2xMEjmME4UMySg0_3/NVTLY/ywM/zsgm1h';
+export const HILLTOP_MULTITAG_SRC =
+  '//simplistic-walk.com/b_XoV.s/d/G_lX0/Y/WJcr/UebmB9cujZUUWlakRPdTdcV1VNFjvIEzOOPD/kGtTNDzJUz2lM/j-Ml5SM/wS';
+
+export const HILLTOP_INPAGE_PUSH_SRC =
+  '//simplistic-walk.com/bbX.VHs/diGWlK0lYvWhcu/_eEm_9oufZiUmlwkxPQTjct1/N/jlIL0CMaDSUwtWNLzhU_2SMujWQvwaOAQg';
+
+// HilltopAds Config & Zones
+export const HILLTOPADS_CONFIG = {
+  popunder: {
+    zoneId: '7541029',
+    scriptSrc: HILLTOP_POPUNDER_SRC,
+    rawHtml: '',
+  },
+  multitag: {
+    zoneId: '7541005',
+    scriptSrc: HILLTOP_MULTITAG_SRC,
+  },
+  banner_300x250: {
+    zoneId: '7541005',
+    scriptSrc: HILLTOP_MULTITAG_SRC,
+    rawHtml: '',
+  },
+  inpage_push: {
+    zoneId: '',
+    scriptSrc: HILLTOP_INPAGE_PUSH_SRC,
+    rawHtml: '',
+  },
+  video_slider: {
+    zoneId: '',
+    scriptSrc: '',
+    rawHtml: '',
+  },
+  directLinkUrl: 'https://article.riztama.my.id/h/',
+} as const;
+
+// Ad Provider split (Monetag / ExoClick / Hilltop)
+export type AdProvider = 'monetag' | 'exoclick' | 'hilltop';
 
 export function getAdProvider(): AdProvider {
   if (typeof window === 'undefined') return 'monetag';
 
   try {
-    // 1. Prioritaskan parameter URL (?ad_network=exoclick | monetag)
+    // 1. Prioritaskan parameter URL (?ad_network=hilltop | exoclick | monetag)
     const urlParams = new URLSearchParams(window.location.search);
     const param = (urlParams.get('ad_network') || urlParams.get('ad_provider') || '').toLowerCase();
 
+    if (param === 'hilltop' || param === 'hilltopads') {
+      window.sessionStorage.setItem('ad_provider', 'hilltop');
+      return 'hilltop';
+    }
     if (param === 'exoclick') {
       window.sessionStorage.setItem('ad_provider', 'exoclick');
       return 'exoclick';
@@ -71,12 +112,12 @@ export function getAdProvider(): AdProvider {
 
     // 2. Cek sessionStorage yang sudah tersimpan sebelumnya
     const cached = window.sessionStorage.getItem('ad_provider') as AdProvider | null;
-    if (cached === 'monetag' || cached === 'exoclick') {
+    if (cached === 'monetag' || cached === 'exoclick' || cached === 'hilltop') {
       return cached;
     }
 
-    // 3. Default fallback: rotasi seimbang (Monetag, ExoClick)
-    const providers: AdProvider[] = ['monetag', 'exoclick'];
+    // 3. Default fallback: rotasi seimbang (Monetag, ExoClick, Hilltop)
+    const providers: AdProvider[] = ['monetag', 'exoclick', 'hilltop'];
     const assigned = providers[Math.floor(Math.random() * providers.length)];
     window.sessionStorage.setItem('ad_provider', assigned);
     return assigned;
