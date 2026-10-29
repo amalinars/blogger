@@ -2,11 +2,15 @@
 """Unified Camoufox browser setup and launch engine for bot automation."""
 
 import random
+import threading
 from functools import lru_cache
 from typing import Any, Dict, Optional
 
 from camoufox import DefaultAddons
 from camoufox.sync_api import Camoufox
+
+# Global lock to serialize initial proxy connection, verification & initial page loading across all workers
+WORKER_STARTUP_LOCK = threading.Lock()
 
 # Fallback country -> (timezone, locale) map used when GeoIP lookup is unavailable.
 COUNTRY_GEO_FALLBACK: Dict[str, tuple] = {

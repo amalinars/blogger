@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 from camoufox.sync_api import Camoufox
 
-from automation.engine import build_camoufox_kwargs, resolve_geo_profile
+from automation.engine import WORKER_STARTUP_LOCK, build_camoufox_kwargs, resolve_geo_profile
 from automation.session import SessionBudget, country_label
 from automation.browser_verifier import BrowserVerifier
 from automation.monetag.humanizer import human_click, human_move, human_scroll, human_wander
@@ -132,58 +132,71 @@ def run_monetag_session(
         page.on("popup", on_popup)
 
 
-        # ── Pre-flight Browser Audit (Optional Verifier) ──
-        if enable_verifier:
+        log("⏳ Menunggu giliran koneksi & verifikasi proxy...", "dim")
+        with WORKER_STARTUP_LOCK:
+            # ── Pre-flight Browser Audit (Optional Verifier) ──
+            if enable_verifier:
+                _emit(
+                    event_callback,
+                    "stepper_update",
+                    worker_id=worker_id,
+                    stage="🛡️ Audit IP",
+                    status="Cek IP, WebRTC & stealth...",
+                )
+                try:
+                    page.goto("about:blank", wait_until="domcontentloaded", timeout=15000)
+                    verifier = BrowserVerifier(strict_mode=False)
+                    is_rotating = (
+                        (proxy_info or {}).get("connection_type") == "residential"
+                        or "floppydata" in str((proxy_info or {}).get("host", "")).lower()
+                    )
+                    exp_ip = None if is_rotating else (proxy_info.get("ip_detected") or proxy_info.get("host"))
+                    exp_country = None if is_rotating else proxy_info.get("country")
+
+                    report = verifier.verify(
+                        page,
+                        expected_ip=exp_ip,
+                        expected_country=exp_country,
+                        check_ads=True,
+                    )
+                    actual = report.actual_state
+                    _emit(
+                        event_callback,
+                        "verifier_report",
+                        worker_id=worker_id,
+                        score=report.score,
+                        is_safe=report.is_safe,
+                        detected_ip=actual.get("ip"),
+                        detected_country=country_label(actual.get("country")),
+                        isp=actual.get("isp"),
+                        bot_detected=bool(actual.get("webdriver")),
+                        webrtc_leak=bool(actual.get("webrtc_leak")),
+                        ads_allowed=bool(actual.get("ads_allowed", True)),
+                    )
+                except Exception as e_ver:
+                    log(f"Catatan verifier: {str(e_ver)[:90]}", "dim")
+
+            # ── 1. Kunjungi Halaman Target (MultiTag Web) ──
+            _emit(event_callback, "session_started", worker_id=worker_id)
             _emit(
                 event_callback,
                 "stepper_update",
                 worker_id=worker_id,
-                stage="🛡️ Audit IP",
-                status="Cek IP, WebRTC & stealth...",
+                stage="🌐 MultiTag Web",
+                status="Membuka web Monetag...",
             )
+            log(f"Membuka halaman target: {target_url}", "bold yellow")
             try:
-                page.goto("about:blank", wait_until="domcontentloaded", timeout=15000)
-                verifier = BrowserVerifier(strict_mode=False)
-                report = verifier.verify(
-                    page,
-                    expected_ip=proxy_info.get("ip_detected"),
-                    expected_country=proxy_info.get("country"),
-                    check_ads=True,
-                )
-                actual = report.actual_state
-                _emit(
-                    event_callback,
-                    "verifier_report",
-                    worker_id=worker_id,
-                    score=report.score,
-                    is_safe=report.is_safe,
-                    detected_ip=actual.get("ip"),
-                    detected_country=country_label(actual.get("country")),
-                    isp=actual.get("isp"),
-                    bot_detected=bool(actual.get("webdriver")),
-                    webrtc_leak=bool(actual.get("webrtc_leak")),
-                    ads_allowed=bool(actual.get("ads_allowed", True)),
-                )
-            except Exception as e_ver:
-                log(f"Catatan verifier: {str(e_ver)[:90]}", "dim")
+                try:
+                    page.goto(target_url, wait_until="commit", timeout=45000)
+                except Exception:
+                    page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
+            except Exception as e:
+                log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
 
-        # ── 1. Kunjungi Halaman Target (MultiTag Web) ──
-        _emit(event_callback, "session_started", worker_id=worker_id)
-        _emit(
-            event_callback,
-            "stepper_update",
-            worker_id=worker_id,
-            stage="🌐 MultiTag Web",
-            status="Membuka web Monetag...",
-        )
-        log(f"Membuka halaman target: {target_url}", "bold yellow")
-        try:
-            page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
-        except Exception as e:
-            log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
-
-        # Jeda natural membaca halaman awal (2.5 - 4.5 dtk)
-        time.sleep(random.uniform(2.5, 4.5))
+            # Jeda natural membaca halaman awal (2.0 - 3.5 dtk)
+            time.sleep(random.uniform(2.0, 3.5))
+            log("🟢 Halaman awal berhasil termuat. Giliran koneksi diserahkan ke worker berikutnya!", "bold green")
 
         # ── 2. Perilaku Membaca Natural (Scroll & Mouse Wander) ──
         _emit(

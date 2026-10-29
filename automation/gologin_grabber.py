@@ -5,6 +5,7 @@ import time
 import random
 import re
 import threading
+from typing import Callable, Optional
 from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -575,6 +576,7 @@ def run_gologin_harvest_job(
     stop_event: Optional[threading.Event] = None,
     on_log: Optional[Callable[[str, str], None]] = None,
     on_progress: Optional[Callable[[int, int], None]] = None,
+    unlimited: bool = False,
 ) -> int:
     """
     Menjalankan background multi-threaded harvester GoLogin trial proxies.
@@ -590,15 +592,17 @@ def run_gologin_harvest_job(
             print(msg, flush=True)
 
     concurrency = max(1, concurrency)
+    is_unlimited = unlimited or (target_proxies <= 0)
     stats_lock = threading.Lock()
     state = {
         "total_added": 0,
-        "target": target_proxies,
+        "target": 0 if is_unlimited else target_proxies,
     }
 
+    target_desc = "Tanpa Batas (∞ Looping Continuous)" if is_unlimited else f"{target_proxies} Proxy"
     _log("=" * 65, "cyan")
     _log("🌾 GOLOGIN PROXY HARVESTER (AUTO-ROTATING SESSION)", "bold cyan")
-    _log(f"🎯 Target Proxy Baru : {target_proxies} Proxy | Concurrency: {concurrency} Worker(s)", "white")
+    _log(f"🎯 Target Proxy Baru : {target_desc} | Concurrency: {concurrency} Worker(s)", "white")
     _log(f"🔄 Rasio Grab        : 1 Proxy untuk {rounds}x Grab Akun GoLogin (~{rounds * 5} proxy)", "white")
     _log(f"🖥️ Mode Headless     : {headless}", "white")
     _log("=" * 65, "cyan")
@@ -606,9 +610,10 @@ def run_gologin_harvest_job(
     def _worker_job(worker_id: int):
         proxy_run_count = 0
         while not stop_event.is_set():
-            with stats_lock:
-                if state["total_added"] >= state["target"]:
-                    break
+            if not is_unlimited:
+                with stats_lock:
+                    if state["total_added"] >= state["target"]:
+                        break
 
             proxy_run_count += 1
             caller_id = f"gologin_grabber_w{worker_id}_{int(time.time() * 1000)}"
@@ -644,9 +649,10 @@ def run_gologin_harvest_job(
                 with stats_lock:
                     state["total_added"] += len(new_proxies)
                     total_now = state["total_added"]
-                _log(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{target_proxies}", "bold green")
+                target_str = "∞" if is_unlimited else str(state["target"])
+                _log(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{target_str}", "bold green")
                 if on_progress:
-                    on_progress(total_now, target_proxies)
+                    on_progress(total_now, 0 if is_unlimited else state["target"])
             except Exception as e:
                 _log(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", "red")
                 if is_acquired and selected_proxy:
@@ -693,17 +699,19 @@ if __name__ == "__main__":
     parser.add_argument("-c", "--concurrency", "--workers", dest="concurrency", type=int, default=1, help="Jumlah concurrent workers/browser yang berjalan bersamaan (default: 1)")
     parser.add_argument("-r", "--rounds", type=int, default=2, help="Jumlah putaran grab per proxy (default: 2 putaran = 10 proxy)")
     parser.add_argument("-t", "--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
+    parser.add_argument("-u", "--unlimited", action="store_true", help="Jalankan secara terus-menerus tanpa batas (unlimited continuous looping)")
     parser.add_argument("--proxy-index", type=int, default=None, help="Gunakan proxy index tertentu saja dari Proxy Management")
     parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
     parser.add_argument("--skip-verifier", action="store_true", help="Lewati preflight audit (berguna untuk direct IP datacenter Colab)")
     args = parser.parse_args()
 
     run_gologin_harvest_job(
-        target_proxies=args.target_proxies,
+        target_proxies=0 if args.unlimited else args.target_proxies,
         concurrency=args.concurrency,
         rounds=args.rounds,
         headless=args.headless,
         direct=args.direct,
         skip_verifier=args.skip_verifier,
         proxy_index=args.proxy_index,
+        unlimited=args.unlimited,
     )

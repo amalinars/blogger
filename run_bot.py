@@ -400,6 +400,8 @@ class BotRunnerCLI:
             self.threads.append(t)
             ts_now = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts_now}] {CYAN}[W{wid}]{RESET} 🚀 Worker {w_tag} diaktifkan, mulai mencari & mengalokasikan proxy...", flush=True)
+            if wid < self.args.workers:
+                time.sleep(1.0)
 
         # Heartbeat loop
         try:

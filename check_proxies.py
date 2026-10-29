@@ -42,9 +42,19 @@ def test_proxy(proxy_item, index):
     }
 
 def main():
+    import sys
     print(f"🔍 Membaca proxy dari {PROXY_FILE}...")
     with open(PROXY_FILE, "r") as f:
-        proxy_list = json.load(f)
+        raw_data = json.load(f)
+        
+    if isinstance(raw_data, dict) and "proxies" in raw_data:
+        proxy_list = raw_data["proxies"]
+        cursor = raw_data.get("cursor", 0)
+        is_dict_format = True
+    else:
+        proxy_list = raw_data
+        cursor = 0
+        is_dict_format = False
         
     total = len(proxy_list)
     print(f"📊 Ditemukan {total} proxy. Menjalankan fast-checker multithreaded (timeout: {TIMEOUT}s)...")
@@ -56,24 +66,49 @@ def main():
         futures = [executor.submit(test_proxy, p, idx) for idx, p in enumerate(proxy_list, 1)]
         for future in concurrent.futures.as_completed(futures):
             res = future.result()
+            p_item = res["proxy_item"]
             if res["status"] == "ALIVE":
                 alive_proxies.append(res)
+                p_item["health"] = "ALIVE"
+                p_item["ip_detected"] = res["ip"]
+                p_item["latency_ms"] = res["latency_ms"]
+                p_item["last_checked"] = time.time()
+                p_item["fail_count"] = 0
+                p_item["last_error"] = None
                 print(f"  ✅ [ALIVE] Proxy #{res['index']} ({res['country']}) -> IP: {res['ip']} | Latency: {res['latency_ms']}ms")
             else:
                 dead_proxies.append(res)
+                p_item["health"] = "DEAD"
+                p_item["last_checked"] = time.time()
+                p_item["last_error"] = "Tester: Connection failed"
                 
     print("\n" + "=" * 60)
     print(f"📈 HASIL PENGECEKAN PROXY:")
-    print(f"   - Total Proxy: {total}")
+    print(f"   - Total Proxy  : {total}")
     print(f"   - Aktif (ALIVE): {len(alive_proxies)}")
     print(f"   - Mati (DEAD)  : {len(dead_proxies)}")
     print("=" * 60)
     
-    # Simpan proxy yang hidup ke file khusus
     alive_data = [item["proxy_item"] for item in alive_proxies]
-    with open("data/proxies_alive.json", "w") as f:
-        json.dump(alive_data, f, indent=2)
-    print(f"💾 Proxy yang masih hidup telah disimpan ke: data/proxies_alive.json")
+    
+    if "--delete-dead" in sys.argv or "--clean" in sys.argv:
+        print("🗑️ Menghapus proxy DEAD dari database utama...")
+        if is_dict_format:
+            new_cursor = cursor % len(alive_data) if alive_data else 0
+            final_data = {"cursor": new_cursor, "proxies": alive_data}
+        else:
+            final_data = alive_data
+        with open(PROXY_FILE, "w") as f:
+            json.dump(final_data, f, indent=2)
+        print(f"✅ Database {PROXY_FILE} berhasil dibersihkan! Sisa {len(alive_data)} proxy aktif.")
+    else:
+        # Simpan proxy yang hidup ke file khusus sebagai backup
+        with open("data/proxies_alive.json", "w") as f:
+            json.dump(alive_data, f, indent=2)
+        print(f"💾 Proxy yang masih hidup telah disimpan ke: data/proxies_alive.json")
+        print("💡 Tip: Gunakan argument '--delete-dead' untuk langsung menghapus yang mati dari data/proxies.json:")
+        print("   python3 check_proxies.py --delete-dead")
 
 if __name__ == "__main__":
     main()
+

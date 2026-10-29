@@ -9,6 +9,7 @@ import json
 import time
 import uuid
 import threading
+import concurrent.futures
 from urllib.parse import urlparse
 from typing import Optional, Dict, Any, List, Union
 import requests
@@ -465,22 +466,90 @@ class ProxyManager:
 
         return {"restored": restored, "still_dead": still_dead, "total_tested": len(dead_ids)}
 
-    def validate_all(self, force: bool = False) -> Dict[str, int]:
-        """Validasi semua proxy dalam pool."""
+    def validate_all(self, force: bool = False, max_workers: int = 30) -> Dict[str, int]:
+        """Validasi semua proxy dalam pool secara paralel."""
         with self._lock:
             data = self._load_raw()
-            ids = [p["id"] for p in data["proxies"]]
+            proxies_to_test = [
+                {
+                    "id": p.get("id"),
+                    "proxy_url": p.get("proxy_url"),
+                    "health": p.get("health"),
+                    "last_checked": p.get("last_checked"),
+                }
+                for p in data.get("proxies", [])
+            ]
 
-        alive_count = 0
+        now = time.time()
+        to_test = []
+        cached_alive = 0
+        for item in proxies_to_test:
+            if not force and item.get("health") == HEALTH_ALIVE:
+                last_chk = item.get("last_checked")
+                if last_chk and (now - last_chk) < CACHE_VALIDITY_SECONDS:
+                    cached_alive += 1
+                    continue
+            to_test.append(item)
+
+        results = {}
+        if to_test:
+            def _test_one(it):
+                pid = it["id"]
+                url = it.get("proxy_url")
+                if not url:
+                    return pid, {"success": False, "error": "No proxy_url"}
+                return pid, self._test_proxy_network(url)
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [executor.submit(_test_one, it) for it in to_test]
+                for fut in concurrent.futures.as_completed(futures):
+                    try:
+                        pid, res = fut.result()
+                        results[pid] = res
+                    except Exception as e:
+                        pass
+
+        alive_count = cached_alive
         dead_count = 0
-        for pid in ids:
-            res = self.validate_proxy(pid, force=force)
-            if res.get("health") == HEALTH_ALIVE:
-                alive_count += 1
-            else:
-                dead_count += 1
+        with self._lock:
+            data = self._load_raw()
+            for p in data.get("proxies", []):
+                pid = p.get("id")
+                if pid in results:
+                    test_res = results[pid]
+                    p["last_checked"] = time.time()
+                    if test_res.get("success"):
+                        p["health"] = HEALTH_ALIVE
+                        p["ip_detected"] = test_res.get("ip")
+                        p["latency_ms"] = test_res.get("latency_ms")
+                        p["last_error"] = None
+                        p["fail_count"] = 0
+                        alive_count += 1
+                    else:
+                        p["health"] = HEALTH_DEAD
+                        p["last_error"] = test_res.get("error")
+                        dead_count += 1
+                elif p.get("health") == HEALTH_ALIVE:
+                    pass
+                elif p.get("health") == HEALTH_DEAD:
+                    dead_count += 1
 
-        return {"alive": alive_count, "dead": dead_count, "total": len(ids)}
+            self._save_raw(data)
+
+        return {"alive": alive_count, "dead": dead_count, "total": len(data.get("proxies", []))}
+
+    def test_and_delete_dead(self, force: bool = True, max_workers: int = 30) -> Dict[str, Any]:
+        """Memvalidasi seluruh proxy secara paralel dan langsung menghapus yang berstatus DEAD."""
+        val_res = self.validate_all(force=force, max_workers=max_workers)
+        deleted = self.delete_dead_proxies()
+        stats = self.get_stats()
+        return {
+            "tested_total": val_res["total"],
+            "alive": val_res["alive"],
+            "dead_found": val_res["dead"],
+            "deleted_count": deleted,
+            "remaining_total": stats["total"],
+        }
 
     # =========================================================================
     # 3. ROTASI BERKELANJUTAN & ACQUIRE / RELEASE
@@ -1127,9 +1196,14 @@ def revalidate_dead() -> Dict[str, int]:
     return get_manager().revalidate_dead()
 
 
-def validate_all(force: bool = False) -> Dict[str, int]:
-    """Memvalidasi seluruh proxy dalam pool."""
-    return get_manager().validate_all(force=force)
+def validate_all(force: bool = False, max_workers: int = 30) -> Dict[str, int]:
+    """Memvalidasi seluruh proxy dalam pool secara paralel."""
+    return get_manager().validate_all(force=force, max_workers=max_workers)
+
+
+def test_and_delete_dead(force: bool = True, max_workers: int = 30) -> Dict[str, Any]:
+    """Memvalidasi seluruh proxy secara paralel dan langsung menghapus yang berstatus DEAD."""
+    return get_manager().test_and_delete_dead(force=force, max_workers=max_workers)
 
 
 def append_proxy(proxy_data: Union[Dict[str, Any], str]) -> Optional[Dict[str, Any]]:
@@ -1207,14 +1281,20 @@ if __name__ == "__main__":
     print(f"Penggunaan IN_USE: {stats['in_use']}")
     print("=" * 60)
 
-    if "--delete-dead" in sys.argv or "--remove-dead" in sys.argv or "--clean-dead" in sys.argv:
+    if "--test-and-delete" in sys.argv or "--test-and-clean" in sys.argv:
+        print("⚡ Menjalankan Fast Tester paralel & otomatis hapus proxy DEAD...")
+        res = test_and_delete_dead(force=True)
+        print(f"📊 Hasil: Total Diuji: {res['tested_total']} | Hidup (ALIVE): {res['alive']} | Mati (DEAD): {res['dead_found']}")
+        print(f"🗑️ Berhasil menghapus {res['deleted_count']} proxy mati dari data/proxies.json.")
+        print(f"✅ Sisa Total Proxy Aktif: {res['remaining_total']}")
+    elif "--delete-dead" in sys.argv or "--remove-dead" in sys.argv or "--clean-dead" in sys.argv:
         print("🗑️ Menjalankan pembersihan proxy DEAD...")
         removed = delete_dead_proxies()
         print(f"✅ Berhasil menghapus {removed} proxy berstatus DEAD dari data/proxies.json.")
         new_stats = get_stats()
         print(f"📊 Sisa Total Proxy: {new_stats['total']} (Cursor: #{new_stats['cursor']})")
     elif "--validate-all" in sys.argv:
-        print("🔍 Menjalankan validasi seluruh proxy...")
+        print("🔍 Menjalankan validasi seluruh proxy secara paralel...")
         res = validate_all(force=True)
         print(f"Hasil: {res}")
     elif "--revalidate-dead" in sys.argv:
@@ -1223,6 +1303,7 @@ if __name__ == "__main__":
         print(f"Hasil: {res}")
     elif "--help" in sys.argv or "-h" in sys.argv:
         print("\nOpsi CLI:")
-        print("  --delete-dead     Hapus semua proxy berstatus DEAD")
-        print("  --validate-all    Validasi seluruh proxy di database")
-        print("  --revalidate-dead Validasi ulang proxy yang berstatus DEAD")
+        print("  --test-and-delete  Uji seluruh proxy secara cepat dan langsung hapus yang mati (DEAD)")
+        print("  --delete-dead      Hapus semua proxy yang saat ini berstatus DEAD")
+        print("  --validate-all     Validasi seluruh proxy di database secara paralel")
+        print("  --revalidate-dead  Validasi ulang proxy yang berstatus DEAD")

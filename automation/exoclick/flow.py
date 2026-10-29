@@ -29,7 +29,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from camoufox.sync_api import Camoufox
 
-from automation.engine import build_camoufox_kwargs, resolve_geo_profile
+from automation.engine import WORKER_STARTUP_LOCK, build_camoufox_kwargs, resolve_geo_profile
 from automation.session import SessionBudget, country_label
 from automation.browser_verifier import BrowserVerifier
 from automation.monetag.humanizer import human_click, human_move, human_scroll, human_wander
@@ -257,64 +257,76 @@ def run_exoclick_session(
                     advs.append(p)
             return advs
 
-        # Step 1: Opsional Verifikasi Browser
-        if enable_verifier:
-            step("VERIFIKASI IP", "Memeriksa kebocoran WebRTC & fingerprint...")
-            try:
-                verifier = BrowserVerifier(strict_mode=False)
-                is_rotating = (
-                    (proxy_data or {}).get("connection_type") == "residential"
-                    or "floppydata" in str((proxy_data or {}).get("host", "")).lower()
-                )
-                exp_ip = None if is_rotating else ((proxy_data or {}).get("ip_detected") or (proxy_data or {}).get("host"))
-                exp_country = None if is_rotating else (proxy_data or {}).get("country")
+        # Step 1 & 2: Serialized Verifikasi & Pemuatan Awal Situs (Antrean 1 per 1 agar proxy tidak jenuh)
+        log("⏳ Menunggu giliran koneksi & verifikasi proxy...", "dim")
+        with WORKER_STARTUP_LOCK:
+            # Step 1: Opsional Verifikasi Browser
+            if enable_verifier:
+                step("VERIFIKASI IP", "Memeriksa kebocoran WebRTC & fingerprint...")
+                try:
+                    verifier = BrowserVerifier(strict_mode=False)
+                    is_rotating = (
+                        (proxy_data or {}).get("connection_type") == "residential"
+                        or "floppydata" in str((proxy_data or {}).get("host", "")).lower()
+                    )
+                    exp_ip = None if is_rotating else ((proxy_data or {}).get("ip_detected") or (proxy_data or {}).get("host"))
+                    exp_country = None if is_rotating else (proxy_data or {}).get("country")
 
-                report = verifier.verify(
-                    page,
-                    expected_ip=exp_ip,
-                    expected_country=exp_country,
-                    check_ads=True,
-                )
-                actual = report.actual_state
-                _emit(
-                    event_callback,
-                    "verifier_report",
-                    worker_id=worker_id,
-                    score=report.score,
-                    is_safe=report.is_safe,
-                    detected_ip=actual.get("ip"),
-                    detected_country=country_label(actual.get("country")),
-                    isp=actual.get("isp"),
-                    bot_detected=bool(actual.get("webdriver")),
-                    webrtc_leak=bool(actual.get("webrtc_leak")),
-                    ads_allowed=bool(actual.get("ads_allowed", True)),
-                )
-                if actual.get("webrtc_leak"):
-                    log("⚠️ Peringatan: WebRTC terdeteksi leak", "yellow")
-                else:
-                    log("🛡️ Browser verifier: Bersih dari kebocoran", "green")
-            except Exception as e_v:
-                log(f"Verifier info: {e_v}", "dim")
+                    report = verifier.verify(
+                        page,
+                        expected_ip=exp_ip,
+                        expected_country=exp_country,
+                        check_ads=True,
+                    )
+                    actual = report.actual_state
+                    _emit(
+                        event_callback,
+                        "verifier_report",
+                        worker_id=worker_id,
+                        score=report.score,
+                        is_safe=report.is_safe,
+                        detected_ip=actual.get("ip"),
+                        detected_country=country_label(actual.get("country")),
+                        isp=actual.get("isp"),
+                        bot_detected=bool(actual.get("webdriver")),
+                        webrtc_leak=bool(actual.get("webrtc_leak")),
+                        ads_allowed=bool(actual.get("ads_allowed", True)),
+                    )
+                    if actual.get("webrtc_leak"):
+                        log("⚠️ Peringatan: WebRTC terdeteksi leak", "yellow")
+                    else:
+                        log("🛡️ Browser verifier: Bersih dari kebocoran", "green")
+                except Exception as e_v:
+                    log(f"Verifier info: {e_v}", "dim")
 
-        # Step 2: Buka Website Target pada Halaman Khusus
-        step("MEMUAT SITUS", f"Navigasi ke {target_url[:55]}...")
-        log(f"🌐 Membuka website: {target_url}", "white")
+            # Step 2: Buka Website Target pada Halaman Khusus
+            step("MEMUAT SITUS", f"Navigasi ke {target_url[:55]}...")
+            log(f"🌐 Membuka website: {target_url}", "white")
 
-        nav_success = False
-        for attempt in range(1, 4):
-            try:
-                page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
-                page.wait_for_selector("#step-0, main, header", timeout=15000)
-                nav_success = True
-                time.sleep(2.0)
-                break
-            except Exception as e_nav:
-                if attempt < 3:
-                    log(f"⚠️ Navigasi #{attempt} kendala koneksi proxy ({e_nav}). Mencoba ulang ({attempt+1}/3)...", "yellow")
-                    time.sleep(2.5)
-                else:
-                    log(f"❌ Proxy {proxy_label} gagal koneksi ke website setelah 3x coba.", "bold red")
-                    raise RuntimeError(f"Koneksi proxy gagal memuat website: {e_nav}")
+            nav_success = False
+            for attempt in range(1, 4):
+                try:
+                    try:
+                        page.goto(target_url, wait_until="commit", timeout=45000)
+                    except Exception:
+                        page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
+
+                    try:
+                        page.wait_for_selector("#step-0, main, header", timeout=15000)
+                    except Exception:
+                        pass
+                    nav_success = True
+                    time.sleep(2.0)
+                    break
+                except Exception as e_nav:
+                    if attempt < 3:
+                        log(f"⚠️ Navigasi #{attempt} kendala koneksi proxy ({e_nav}). Mencoba ulang ({attempt+1}/3)...", "yellow")
+                        time.sleep(2.5)
+                    else:
+                        log(f"❌ Proxy {proxy_label} gagal koneksi ke website setelah 3x coba.", "bold red")
+                        raise RuntimeError(f"Koneksi proxy gagal memuat website: {e_nav}")
+
+            log("🟢 Halaman awal berhasil termuat. Giliran koneksi diserahkan ke worker berikutnya!", "bold green")
 
         # Helper untuk memproses tab advertiser yang terbuka (Popunder / Tabunder / Clicks)
         def drain_advertiser_tabs(source_tag: str = "Popunder") -> int:

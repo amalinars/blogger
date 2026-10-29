@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
+import math
 import threading
 import time
 from datetime import datetime
@@ -37,6 +38,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
@@ -399,6 +401,7 @@ class HarvesterThread(QThread):
         headless: bool = True,
         direct: bool = False,
         skip_verifier: bool = False,
+        unlimited: bool = False,
     ):
         super().__init__()
         self.target_proxies = target_proxies
@@ -407,6 +410,7 @@ class HarvesterThread(QThread):
         self.headless = headless
         self.direct = direct
         self.skip_verifier = skip_verifier
+        self.unlimited = unlimited
         self.stop_event = threading.Event()
 
     def run(self) -> None:
@@ -420,7 +424,7 @@ class HarvesterThread(QThread):
 
         try:
             total = run_gologin_harvest_job(
-                target_proxies=self.target_proxies,
+                target_proxies=0 if self.unlimited else self.target_proxies,
                 concurrency=self.concurrency,
                 rounds=self.rounds,
                 headless=self.headless,
@@ -429,6 +433,7 @@ class HarvesterThread(QThread):
                 stop_event=self.stop_event,
                 on_log=_log,
                 on_progress=_prog,
+                unlimited=self.unlimited,
             )
             self.finished_signal.emit(total)
         except Exception as e:
@@ -437,6 +442,37 @@ class HarvesterThread(QThread):
 
     def stop(self) -> None:
         self.stop_event.set()
+
+
+class ProxyTesterThread(QThread):
+    """Background thread untuk menguji seluruh proxy pool dan membersihkan proxy DEAD."""
+
+    log_signal = Signal(str, str)
+    finished_signal = Signal(dict)
+
+    def __init__(self, proxy_manager: ProxyManager, delete_dead: bool = True):
+        super().__init__()
+        self.pm = proxy_manager
+        self.delete_dead = delete_dead
+
+    def run(self) -> None:
+        try:
+            self.log_signal.emit("⚡ Memulai pengetesan seluruh IP proxy secara paralel...", "cyan")
+            if self.delete_dead:
+                res = self.pm.test_and_delete_dead(force=True, max_workers=30)
+            else:
+                val = self.pm.validate_all(force=True, max_workers=30)
+                res = {
+                    "tested_total": val["total"],
+                    "alive": val["alive"],
+                    "dead_found": val["dead"],
+                    "deleted_count": 0,
+                    "remaining_total": self.pm.get_stats()["total"],
+                }
+            self.finished_signal.emit(res)
+        except Exception as e:
+            self.log_signal.emit(f"❌ Error saat pengujian proxy: {e}", "red")
+            self.finished_signal.emit({"error": str(e)})
 
 
 class Dashboard(QMainWindow):
@@ -454,6 +490,9 @@ class Dashboard(QMainWindow):
         self.controller: Optional[RunController] = None
         self.harvester_thread: Optional[HarvesterThread] = None
         self._shared_pm = ProxyManager()
+        self.proxy_current_page = 1
+        self.proxy_page_size = 100
+        self.proxy_total_pages = 1
 
         self._build_ui()
 
@@ -756,7 +795,7 @@ class Dashboard(QMainWindow):
         self.proxy_search_input = QLineEdit()
         self.proxy_search_input.setPlaceholderText("Filter IP/Negara...")
         self.proxy_search_input.setFixedWidth(140)
-        self.proxy_search_input.textChanged.connect(lambda _: self._refresh_proxy_tab_data(force=True))
+        self.proxy_search_input.textChanged.connect(lambda _: self._on_proxy_filter_changed())
         pt_row.addWidget(self.proxy_search_input)
 
         pt_row.addWidget(QLabel("Filter:"))
@@ -767,8 +806,10 @@ class Dashboard(QMainWindow):
             "🟡 Hit > 0 (Telah Digunakan)",
             "🟢 Fresh (0 Hit Belum Digunakan)",
             "⏳ Sedang Cooldown",
+            "⚪ Belum Dites (Untested)",
+            "🔴 Mati (Dead)",
         ])
-        self.proxy_filter_combo.currentIndexChanged.connect(lambda _: self._refresh_proxy_tab_data(force=True))
+        self.proxy_filter_combo.currentIndexChanged.connect(lambda _: self._on_proxy_filter_changed())
         pt_row.addWidget(self.proxy_filter_combo)
 
         self.btn_refresh_proxy = QPushButton("🔄 Segarkan")
@@ -780,6 +821,19 @@ class Dashboard(QMainWindow):
         self.btn_reset_proxy_hits.setToolTip("Mereset pemakaian Monetag dan ExoClick menjadi 0/2 untuk seluruh proxy.")
         self.btn_reset_proxy_hits.clicked.connect(self._on_manual_reset_hits)
         pt_row.addWidget(self.btn_reset_proxy_hits)
+
+        self.btn_delete_dead = QPushButton("🗑️ Hapus Proxy DEAD")
+        self.btn_delete_dead.setStyleSheet("background-color: #d9534f; color: white;")
+        self.btn_delete_dead.setToolTip("Hapus langsung seluruh IP berstatus DEAD dari database.")
+        self.btn_delete_dead.clicked.connect(self._on_delete_dead_proxies)
+        pt_row.addWidget(self.btn_delete_dead)
+
+        self.btn_test_and_clean = QPushButton("⚡ Tes & Hapus Mati")
+        self.btn_test_and_clean.setStyleSheet("background-color: #f0ad4e; color: #212529; font-weight: bold;")
+        self.btn_test_and_clean.setToolTip("Uji koneksi seluruh proxy di pool secara paralel dan langsung buang yang mati (DEAD).")
+        self.btn_test_and_clean.clicked.connect(self._on_test_and_clean_proxies)
+        pt_row.addWidget(self.btn_test_and_clean)
+
         pt_header_layout.addLayout(pt_row)
         proxy_layout.addWidget(pt_header_card)
 
@@ -798,13 +852,63 @@ class Dashboard(QMainWindow):
         self.proxy_table.horizontalHeader().setStretchLastSection(True)
 
         pt_column_widths = (
-            (0, 45), (1, 140), (2, 100), (3, 120),
+            (0, 55), (1, 140), (2, 100), (3, 120),
             (4, 120), (5, 120), (6, 170), (7, 130), (8, 80)
         )
         for col, width in pt_column_widths:
             self.proxy_table.setColumnWidth(col, width)
         self.proxy_table.setMinimumHeight(240)
         proxy_table_layout.addWidget(self.proxy_table)
+
+        # ── DYNAMIC PAGINATION BAR ──
+        pt_pagination_row = QHBoxLayout()
+        pt_pagination_row.setContentsMargins(4, 4, 4, 2)
+        pt_pagination_row.setSpacing(8)
+
+        pt_pagination_row.addWidget(QLabel("Tampilkan per Halaman:"))
+        self.proxy_page_size_combo = QComboBox()
+        self.proxy_page_size_combo.addItems(["50 / hal", "100 / hal", "200 / hal", "500 / hal", "Semua (All)"])
+        self.proxy_page_size_combo.setCurrentIndex(1)  # Default 100
+        self.proxy_page_size_combo.currentIndexChanged.connect(self._on_proxy_page_size_changed)
+        pt_pagination_row.addWidget(self.proxy_page_size_combo)
+
+        pt_pagination_row.addSpacing(12)
+
+        self.btn_proxy_first = QPushButton("⏮ Pertama")
+        self.btn_proxy_first.setFixedWidth(85)
+        self.btn_proxy_first.clicked.connect(self._on_proxy_first_page)
+        pt_pagination_row.addWidget(self.btn_proxy_first)
+
+        self.btn_proxy_prev = QPushButton("◀ Sebelumnya")
+        self.btn_proxy_prev.setFixedWidth(95)
+        self.btn_proxy_prev.clicked.connect(self._on_proxy_prev_page)
+        pt_pagination_row.addWidget(self.btn_proxy_prev)
+
+        self.proxy_page_label = QLabel("Halaman 1 / 1 (0 IP)")
+        self.proxy_page_label.setStyleSheet("font-weight: bold; color: #38d6d6; padding: 0 10px;")
+        pt_pagination_row.addWidget(self.proxy_page_label)
+
+        self.btn_proxy_next = QPushButton("Berikutnya ▶")
+        self.btn_proxy_next.setFixedWidth(95)
+        self.btn_proxy_next.clicked.connect(self._on_proxy_next_page)
+        pt_pagination_row.addWidget(self.btn_proxy_next)
+
+        self.btn_proxy_last = QPushButton("Terakhir ⏭")
+        self.btn_proxy_last.setFixedWidth(85)
+        self.btn_proxy_last.clicked.connect(self._on_proxy_last_page)
+        pt_pagination_row.addWidget(self.btn_proxy_last)
+
+        pt_pagination_row.addStretch(1)
+
+        pt_pagination_row.addWidget(QLabel("Ke Hal:"))
+        self.proxy_jump_spin = QSpinBox()
+        self.proxy_jump_spin.setRange(1, 1)
+        self.proxy_jump_spin.setValue(1)
+        self.proxy_jump_spin.setFixedWidth(65)
+        self.proxy_jump_spin.valueChanged.connect(self._on_proxy_jump_page)
+        pt_pagination_row.addWidget(self.proxy_jump_spin)
+
+        proxy_table_layout.addLayout(pt_pagination_row)
         proxy_layout.addWidget(proxy_table_card, stretch=1)
 
         self.tabs.addTab(tab_proxy, "🌐 Pool & Status Pemakaian Proxy")
@@ -883,6 +987,12 @@ class Dashboard(QMainWindow):
         self.harv_skip_verifier_check.setChecked(False)
         self.harv_skip_verifier_check.setToolTip("Lewati pengecekan IP awal.")
         chk_layout.addWidget(self.harv_skip_verifier_check)
+
+        self.harv_unlimited_check = QCheckBox("Mode Unlimited (∞ Looping)")
+        self.harv_unlimited_check.setChecked(False)
+        self.harv_unlimited_check.setToolTip("Panen terus menerus secara looping tanpa batas target sampai dihentikan manual.")
+        self.harv_unlimited_check.toggled.connect(lambda checked: self.harv_target_spin.setEnabled(not checked))
+        chk_layout.addWidget(self.harv_unlimited_check)
         chk_layout.addStretch(1)
 
         grid.addLayout(chk_layout, 1, 0, 1, 6)
@@ -958,6 +1068,7 @@ class Dashboard(QMainWindow):
         if self.harvester_thread and self.harvester_thread.isRunning():
             return
 
+        unlimited = bool(self.harv_unlimited_check.isChecked())
         target = int(self.harv_target_spin.value())
         concurrency = int(self.harv_concurrency_spin.value())
         rounds = int(self.harv_rounds_spin.value())
@@ -969,19 +1080,24 @@ class Dashboard(QMainWindow):
         self.harv_stop_btn.setEnabled(True)
         self.harv_status_badge.setText("🌾 SEDANG MEMANEN...")
         self.harv_status_badge.setStyleSheet("color: #38d6d6; font-weight: 700; font-size: 12px; background: #1b1f26; border-radius: 4px; padding: 4px;")
-        self.harv_progress.setRange(0, target)
-        self.harv_progress.setValue(0)
-        self.harv_progress.setFormat(f"0 / {target} proxy baru (0%)")
+        if unlimited:
+            self.harv_progress.setRange(0, 0)
+            self.harv_progress.setFormat("0 proxy baru (Mode ∞ Unlimited)")
+        else:
+            self.harv_progress.setRange(0, target)
+            self.harv_progress.setValue(0)
+            self.harv_progress.setFormat(f"0 / {target} proxy baru (0%)")
         self.harv_stat_added.setText("Baru Didapat: 0")
         self.harv_stat_status.setText("Status: Memulai worker grabber...")
 
         self.harvester_thread = HarvesterThread(
-            target_proxies=target,
+            target_proxies=0 if unlimited else target,
             concurrency=concurrency,
             rounds=rounds,
             headless=headless,
             direct=direct,
             skip_verifier=skip_verifier,
+            unlimited=unlimited,
         )
         self.harvester_thread.log_signal.connect(self._on_harvester_log)
         self.harvester_thread.progress_signal.connect(self._on_harvester_progress)
@@ -1003,9 +1119,12 @@ class Dashboard(QMainWindow):
         self.harv_log.appendHtml(html)
 
     def _on_harvester_progress(self, added: int, target: int) -> None:
-        pct = int((added / target) * 100) if target > 0 else 0
-        self.harv_progress.setValue(min(added, target))
-        self.harv_progress.setFormat(f"{added} / {target} proxy baru ({pct}%)")
+        if target > 0:
+            pct = int((added / target) * 100)
+            self.harv_progress.setValue(min(added, target))
+            self.harv_progress.setFormat(f"{added} / {target} proxy baru ({pct}%)")
+        else:
+            self.harv_progress.setFormat(f"{added} proxy baru didapat (Mode ∞ Unlimited)")
         self.harv_stat_added.setText(f"Baru Didapat: {added}")
         stats = self._shared_pm.get_stats()
         self.harv_stat_pool.setText(f"Total di Pool: {stats.get('total', 0)} IP")
@@ -1430,6 +1549,113 @@ class Dashboard(QMainWindow):
         self._append_log(f"♻️ Seluruh hit proxy ({reset_count} IP) berhasil direset kembali ke 0/2.", "cyan")
         self._refresh_proxy_tab_data(force=True)
 
+    def _on_delete_dead_proxies(self) -> None:
+        stats = self._shared_pm.get_stats()
+        dead_cnt = stats.get("dead", 0)
+        if dead_cnt == 0:
+            QMessageBox.information(self, "Hapus Proxy DEAD", "Tidak ada proxy berstatus DEAD di pool.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Konfirmasi Hapus Proxy DEAD",
+            f"Ditemukan {dead_cnt} proxy berstatus DEAD.\nApakah Anda yakin ingin menghapus semuanya secara permanen dari database data/proxies.json?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            removed = self._shared_pm.delete_dead_proxies()
+            self._append_log(f"🗑️ Berhasil menghapus {removed} proxy DEAD dari data/proxies.json.", "cyan")
+            QMessageBox.information(self, "Selesai", f"Berhasil menghapus {removed} proxy berstatus DEAD.")
+            self._refresh_proxy_tab_data(force=True)
+            self._update_proxy_pool_header()
+
+    def _on_test_and_clean_proxies(self) -> None:
+        stats = self._shared_pm.get_stats()
+        total_p = stats.get("total", 0)
+        if total_p == 0:
+            QMessageBox.information(self, "Tes & Hapus Proxy", "Pool proxy saat ini kosong.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Konfirmasi Tes & Bersihkan Proxy",
+            f"Akan menguji seluruh {total_p} proxy secara paralel (cepat) dan otomatis menghapus seluruh IP yang mati (DEAD).\n\nApakah Anda ingin melanjutkan?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes,
+        )
+        if reply != QMessageBox.Yes:
+            return
+
+        self.btn_test_and_clean.setEnabled(False)
+        self.btn_test_and_clean.setText("⏳ Sedang Menguji...")
+        self._append_log(f"⚡ Memulai Fast Tester paralel ({total_p} proxy)...", "cyan")
+
+        self._proxy_tester_thread = ProxyTesterThread(self._shared_pm, delete_dead=True)
+        self._proxy_tester_thread.log_signal.connect(self._append_log)
+        self._proxy_tester_thread.finished_signal.connect(self._on_proxy_tester_finished)
+        self._proxy_tester_thread.start()
+
+    def _on_proxy_tester_finished(self, res: dict) -> None:
+        self.btn_test_and_clean.setEnabled(True)
+        self.btn_test_and_clean.setText("⚡ Tes & Hapus Mati")
+        if "error" in res:
+            QMessageBox.warning(self, "Gagal", f"Terjadi kesalahan saat pengujian: {res['error']}")
+            return
+
+        tested = res.get("tested_total", 0)
+        alive = res.get("alive", 0)
+        deleted = res.get("deleted_count", 0)
+        remaining = res.get("remaining_total", 0)
+
+        msg = (
+            f"Pengujian Proxy Selesai!\n\n"
+            f"📊 Total Diuji : {tested} IP\n"
+            f"🟢 Aktif (ALIVE) : {alive} IP\n"
+            f"🗑️ Mati Dihapus : {deleted} IP\n"
+            f"✅ Sisa di Pool : {remaining} IP"
+        )
+        self._append_log(f"✅ Fast Tester selesai: {alive} ALIVE, {deleted} DEAD dihapus. Sisa {remaining} IP aktif.", "green")
+        QMessageBox.information(self, "Hasil Pengujian & Pembersihan", msg)
+        self._refresh_proxy_tab_data(force=True)
+        self._update_proxy_pool_header()
+
+    def _on_proxy_filter_changed(self) -> None:
+        self.proxy_current_page = 1
+        self._refresh_proxy_tab_data(force=True)
+
+    def _on_proxy_page_size_changed(self, idx: int) -> None:
+        sizes = [50, 100, 200, 500, -1]
+        self.proxy_page_size = sizes[idx] if idx < len(sizes) else 100
+        self.proxy_current_page = 1
+        self._refresh_proxy_tab_data(force=True)
+
+    def _on_proxy_first_page(self) -> None:
+        if self.proxy_current_page != 1:
+            self.proxy_current_page = 1
+            self._refresh_proxy_tab_data(force=True)
+
+    def _on_proxy_prev_page(self) -> None:
+        if self.proxy_current_page > 1:
+            self.proxy_current_page -= 1
+            self._refresh_proxy_tab_data(force=True)
+
+    def _on_proxy_next_page(self) -> None:
+        if self.proxy_current_page < getattr(self, "proxy_total_pages", 1):
+            self.proxy_current_page += 1
+            self._refresh_proxy_tab_data(force=True)
+
+    def _on_proxy_last_page(self) -> None:
+        total_p = getattr(self, "proxy_total_pages", 1)
+        if self.proxy_current_page != total_p:
+            self.proxy_current_page = total_p
+            self._refresh_proxy_tab_data(force=True)
+
+    def _on_proxy_jump_page(self, page_num: int) -> None:
+        if page_num != self.proxy_current_page:
+            self.proxy_current_page = page_num
+            self._refresh_proxy_tab_data(force=True)
+
     def _refresh_proxy_tab_data(self, force: bool = False) -> None:
         if not hasattr(self, "proxy_table"):
             return
@@ -1458,11 +1684,13 @@ class Dashboard(QMainWindow):
         used_count = 0
         in_use_count = 0
         cooldown_count = 0
+        untested_count = 0
+        dead_count = 0
 
         for p in proxies:
             ip = p.get("ip_detected") or p.get("host", "?")
             c_name = country_label(p.get("country"))
-            health = p.get("health", "ALIVE")
+            health = p.get("health") or "UNKNOWN"
             is_active = (ip in active_worker_ips) or (p.get("usage") == "IN_USE")
 
             tu = p.get("target_usage") or {}
@@ -1473,6 +1701,11 @@ class Dashboard(QMainWindow):
                 in_use_count += 1
             if health == "COOLDOWN":
                 cooldown_count += 1
+            elif health == "UNKNOWN":
+                untested_count += 1
+            elif health == "DEAD":
+                dead_count += 1
+
             if mn_hit == 0 and exo_hit == 0:
                 fresh_count += 1
             if mn_hit > 0 or exo_hit > 0:
@@ -1489,15 +1722,55 @@ class Dashboard(QMainWindow):
                 continue
             elif f_idx == 4 and health != "COOLDOWN":
                 continue
+            elif f_idx == 5 and health != "UNKNOWN":
+                continue
+            elif f_idx == 6 and health != "DEAD":
+                continue
 
             filtered.append(p)
 
         if hasattr(self, "pt_summary_lbl"):
             self.pt_summary_lbl.setText(
-                f"Total: {total_p} IP | 🟢 Fresh (0 Hit): {fresh_count} | 🟡 Terpakai: {used_count} | 🔵 Aktif: {in_use_count} | ⏳ Cooldown: {cooldown_count}"
+                f"Total: {total_p} IP | 🟢 Fresh (0 Hit): {fresh_count} | 🟡 Terpakai: {used_count} | 🔵 Aktif: {in_use_count} | ⏳ Cooldown: {cooldown_count} | 🔴 DEAD: {dead_count} | ⚪ Untested: {untested_count}"
             )
 
-        display_list = filtered[:350]
+        # ── DYNAMIC PAGINATION ──
+        total_filtered = len(filtered)
+        if self.proxy_page_size <= 0:  # "Semua (All)"
+            total_pages = 1
+            self.proxy_total_pages = 1
+            self.proxy_current_page = 1
+            start_idx = 0
+            end_idx = total_filtered
+            display_list = filtered
+        else:
+            total_pages = max(1, math.ceil(total_filtered / self.proxy_page_size))
+            self.proxy_total_pages = total_pages
+            if self.proxy_current_page > total_pages:
+                self.proxy_current_page = total_pages
+            if self.proxy_current_page < 1:
+                self.proxy_current_page = 1
+            start_idx = (self.proxy_current_page - 1) * self.proxy_page_size
+            end_idx = min(start_idx + self.proxy_page_size, total_filtered)
+            display_list = filtered[start_idx:end_idx]
+
+        # Update pagination controls UI
+        if hasattr(self, "proxy_page_label"):
+            disp_start = start_idx + 1 if total_filtered > 0 else 0
+            self.proxy_page_label.setText(
+                f"Halaman {self.proxy_current_page} / {total_pages} (IP {disp_start}–{end_idx} dari {total_filtered})"
+            )
+            if hasattr(self, "btn_proxy_first"):
+                self.btn_proxy_first.setEnabled(self.proxy_current_page > 1)
+                self.btn_proxy_prev.setEnabled(self.proxy_current_page > 1)
+                self.btn_proxy_next.setEnabled(self.proxy_current_page < total_pages)
+                self.btn_proxy_last.setEnabled(self.proxy_current_page < total_pages)
+            if hasattr(self, "proxy_jump_spin"):
+                self.proxy_jump_spin.blockSignals(True)
+                self.proxy_jump_spin.setRange(1, total_pages)
+                self.proxy_jump_spin.setValue(self.proxy_current_page)
+                self.proxy_jump_spin.blockSignals(False)
+
         if self.proxy_table.rowCount() != len(display_list):
             self.proxy_table.setRowCount(len(display_list))
         center_cols = (0, 2, 3, 4, 5, 6, 7, 8)
@@ -1505,7 +1778,7 @@ class Dashboard(QMainWindow):
         for r, p in enumerate(display_list):
             ip = p.get("ip_detected") or p.get("host", "?")
             c_name = country_label(p.get("country"))
-            health = p.get("health", "ALIVE")
+            health = p.get("health") or "UNKNOWN"
             is_active = ip in active_worker_ips
 
             tu = p.get("target_usage") or {}
@@ -1526,9 +1799,15 @@ class Dashboard(QMainWindow):
             elif health == "COOLDOWN":
                 status_str = "🟡 COOLDOWN"
                 status_color = "#ffcc33"
-            else:
+            elif health == "UNKNOWN":
+                status_str = "⚪ UNTESTED"
+                status_color = "#9ca3af"
+            elif health == "DEAD":
                 status_str = "🔴 DEAD"
                 status_color = "#ff5c5c"
+            else:
+                status_str = f"⚪ {health}"
+                status_color = "#9ca3af"
 
             w_str = active_worker_ips.get(ip, "- (Idle)")
             w_color = "#38d6d6" if is_active else "#6b7280"
@@ -1545,7 +1824,7 @@ class Dashboard(QMainWindow):
             lat_str = f"{lat:.0f} ms" if lat else "—"
 
             row_cells = [
-                str(r + 1),
+                str(start_idx + r + 1),
                 ip,
                 c_name,
                 status_str,
@@ -1605,11 +1884,12 @@ class Dashboard(QMainWindow):
             total_p = stats.get("total", 0)
             alive_p = stats.get("alive", 0)
             in_use_p = stats.get("in_use", 0)
+            unknown_p = stats.get("unknown", 0)
             fresh_p = t_stats.get("fresh", 0)
             ready_s2 = t_stats.get("ready_secondary", 0)
             cooldown_p = t_stats.get("in_cooldown", 0)
             self.proxy_pool_label.setText(
-                f"[{net_tag}] ALIVE: {alive_p} ({in_use_p} aktif) | Fresh: {fresh_p} | Siap (Hit 2): {ready_s2} | Cooldown: {cooldown_p} | Total: {total_p}"
+                f"[{net_tag}] ALIVE: {alive_p} ({in_use_p} aktif) | Fresh: {fresh_p} | Siap (Hit 2): {ready_s2} | Untested: {unknown_p} | Cooldown: {cooldown_p} | Total: {total_p}"
             )
         except Exception:
             pass
@@ -1686,7 +1966,7 @@ class Dashboard(QMainWindow):
                     "port": p.get("port", 0),
                     "country": c_name,
                     "country_flag": c_flag,
-                    "health": p.get("health", "ALIVE"),
+                    "health": p.get("health") or "UNKNOWN",
                     "is_active": is_active,
                     "used_by": act_ips.get(ip, None),
                     "monetag_hit": mn_hit,

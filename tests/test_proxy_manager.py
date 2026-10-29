@@ -384,6 +384,25 @@ def test_acquire_proxy_with_verify_alive(temp_proxy_file):
         assert alloc["health"] == HEALTH_ALIVE
 
 
+def test_validate_all_and_test_and_delete_dead(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file)
+
+    def mock_check(url):
+        if "user1" in url:
+            return {"success": True, "ip": "1.1.1.1", "latency_ms": 100, "error": None}
+        return {"success": False, "ip": None, "latency_ms": None, "error": "ConnectionRefused"}
+
+    with patch.object(pm, "_test_proxy_network", side_effect=mock_check):
+        res = pm.test_and_delete_dead(force=True, max_workers=2)
+        assert res["alive"] >= 1
+        assert res["deleted_count"] >= 1
+        assert res["remaining_total"] == res["alive"]
+
+        stats = pm.get_stats()
+        assert stats["dead"] == 0
+        assert stats["total"] == res["alive"]
+
+
 
 
 
