@@ -1118,7 +1118,6 @@ class ProxyManager:
         if not url or not key:
             return 0
 
-        endpoint = f"{url}/rest/v1/{table}?select=*"
         headers = {
             "apikey": key,
             "Authorization": f"Bearer {key}",
@@ -1127,18 +1126,29 @@ class ProxyManager:
         }
 
         try:
-            resp = requests.get(endpoint, headers=headers, timeout=12)
-            if resp.status_code != 200:
-                return 0
+            records = []
+            offset = 0
+            limit = 1000
+            while True:
+                endpoint = f"{url}/rest/v1/{table}?select=*&limit={limit}&offset={offset}"
+                resp = requests.get(endpoint, headers=headers, timeout=12)
+                if resp.status_code != 200:
+                    break
+                chunk = resp.json()
+                if not isinstance(chunk, list) or not chunk:
+                    break
+                records.extend(chunk)
+                if len(chunk) < limit:
+                    break
+                offset += limit
 
-            records = resp.json()
-            if not isinstance(records, list) or not records:
+            if not records:
                 return 0
 
             with self._lock:
                 data = self._load_raw()
                 proxies = data.get("proxies", [])
-                existing_map = {f"{p.get('host')}:{p.get('port')}": idx for idx, p in enumerate(proxies)}
+                existing_map = {f"{p.get('host')}:{p.get('port')}:{p.get('username', '')}": idx for idx, p in enumerate(proxies)}
 
                 added = 0
                 for row in records:
@@ -1176,7 +1186,7 @@ class ProxyManager:
                     }
                     normalized = self._normalize_proxy(item, len(proxies))
 
-                    key_id = f"{host}:{port}"
+                    key_id = f"{host}:{port}:{user}"
                     if key_id in existing_map:
                         existing_idx = existing_map[key_id]
                         proxies[existing_idx]["username"] = user
