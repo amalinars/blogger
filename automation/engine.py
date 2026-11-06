@@ -164,8 +164,8 @@ def build_camoufox_kwargs(
         geoip_setting = proxy_data.get("ip_detected") or proxy_data.get("ip")
 
     user_prefs: Dict[str, Any] = {
-        "dom.webnotifications.enabled": False,
-        "dom.push.enabled": False,
+        "dom.webnotifications.enabled": True,
+        "dom.push.enabled": True,
         "media.autoplay.default": 0,
         "media.autoplay.blocking_policy": 0,
         "privacy.trackingprotection.enabled": False,
@@ -203,12 +203,8 @@ def build_camoufox_kwargs(
         "humanize": humanize,
         "block_webrtc": True,
         "firefox_user_prefs": user_prefs,
+        "os": random.choice(["windows", "macos"]),
     }
-
-    if geo_profile.get("locale"):
-        kwargs["locale"] = geo_profile["locale"]
-    if geo_profile.get("timezone") and geo_profile.get("source") != "geoip":
-        kwargs["config"] = {"timezone": geo_profile["timezone"]}
 
     if proxy_dict:
         kwargs["proxy"] = proxy_dict
@@ -217,7 +213,6 @@ def build_camoufox_kwargs(
             geoip_allowed()
             kwargs["geoip"] = geoip_setting
         except Exception:
-            # Fallback jika modul camoufox[geoip] belum terpasang
             kwargs["geoip"] = False
             kwargs["i_know_what_im_doing"] = True
 
@@ -225,6 +220,28 @@ def build_camoufox_kwargs(
         kwargs["exclude_addons"] = [DefaultAddons.UBO]
 
     return kwargs
+
+
+def build_camoufox_context_options(
+    proxy_data: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Build context-level options (viewport, matched timezone, locale, geolocation) to prevent bot detection."""
+    geo_profile = resolve_geo_profile(proxy_data)
+    opts: Dict[str, Any] = {
+        "viewport": get_random_viewport(),
+    }
+    if geo_profile.get("timezone"):
+        opts["timezone_id"] = geo_profile["timezone"]
+    if geo_profile.get("locale"):
+        opts["locale"] = geo_profile["locale"]
+    if geo_profile.get("latitude") and geo_profile.get("longitude"):
+        opts["geolocation"] = {
+            "latitude": float(geo_profile["latitude"]),
+            "longitude": float(geo_profile["longitude"]),
+            "accuracy": random.randint(15, 45),
+        }
+        opts["permissions"] = ["geolocation"]
+    return opts
 
 
 def create_camoufox_session(

@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 from camoufox.sync_api import Camoufox
 
-from automation.engine import WORKER_STARTUP_LOCK, build_camoufox_kwargs, resolve_geo_profile
+from automation.engine import WORKER_STARTUP_LOCK, build_camoufox_kwargs, build_camoufox_context_options, resolve_geo_profile
 from automation.session import SessionBudget, country_label
 from automation.browser_verifier import BrowserVerifier
 from automation.monetag.humanizer import human_click, human_move, human_scroll, human_wander
@@ -105,14 +105,10 @@ def run_monetag_session(
         humanize=humanize_enabled,
         allow_ads=True,
     )
+    context_opts = build_camoufox_context_options(proxy_data)
 
     with Camoufox(**camoufox_kwargs) as browser:
-        context = browser.new_context(
-            viewport=camoufox_kwargs.get("viewport", {"width": 1366, "height": 768}),
-            user_agent=camoufox_kwargs.get("user_agent"),
-            locale=camoufox_kwargs.get("locale", "en-US"),
-            timezone_id=camoufox_kwargs.get("timezone_id", "America/New_York"),
-        )
+        context = browser.new_context(**context_opts)
         page = context.new_page()
 
         target_domain = target_host.split(":")[0]
@@ -190,12 +186,20 @@ def run_monetag_session(
                 stage="🌐 Kunjungan Web",
                 status="Membuka web target...",
             )
-            log(f"Membuka halaman target: {target_url}", "bold yellow")
+            organic_referers = [
+                "https://www.google.com/",
+                "https://www.bing.com/",
+                "https://t.co/",
+                "https://duckduckgo.com/",
+                "https://news.ycombinator.com/",
+            ]
+            chosen_ref = random.choice(organic_referers)
+            log(f"Membuka halaman target (Referer: {_host(chosen_ref)}): {target_url}", "bold yellow")
             try:
                 try:
-                    page.goto(target_url, wait_until="commit", timeout=45000)
+                    page.goto(target_url, wait_until="commit", timeout=45000, referer=chosen_ref)
                 except Exception:
-                    page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
+                    page.goto(target_url, wait_until="domcontentloaded", timeout=45000, referer=chosen_ref)
             except Exception as e:
                 log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
 
