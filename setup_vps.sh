@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Script Otomatis Setup Bot Shortlink di VPS Linux (Ubuntu / Debian)
+# Script Otomatis Setup Bot Ad Impression di VPS Linux (Ubuntu / Debian)
 # Menyiapkan Python, Virtualenv, Dependensi GUI/Browser Camoufox, dan System Tools.
 # ==============================================================================
 
 set -e
 
 echo -e "\033[1;36m====================================================\033[0m"
-echo -e "\033[1;36m  🚀 MEMULAI SETUP BOT SHORTLINK DI VPS LINUX       \033[0m"
+echo -e "\033[1;36m  🚀 MEMULAI SETUP BOT AD IMPRESSION DI VPS LINUX   \033[0m"
 echo -e "\033[1;36m====================================================\033[0m"
 
 # 1. Update paket sistem & install dependensi library OS (kompatibel Ubuntu 20.04/22.04/24.04+)

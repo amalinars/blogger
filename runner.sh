@@ -10,9 +10,8 @@
 #   ./runner.sh status             -> Cek apakah bot sedang aktif berjalan
 #
 # Contoh pemakaian dinamis:
-#   ./runner.sh start --target adsterra --workers 1 --name "⚡ Server A (Adsterra)"
-#   ./runner.sh start --target monetag --workers 2 --name "💎 Server B (Monetag)"
-#   ./runner.sh start --target both --workers 2
+#   ./runner.sh start --workers 2 --name "💎 VPS 1"
+#   ./runner.sh start --workers 3 --url "https://article.riztama.my.id"
 # ==============================================================================
 
 SESSION_NAME="bot_shortlink"
@@ -63,7 +62,7 @@ case "$COMMAND" in
         }
 
         if ! has_arg "--target"; then
-            PASSED_ARGS=(--target adsterra "${PASSED_ARGS[@]}")
+            PASSED_ARGS=(--target monetag "${PASSED_ARGS[@]}")
         fi
         if ! has_arg "--workers" && ! has_arg "-w"; then
             PASSED_ARGS=(-w 1 "${PASSED_ARGS[@]}")
@@ -145,8 +144,7 @@ case "$COMMAND" in
     *)
         echo -e "${CYAN}Penggunaan: ./runner.sh {start|view|stop|restart|status} [ARGUMEN_BOT...]${RESET}"
         echo -e "Contoh:"
-        echo -e "  ./runner.sh start --target adsterra --workers 1 --name \"⚡ VPS 1\""
-        echo -e "  ./runner.sh start --target monetag --workers 2 --name \"💎 VPS 2\""
+        echo -e "  ./runner.sh start --workers 2 --name \"💎 VPS 1\""
         echo -e "  ./runner.sh view"
         echo -e "  ./runner.sh stop"
         ;;
