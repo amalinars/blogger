@@ -18,6 +18,8 @@ from __future__ import annotations
 import argparse
 import atexit
 import os
+import re
+import uuid
 import signal
 import sys
 
@@ -103,7 +105,9 @@ class BotRunnerCLI:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
         self.stop_event = threading.Event()
-        self.proxy_manager = ProxyManager(reset_stale_usage=True)
+        raw_name = self.args.name or os.environ.get("BOT_NODE_ID") or f"node_{uuid.uuid4().hex[:6]}"
+        self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", raw_name)
+        self.proxy_manager = ProxyManager(reset_stale_usage=True, node_id=self.node_id)
         self.proxy_manager.reset_usage_to_idle()
         stats = self.proxy_manager.get_stats()
         if stats.get("total", 0) == 0 or getattr(self.args, "sync_supabase", False):
@@ -398,9 +402,9 @@ class BotRunnerCLI:
         # Daftarkan handler pembersihan status proxy saat Ctrl+C / Stop / Exit
         def _cleanup(*_):
             self.stop_event.set()
-            print(f"\n{CYAN}🔄 Mereset status proxy yang digunakan kembali ke IDLE di Supabase & lokal...{RESET}", flush=True)
+            print(f"\n{CYAN}🔄 Mereset status proxy node ({self.node_id}) ke IDLE di Supabase & lokal...{RESET}", flush=True)
             cleaned = self.proxy_manager.reset_usage_to_idle()
-            print(f"{GREEN}✅ Status proxy berhasil dikembalikan ke IDLE (Total: {cleaned} lokal).{RESET}\n", flush=True)
+            print(f"{GREEN}✅ Status proxy node ({self.node_id}) berhasil dikembalikan ke IDLE (Total: {cleaned} lokal).{RESET}\n", flush=True)
 
         try:
             signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))

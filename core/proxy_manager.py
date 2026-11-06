@@ -7,6 +7,7 @@ status penggunaan, dan posisi cursor rotasi persisten di proxies.json.
 import os
 import json
 import time
+import re
 import uuid
 import threading
 import concurrent.futures
@@ -89,6 +90,7 @@ class ProxyManager:
         reset_stale_usage: bool = False,
         reset_cursor: bool = False,
         enable_supabase: Optional[bool] = None,
+        node_id: Optional[str] = None,
     ):
         self.filepath = os.path.abspath(filepath)
         self.check_url = check_url
@@ -99,6 +101,8 @@ class ProxyManager:
         # Supabase Distributed Coordination (Zero Race Condition across VPS / Colab)
         is_default_file = (self.filepath == os.path.abspath(DEFAULT_PROXY_FILE))
         should_use_supabase = enable_supabase if enable_supabase is not None else is_default_file
+        raw_node = node_id or os.environ.get("BOT_NODE_ID") or f"node_{uuid.uuid4().hex[:6]}"
+        self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", str(raw_node))
         self.supabase_enabled = False
         self.supabase_rpc_available = False
         if should_use_supabase:
@@ -684,8 +688,9 @@ class ProxyManager:
 
             # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition Antar Node)
             if self.supabase_enabled:
+                sb_caller = f"{self.node_id}:{lease_token}" if not str(lease_token).startswith(f"{self.node_id}:") else lease_token
                 sb_proxy = self._acquire_proxy_supabase(
-                    caller_id=lease_token,
+                    caller_id=sb_caller,
                     target=target,
                     max_uses_per_day=max_uses_per_day,
                     cooldown_seconds=cooldown_seconds,
@@ -853,16 +858,18 @@ class ProxyManager:
 
     def reset_usage_to_idle(self, caller_id: Optional[str] = None) -> int:
         """
-        Membersihkan seluruh status IN_USE menjadi IDLE, baik di proxies.json lokal
-        maupun di database Supabase (agar proxy tidak terkunci jika bot dihentikan/Ctrl+C).
+        Membersihkan status IN_USE menjadi IDLE hanya untuk proxy yang disewa oleh node ini.
+        Proxy milik VPS/Colab lain TIDAK AKAN DIGANGGU.
+        Gunakan caller_id='__all__' hanya untuk maintenance reset global seluruh proxy.
         """
-        # 1. Bersihkan di Supabase via REST PATCH langsung
+        # 1. Bersihkan di Supabase via REST PATCH ter-filter
         if self.supabase_enabled:
             endpoint = f"{self.supabase_url}/rest/v1/{self.supabase_table}"
-            if caller_id:
-                endpoint += f"?leased_by=eq.{caller_id}"
-            else:
+            if caller_id == "__all__":
                 endpoint += "?usage=eq.IN_USE"
+            else:
+                target_caller = caller_id or self.node_id
+                endpoint += f"?leased_by=ilike.{target_caller}*"
 
             headers = {
                 "apikey": self.supabase_key,
@@ -886,8 +893,16 @@ class ProxyManager:
             data = self._load_raw()
             cleaned = 0
             for p in data.get("proxies", []):
-                matches_caller = (not caller_id) or (p.get("leased_by") == caller_id)
-                if matches_caller and (p.get("usage") == USAGE_IDLE or p.get("usage") == USAGE_IN_USE or p.get("leased_by") is not None):
+                p_leased = str(p.get("leased_by") or "")
+                if caller_id == "__all__":
+                    matches_caller = True
+                elif caller_id:
+                    matches_caller = p_leased.startswith(caller_id)
+                elif self.supabase_enabled:
+                    matches_caller = (not p_leased) or p_leased.startswith(self.node_id)
+                else:
+                    matches_caller = True
+                if matches_caller and (p.get("usage") == USAGE_IN_USE or p.get("leased_by") is not None):
                     p["usage"] = USAGE_IDLE
                     p["leased_by"] = None
                     p["lease_time"] = None
@@ -923,7 +938,8 @@ class ProxyManager:
             elif isinstance(identifier, int):
                 sb_id = identifier
             if sb_id and isinstance(sb_id, int):
-                self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": caller_id})
+                sb_caller = f"{self.node_id}:{caller_id}" if caller_id and not str(caller_id).startswith(f"{self.node_id}:") else caller_id
+                self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
 
         if isinstance(identifier, dict):
             identifier = identifier.get("id") or identifier.get("proxy_url") or ""
@@ -936,8 +952,8 @@ class ProxyManager:
                 matches_token = (p.get("leased_by") == identifier)
 
                 if matches_id or matches_token:
-                    # Cek kepemilikan caller_id jika disertakan
-                    if caller_id and p.get("leased_by") and p.get("leased_by") != caller_id:
+                    leased_by = p.get("leased_by")
+                    if caller_id and leased_by and leased_by not in (caller_id, f"{self.node_id}:{caller_id}"):
                         return False  # Dimiliki oleh caller lain
 
                     p["usage"] = USAGE_IDLE

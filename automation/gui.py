@@ -243,7 +243,7 @@ class RunController(QObject):
         m_workers = int(config.get("monetag_workers", 0))
         num_workers = m_workers
 
-        self.proxy_manager = ProxyManager()
+        self.proxy_manager = ProxyManager(node_id="gui_desktop")
         self.proxy_manager.reset_usage_to_idle()
         self.proxy_manager.reset_cursor(0)
         self.budget = SessionBudget(hard_max, 1)
@@ -453,7 +453,7 @@ class Dashboard(QMainWindow):
         self.bridge.finished.connect(self._on_run_finished)
         self.controller: Optional[RunController] = None
         self.harvester_thread: Optional[HarvesterThread] = None
-        self._shared_pm = ProxyManager()
+        self._shared_pm = ProxyManager(node_id="gui_desktop")
         self.proxy_current_page = 1
         self.proxy_page_size = 100
         self.proxy_total_pages = 1
