@@ -66,22 +66,32 @@ PKGS+=(libxt6 libdbus-glib-1-2)
 
 sudo apt install -y "${PKGS[@]}"
 
-# 2. Buat Virtual Environment Python jika belum ada
-echo -e "\n\033[1;33m[2/5] Menyiapkan Python Virtual Environment (venv)...\033[0m"
-if [ ! -d "venv" ]; then
-    python3 -m venv venv
+# 2. Deteksi environment (Google Colab vs VPS)
+IS_COLAB=false
+if [ -n "$COLAB_RELEASE_TAG" ] || [ -d "/content" ] || [ -n "$COLAB_BACKEND_VERSION" ]; then
+    IS_COLAB=true
 fi
-source venv/bin/activate
 
-# 3. Upgrade pip & Install requirements Python
-echo -e "\n\033[1;33m[3/5] Menginstall library Python dari requirements.txt...\033[0m"
-pip install --upgrade pip
-pip install -r requirements.txt
+if [ "$IS_COLAB" = true ]; then
+    echo -e "\n\033[1;36m[2/5] Terdeteksi Google Colab: Menginstall langsung ke sistem Python...\033[0m"
+    echo -e "\n\033[1;33m[3/5] Menginstall library Python dari requirements.txt...\033[0m"
+    pip install --upgrade pip
+    pip install -r requirements.txt
+else
+    echo -e "\n\033[1;33m[2/5] Menyiapkan Python Virtual Environment (venv)...\033[0m"
+    if [ ! -d "venv" ]; then
+        python3 -m venv venv
+    fi
+    source venv/bin/activate
+
+    echo -e "\n\033[1;33m[3/5] Menginstall library Python dari requirements.txt...\033[0m"
+    pip install --upgrade pip
+    pip install -r requirements.txt
+fi
 
 # 4. Download binary browser Camoufox
 echo -e "\n\033[1;33m[4/5] Mengunduh binary browser anti-detect Camoufox...\033[0m"
 camoufox fetch
-
 # 5. Beri izin eksekusi script
 echo -e "\n\033[1;33m[5/5] Menyiapkan izin eksekusi file script...\033[0m"
 chmod +x run_bot.py 2>/dev/null || true
