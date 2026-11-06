@@ -95,7 +95,10 @@ def resolve_geo_profile(proxy_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         if fallback:
             profile["timezone"], profile["locale"] = fallback
             profile["source"] = "country-map"
-
+        else:
+            profile["timezone"], profile["locale"] = ("Asia/Jakarta", "id-ID")
+            profile["country_code"] = "ID"
+            profile["source"] = "default-fallback"
     if profile.get("locale") and not profile.get("country_code"):
         region = str(profile["locale"]).split("-")[-1]
         if len(region) == 2:
@@ -180,6 +183,7 @@ def build_camoufox_kwargs(
         "privacy.popups.showBrowserMessage": False,
         "browser.link.open_newwindow": 3,
         "browser.link.open_newwindow.restriction": 0,
+        "network.proxy.socks_remote_dns": True,
     }
     if allow_third_party_cookies:
         user_prefs.update({

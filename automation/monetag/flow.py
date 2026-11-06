@@ -82,11 +82,9 @@ def run_monetag_session(
     popunders_processed = 0
 
     proxy_info = proxy_data or {}
-    proxy_label = (
-        f"{proxy_info.get('host')}:{proxy_info.get('port')}"
-        if proxy_info.get("host")
-        else "Direct/Local"
-    )
+    if not proxy_info.get("host") or not proxy_info.get("port"):
+        raise ValueError("Proxy residensial wajib aktif! Koneksi langsung (Direct IP VPS) diblokir demi keamanan akun.")
+    proxy_label = f"{proxy_info.get('host')}:{proxy_info.get('port')}"
 
     def log(msg: str, style: str = "white") -> None:
         _emit(
