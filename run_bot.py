@@ -104,6 +104,13 @@ class BotRunnerCLI:
         self.stop_event = threading.Event()
         self.proxy_manager = ProxyManager(reset_stale_usage=True)
         self.proxy_manager.reset_usage_to_idle()
+        stats = self.proxy_manager.get_stats()
+        if stats.get("total", 0) == 0 or getattr(self.args, "sync_supabase", False):
+            synced = self.proxy_manager.sync_from_supabase()
+            if synced > 0:
+                print(f"{GREEN}☁️ Berhasil mensinkronkan {synced} proxy dari Supabase (schema: proxxies).{RESET}", flush=True)
+            elif stats.get("total", 0) == 0:
+                print(f"{YELLOW}⚠️ Info: proxies.json kosong dan belum ada proxy di tabel proxxies.proxy_list Supabase.{RESET}", flush=True)
         self.reporter = get_telemetry_reporter()
 
         if self.args.name:
@@ -453,6 +460,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Nama node mesin ini (misal: '💻 Localhost (Jovan)' atau '⚡ Server A')",
+    )
+    parser.add_argument(
+        "--sync-supabase",
+        action="store_true",
+        help="Paksa sinkronisasi proxy dari database Supabase sebelum bot berjalan",
     )
     parser.add_argument(
         "--max-uses",

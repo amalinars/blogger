@@ -1092,6 +1092,170 @@ class ProxyManager:
                     return dict(p)
             return {"status": "NOT_FOUND"}
 
+    def sync_from_supabase(self, config_file: Optional[str] = None) -> int:
+        """Mengambil data proxy dari database Supabase (REST API) dan menyimpannya ke proxies.json."""
+        default_cfg = os.path.join(PROJECT_ROOT, "data", "supabase_config.json")
+        cfg_path = config_file or default_cfg
+        if not os.path.exists(cfg_path):
+            alt_path = os.path.join(PROJECT_ROOT, "data", "telemetry_config.json")
+            if os.path.exists(alt_path):
+                cfg_path = alt_path
+
+        if not os.path.exists(cfg_path):
+            return 0
+
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception:
+            return 0
+
+        url = cfg.get("supabase_url", "https://supabase.riztama.my.id").rstrip("/")
+        key = cfg.get("supabase_key", "")
+        schema = cfg.get("schema", "proxxies")
+        table = cfg.get("table", "proxy_list")
+
+        if not url or not key:
+            return 0
+
+        endpoint = f"{url}/rest/v1/{table}?select=*"
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Accept-Profile": schema,
+            "Content-Profile": schema,
+        }
+
+        try:
+            resp = requests.get(endpoint, headers=headers, timeout=12)
+            if resp.status_code != 200:
+                return 0
+
+            records = resp.json()
+            if not isinstance(records, list) or not records:
+                return 0
+
+            with self._lock:
+                data = self._load_raw()
+                proxies = data.get("proxies", [])
+                existing_map = {f"{p.get('host')}:{p.get('port')}": idx for idx, p in enumerate(proxies)}
+
+                added = 0
+                for row in records:
+                    host = row.get("host")
+                    port = row.get("port")
+                    if not host or not port:
+                        continue
+                    try:
+                        port = int(port)
+                    except ValueError:
+                        continue
+
+                    user = row.get("username") or ""
+                    pwd = row.get("password") or ""
+                    country = row.get("country") or "US"
+                    conn_type = row.get("connection_type") or "residential"
+                    health = str(row.get("health", HEALTH_ALIVE)).upper()
+
+                    if user and pwd:
+                        proxy_url = f"http://{user}:{pwd}@{host}:{port}"
+                    else:
+                        proxy_url = f"http://{host}:{port}"
+
+                    item = {
+                        "host": host,
+                        "port": port,
+                        "username": user,
+                        "password": pwd,
+                        "proxy_url": proxy_url,
+                        "country": country,
+                        "connection_type": conn_type,
+                        "health": health,
+                        "usage": USAGE_IDLE,
+                        "target_usage": {},
+                    }
+                    normalized = self._normalize_proxy(item, len(proxies))
+
+                    key_id = f"{host}:{port}"
+                    if key_id in existing_map:
+                        existing_idx = existing_map[key_id]
+                        proxies[existing_idx]["username"] = user
+                        proxies[existing_idx]["password"] = pwd
+                        proxies[existing_idx]["proxy_url"] = proxy_url
+                        proxies[existing_idx]["country"] = country
+                        proxies[existing_idx]["connection_type"] = conn_type
+                    else:
+                        proxies.append(normalized)
+                        existing_map[key_id] = len(proxies) - 1
+                        added += 1
+
+                data["proxies"] = proxies
+                self._save_raw(data)
+                return added
+        except Exception:
+            return 0
+
+    def upload_to_supabase(self, proxy_list: List[Union[Dict[str, Any], str]], config_file: Optional[str] = None) -> int:
+        """Mengupload daftar proxy ke tabel Supabase (REST API)."""
+        default_cfg = os.path.join(PROJECT_ROOT, "data", "supabase_config.json")
+        cfg_path = config_file or default_cfg
+        if not os.path.exists(cfg_path):
+            alt_path = os.path.join(PROJECT_ROOT, "data", "telemetry_config.json")
+            if os.path.exists(alt_path):
+                cfg_path = alt_path
+
+        if not os.path.exists(cfg_path):
+            return 0
+
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+        except Exception:
+            return 0
+
+        url = cfg.get("supabase_url", "https://supabase.riztama.my.id").rstrip("/")
+        key = cfg.get("supabase_key", "")
+        schema = cfg.get("schema", "proxxies")
+        table = cfg.get("table", "proxy_list")
+
+        if not url or not key:
+            return 0
+
+        endpoint = f"{url}/rest/v1/{table}"
+        headers = {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Accept-Profile": schema,
+            "Content-Profile": schema,
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates",
+        }
+
+        payloads = []
+        for p in proxy_list:
+            parsed = self._parse_proxy_input(p)
+            if not parsed:
+                continue
+            payloads.append({
+                "host": parsed.get("host"),
+                "port": int(parsed.get("port")),
+                "username": parsed.get("username", ""),
+                "password": parsed.get("password", ""),
+                "country": parsed.get("country", "US"),
+                "connection_type": parsed.get("connection_type", "residential"),
+                "health": "ALIVE",
+            })
+
+        if not payloads:
+            return 0
+
+        try:
+            resp = requests.post(endpoint, headers=headers, json=payloads, timeout=15)
+            if resp.status_code in (200, 201):
+                return len(payloads)
+            return 0
+        except Exception:
+            return 0
 
 # =============================================================================
 # SINGLETON INSTANCE & CONVENIENCE FUNCTIONS

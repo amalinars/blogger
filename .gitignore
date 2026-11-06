@@ -58,6 +58,7 @@ __pycache__/
 /data/*.json
 /data/*.png
 !/data/telemetry_config.json
+!/data/supabase_config.json
 
 # Local artifacts and personal downloads
 .playwright-mcp/
