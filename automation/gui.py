@@ -495,7 +495,7 @@ class Dashboard(QMainWindow):
         title_block = QVBoxLayout()
         t = QLabel("Bot Shortlink & Ad Controller (Monetag Automation)")
         t.setObjectName("title")
-        self.target_label = QLabel("Monetag Target: https://article.riztama.my.id/m/")
+        self.target_label = QLabel("Monetag Target: https://article.riztama.my.id/")
         self.target_label.setObjectName("subtitle")
         title_block.addWidget(t)
         title_block.addWidget(self.target_label)
@@ -570,7 +570,7 @@ class Dashboard(QMainWindow):
 
         m_grid.addWidget(QLabel("URL Target Monetag:"), 1, 0)
         self.monetag_url_input = QLineEdit()
-        self.monetag_url_input.setText("https://article.riztama.my.id/m/")
+        self.monetag_url_input.setText("https://article.riztama.my.id/")
         self.monetag_url_input.setToolTip("Halaman website target yang memuat script MultiTag Monetag.")
         self.monetag_url_input.textChanged.connect(self._update_worker_summary)
         m_grid.addWidget(self.monetag_url_input, 1, 1, 1, 5)
@@ -1109,7 +1109,7 @@ class Dashboard(QMainWindow):
         cfg["monetag_workers"] = m_workers
         cfg["concurrency"] = total_workers
 
-        m_raw = self.monetag_url_input.text().strip() or "https://article.riztama.my.id/m/"
+        m_raw = self.monetag_url_input.text().strip() or "https://article.riztama.my.id/"
         cfg["monetag_target_url"] = m_raw
         cfg["direct_link_url"] = "https://uplcm.com/4/12124796"
         cfg["direct_link_chance"] = float(self.direct_chance_spin.value()) / 100.0

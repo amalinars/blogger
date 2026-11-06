@@ -53,14 +53,10 @@ def run_monetag_session(
     target_host = (parsed.netloc or "article.riztama.my.id").lower()
 
     clean_path = parsed.path.rstrip('/')
-    if clean_path in ("", "/", "/m"):
-        slug_prefix = random.choice(["article", "news", "story", "read", "post"])
-        slug_hash = f"{int(time.time()) % 1000000:06d}{random.randint(10, 99)}"
-        slug = f"{slug_prefix}-{slug_hash}"
-        target_url = f"{parsed.scheme or 'https'}://{target_host}/m/{slug}"
+    if clean_path == "/m":
+        target_url = f"{parsed.scheme or 'https'}://{target_host}/"
     else:
         target_url = raw_target_url
-
     direct_link_url = config.get("direct_link_url", "https://uplcm.com/4/12124796")
     headless = bool(config.get("headless", True))
     humanize_enabled = bool(config.get("humanize", True))
@@ -307,103 +303,131 @@ def run_monetag_session(
                     pass
             return count
 
-        # ── 3. Interaksi Stepper Shortlink & Memicu Popunder Monetag ──
+        # ── 3. Interaksi Halaman Alami & Memicu Impresi Monetag ──
         _emit(
             event_callback,
             "stepper_update",
             worker_id=worker_id,
-            stage="🎯 Interaksi Stepper",
-            status="Menjalankan shortlink step...",
+            stage="🎯 Interaksi Halaman",
+            status="Interaksi natural & audit impresi...",
         )
-        log("Memulai interaksi stepper shortlink untuk memicu Popunder Monetag...", "bold yellow")
+        log("Memulai interaksi halaman untuk memicu OnClick, In-Page Push & Vignette...", "bold yellow")
 
-        # Coba klik awal area netral untuk trigger OnClick jika tag sudah aktif
-        gw = get_gw()
-        if gw and not gw.is_closed():
-            try:
-                banner_area = gw.locator("header, main h1").first
-                if banner_area.is_visible(timeout=2000):
-                    human_click(gw, banner_area)
-                    time.sleep(1.2)
-                    drain_popups("Klik Awal")
-            except Exception:
-                pass
+        # Fungsi penanganan redirect tab utama ke landing page advertiser
+        def check_and_handle_redirect() -> bool:
+            nonlocal popunders_processed
+            curr_url = str(page.url or "")
+            if curr_url and target_domain not in curr_url and curr_url != "about:blank":
+                log(f"🔄 Tab utama ter-redirect ke advertiser: {_host(curr_url)}", "yellow")
+                _emit(
+                    event_callback,
+                    "stepper_update",
+                    worker_id=worker_id,
+                    stage="🔄 Advertiser Dwell",
+                    status=f"Dwell landing page ({_host(curr_url)})...",
+                )
+                try:
+                    try:
+                        page.wait_for_load_state("domcontentloaded", timeout=12000)
+                    except Exception:
+                        pass
+                    dwell_time = random.uniform(
+                        float(popunder_dwell_cfg.get("min", 10.0)),
+                        float(popunder_dwell_cfg.get("max", 18.0)),
+                    )
+                    log(f"⏳ Dwell di halaman redirect advertiser selama {dwell_time:.1f}s...", "magenta")
+                    end_time = time.time() + dwell_time
+                    while time.time() < end_time and not page.is_closed():
+                        if humanize_enabled:
+                            human_wander(page, duration_seconds=random.uniform(1.2, 2.0))
+                            human_scroll(page, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
+                        time.sleep(1.0)
 
-        for step_idx in range(3):
+                    popunders_processed += 1
+                    log(f"✅ Selesai dwell impresi advertiser ({_host(curr_url)}).", "green")
+                    # Navigasi kembali ke web target
+                    try:
+                        log(f"🔙 Kembali ke halaman target: {target_url}", "cyan")
+                        page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+                        time.sleep(2.0)
+                    except Exception:
+                        pass
+                    return True
+                except Exception as ex_red:
+                    log(f"Catatan redirect advertiser: {ex_red}", "dim")
+            return False
+
+        # Cek In-Page Push Impression
+        try:
+            push_el = page.locator("div[class*='push' i], div[id*='push' i], iframe[src*='push' i], ins[data-zone='12126546']").first
+            if push_el.is_visible(timeout=2000):
+                log("💬 In-Page Push Monetag terdeteksi — mempertahankan viewability...", "yellow")
+                human_wander(page, duration_seconds=random.uniform(2.0, 3.5))
+        except Exception:
+            pass
+
+        # Target interaksi natural pada halaman
+        interaction_selectors = [
+            "button:has-text('IP Address Lookup')",
+            "button:has-text('Speed Test')",
+            "button:has-text('IP Whois Lookup')",
+            "button:has-text('DNS Records')",
+            "button:has-text('Privacy & Leak Test')",
+            "button:has-text('Lookup')",
+            "input[type='text']",
+            "button:has-text('Run Privacy Audit')",
+            "button:has-text('Start Speed Test')",
+            "main",
+            "header",
+        ]
+
+        # Lakukan 2-4 interaksi natural terdistribusi
+        num_interactions = random.randint(2, 4)
+        for i_idx in range(num_interactions):
             gw = get_gw()
             if gw.is_closed():
                 break
 
-            step_loc = gw.locator(f"#step-{step_idx}").first
-            try:
-                if step_loc.is_visible(timeout=5000):
-                    step_loc.scroll_into_view_if_needed()
-                    time.sleep(1.0)
+            # Cek apakah tab utama sudah ter-redirect ke advertiser
+            if check_and_handle_redirect():
+                drain_popups(f"Post Redirect #{i_idx + 1}")
+                continue
 
-                    # Baca / wander sebentar di area step
+            # Pilih elemen interaksi
+            chosen_sel = random.choice(interaction_selectors)
+            try:
+                elem = gw.locator(chosen_sel).first
+                if elem.is_visible(timeout=2000):
+                    elem.scroll_into_view_if_needed()
+                    time.sleep(random.uniform(0.5, 1.2))
                     if humanize_enabled:
-                        human_wander(gw, duration_seconds=random.uniform(1.5, 3.0))
+                        human_wander(gw, duration_seconds=random.uniform(1.0, 2.0))
+                    log(f"👆 [Interaksi #{i_idx + 1}] Klik elemen natural: {chosen_sel}", "cyan")
+                    human_click(gw, elem)
+                    time.sleep(random.uniform(1.5, 2.5))
+                else:
+                    # Klik area netral
+                    vp_curr = gw.viewport_size or {"width": 1366, "height": 768}
+                    click_x = random.randint(150, vp_curr["width"] - 150)
+                    click_y = random.randint(150, vp_curr["height"] - 200)
+                    log(f"👆 [Interaksi #{i_idx + 1}] Klik area netral viewport ({click_x}, {click_y})", "cyan")
+                    gw.mouse.click(click_x, click_y)
+                    time.sleep(random.uniform(1.5, 2.5))
+            except Exception as e_click:
+                log(f"Catatan klik #{i_idx + 1}: {e_click}", "dim")
 
-                    btn = step_loc.locator("button").first
-                    if btn.is_visible(timeout=3000):
-                        # Tunggu countdown tombol aktif
-                        wait_start = time.time()
-                        while time.time() - wait_start < 25.0:
-                            if btn.is_enabled():
-                                break
-                            time.sleep(0.5)
+            # Periksa apakah klik memicu redirect atau popunder
+            check_and_handle_redirect()
+            drain_popups(f"Interaksi #{i_idx + 1}")
 
-                        log(f"👆 Klik tombol Stepper #{step_idx + 1}", "cyan")
-                        time.sleep(random.uniform(0.15, 0.35))
-                        btn.click(force=True, delay=random.randint(65, 140))
-                        time.sleep(1.0)
-                        # Jika stepper belum berpindah (klik pertama diserap overlay Monetag), klik tombol sekali lagi
-                        try:
-                            if btn.is_visible() and btn.is_enabled():
-                                btn.click(force=True, delay=random.randint(60, 100))
-                        except Exception:
-                            pass
-
-                        # Jika testing di localhost dan skrip Monetag tidak aktif karena domain lokal,
-                        # simulasi trigger popunder ke direct link Monetag agar seluruh alur dwell teruji
-                        if target_domain in ("localhost", "127.0.0.1") and not popups_opened and step_idx == 0:
-                            try:
-                                gw.evaluate("(url) => window.open(url, '_blank')", direct_link_url or "https://uplcm.com/4/12124796")
-                            except Exception:
-                                pass
-
-                        # Beri jeda agar Monetag OnClick script membuka tab popunder
-                        time.sleep(2.5)
-                        drain_popups(f"Stepper #{step_idx + 1}")
-
-            except Exception as e_step:
-                log(f"Stepper #{step_idx} note: {e_step}", "dim")
-
-        # ── 4. Klik Destination Link (Final Order Page) ──
-        gw = get_gw()
-        if gw and not gw.is_closed():
-            try:
-                dest_btn = gw.locator("#destination a.btn-primary, #destination-card a.btn-primary, a.btn-primary").first
-                if dest_btn.is_visible(timeout=5000):
-                    dest_btn.scroll_into_view_if_needed()
-                    time.sleep(1.0)
-                    log("🎯 Klik tombol Destination Link...", "cyan")
-                    dest_btn.click(force=True, delay=random.randint(65, 140))
-                    time.sleep(2.5)
-                    drain_popups("Destination Click")
-            except Exception as e_dest:
-                log(f"Destination note: {e_dest}", "dim")
-
-
-
-        # ── 5. Cek & Tutup Overlay Vignette Banner (Jika Muncul) ──
+        # ── 4. Cek & Dwell Overlay Vignette Banner ──
         gw = get_gw()
         if gw and not gw.is_closed():
             try:
                 vignette_close = gw.locator(
-                    "button[aria-label*='close' i], .vignette-close, [id*='close' i], svg.close-icon"
+                    "button[aria-label*='close' i], .vignette-close, [id*='close' i], svg.close-icon, ins[data-zone='12126548']"
                 ).first
-                if vignette_close.is_visible(timeout=1800):
+                if vignette_close.is_visible(timeout=2500):
                     _emit(
                         event_callback,
                         "stepper_update",
@@ -411,9 +435,13 @@ def run_monetag_session(
                         stage="🖼️ Vignette Ad",
                         status="Dwell vignette overlay...",
                     )
-                    log("🖼️ Vignette overlay terdeteksi. Dwell sesaat lalu klik tutup...", "yellow")
-                    time.sleep(random.uniform(2.5, 4.0))
+                    log("🖼️ Vignette overlay terdeteksi. Dwell untuk validasi impresi...", "yellow")
+                    time.sleep(random.uniform(3.5, 6.0))
+                    if humanize_enabled:
+                        human_wander(gw, duration_seconds=random.uniform(1.5, 2.5))
                     human_click(gw, vignette_close)
+                    time.sleep(1.5)
+                    drain_popups("Post Vignette")
             except Exception:
                 pass
 
