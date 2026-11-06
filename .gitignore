@@ -59,4 +59,11 @@ __pycache__/
 /data/*.png
 !/data/telemetry_config.json
 
+# Local artifacts and personal downloads
+.playwright-mcp/
+*.zip
+*.jpeg
+*.jpg
+lhie-store-*.txt
+
 

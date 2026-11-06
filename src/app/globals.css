@@ -1,515 +1,76 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: light;
-  --page: #f1f3ec;
-  --surface: #fbfcf8;
-  --surface-raised: #f8faf4;
-  --surface-2: #e9ede3;
-  --surface-3: #dee4d6;
-  --ink: #151a14;
-  --muted: #5c665a;
-  --faint: #8a9487;
-  --line: #d9dfd0;
-  --line-strong: #c3ccb8;
-  --accent: #4d7c0f;
-  --accent-hover: #3f670c;
-  --accent-ink: #f6ffe8;
-  --accent-soft: #e4f3c8;
-  --accent-soft-ink: #365a09;
-  --danger: #a33a2b;
-  --shadow: rgba(24, 36, 19, 0.18);
-  --grid: rgba(77, 124, 15, 0.06);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    color-scheme: dark;
-    --page: #0c0f0d;
-    --surface: #141914;
-    --surface-raised: #181e18;
-    --surface-2: #1b221a;
-    --surface-3: #222b20;
-    --ink: #edf2e8;
-    --muted: #a2ae9d;
-    --faint: #71806d;
-    --line: #293229;
-    --line-strong: #3a4637;
-    --accent: #c8f77a;
-    --accent-hover: #d6ff95;
-    --accent-ink: #122006;
-    --accent-soft: #24320f;
-    --accent-soft-ink: #d6ff95;
-    --danger: #ff9b8a;
-    --shadow: rgba(0, 0, 0, 0.42);
-    --grid: rgba(200, 247, 122, 0.05);
+    --bg-main: #070c18;
+    --bg-card: #0d162b;
+    --bg-card-hover: #111d38;
+    --border-color: rgba(56, 189, 248, 0.12);
+    --border-active: rgba(56, 189, 248, 0.35);
+    --cyan-glow: #00f0ff;
+    --accent-blue: #2563eb;
+  }
+
+  body {
+    background-color: var(--bg-main);
+    color: #f1f5f9;
+    font-family: var(--font-ui), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 }
 
-* {
-  box-sizing: border-box;
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #070c18;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  html {
-    scroll-behavior: smooth;
+/* Pulse radar animation */
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
   }
 }
 
-body {
-  background-color: var(--page);
-  color: var(--ink);
-  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
-  min-height: 100dvh;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+.radar-dot {
+  animation: radar-pulse 2s infinite;
 }
 
-::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-
-.route-grid {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, var(--grid) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid) 1px, transparent 1px);
-  background-size: 72px 72px;
-  mask-image: radial-gradient(ellipse 90% 65% at 50% 0%, black 0%, transparent 72%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 65% at 50% 0%, black 0%, transparent 72%);
-}
-
-.font-editorial {
-  font-family: var(--font-editorial), Georgia, "Times New Roman", serif;
-}
-
-.font-code {
-  font-family: var(--font-code), ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.text-ink {
-  color: var(--ink);
-}
-
-.text-muted {
-  color: var(--muted);
-}
-
-.text-faint {
-  color: var(--faint);
-}
-
-.text-accent {
-  color: var(--accent);
-}
-
-.text-accent-soft-ink {
-  color: var(--accent-soft-ink);
-}
-
-.text-danger {
-  color: var(--danger);
-}
-
-.bg-page {
-  background-color: var(--page);
-}
-
-.bg-surface {
-  background-color: var(--surface);
-}
-
-.bg-surface-2 {
-  background-color: var(--surface-2);
-}
-
-.bg-surface-3 {
-  background-color: var(--surface-3);
-}
-
-.bg-accent {
-  background-color: var(--accent);
-}
-
-.bg-accent-soft {
-  background-color: var(--accent-soft);
-}
-
-.text-accent-ink {
-  color: var(--accent-ink);
-}
-
-.border-line {
-  border-color: var(--line);
-}
-
-.border-line-strong {
-  border-color: var(--line-strong);
-}
-
-.divide-line > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--line);
-}
-
-.surface-card {
-  background-color: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  box-shadow: 0 30px 80px -58px var(--shadow);
-}
-
-.surface-inset {
-  background-color: var(--surface-2);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-}
-
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  min-height: 3.25rem;
-  padding: 0 1.4rem;
-  border-radius: 999px;
-  background-color: var(--accent);
-  color: var(--accent-ink);
-  font-family: var(--font-ui), ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.925rem;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  white-space: nowrap;
-  transition:
-    background-color 180ms ease,
-    transform 180ms ease,
-    opacity 180ms ease;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: var(--accent-hover);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(1px) scale(0.992);
-}
-
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.btn-ghost {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 1rem;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  color: var(--ink);
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition:
-    border-color 180ms ease,
-    background-color 180ms ease;
-}
-
-.btn-ghost:hover {
-  border-color: var(--accent);
-  background-color: var(--accent-soft);
-}
-
-.countdown-ring {
-  position: relative;
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 4.25rem;
-  height: 4.25rem;
-  border-radius: 999px;
-  background: conic-gradient(
-    var(--accent) calc(var(--progress, 0) * 1%),
-    var(--line) 0
-  );
-}
-
-.countdown-ring::before {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: inherit;
-  background-color: var(--surface);
-}
-
-.countdown-ring > * {
-  position: relative;
-  z-index: 1;
-}
-
-.step-shell {
-  scroll-margin-top: 5.5rem;
-}
-
-.step-shell:focus {
-  outline: none;
-}
-
-.step-shell:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 10px;
-  border-radius: 24px;
-}
-
-.article-cover {
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 20% 20%, var(--accent-soft), transparent 55%),
-    var(--surface-3);
-}
-
-.article-cover img {
-  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .surface-card:hover .article-cover img {
-    transform: scale(1.025);
+@keyframes cyan-glow-pulse {
+  0%, 100% {
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.4), 0 0 24px rgba(56, 189, 248, 0.2);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(56, 189, 248, 0.7), 0 0 35px rgba(56, 189, 248, 0.35);
   }
 }
 
-.status-dot {
-  display: inline-block;
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 999px;
-  background-color: var(--accent);
+.glow-ip {
+  animation: cyan-glow-pulse 3s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .step-reveal {
-    animation: step-reveal 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  }
-
-  .status-dot {
-    animation: status-pulse 2.4s ease-in-out infinite;
-  }
-
-  @keyframes step-reveal {
-    from {
-      opacity: 0;
-      transform: translateY(18px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes status-pulse {
-    0%,
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.45;
-      transform: scale(0.82);
-    }
-  }
+/* Grid background subtle effect */
+.bg-grid-pattern {
+  background-image: radial-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
-
-.skeleton {
-  position: relative;
-  overflow: hidden;
-  background-color: var(--surface-2);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .skeleton::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    transform: translateX(-100%);
-    background: linear-gradient(
-      90deg,
-      transparent,
-      color-mix(in srgb, var(--surface) 70%, transparent),
-      transparent
-    );
-    animation: skeleton-sweep 1.6s ease-in-out infinite;
-  }
-
-  @keyframes skeleton-sweep {
-    100% {
-      transform: translateX(100%);
-    }
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-  }
-}
-
-.redirect-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 1.25rem;
-  background: color-mix(in srgb, var(--page) 92%, transparent);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-}
-
-.redirect-spinner {
-  width: 1.4rem;
-  height: 1.4rem;
-  border-radius: 999px;
-  border: 2px solid var(--line-strong);
-  border-top-color: var(--accent);
-  animation: redirect-spin 800ms linear infinite;
-}
-
-.redirect-progress {
-  height: 100%;
-  width: 0;
-  border-radius: 999px;
-  background-color: var(--accent);
-  animation: redirect-progress 700ms ease-out forwards;
-}
-
-@keyframes redirect-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes redirect-progress {
-  to {
-    width: 100%;
-  }
-}
-
-/* ==============================================================================
-   ExoClick Ad Network Styling & Dark Mode Polish
-   ============================================================================== */
-
-/* 1. In-Page Push Notification: Fix white-on-white text & elevate design */
-.eas6a97888e42,
-.eas6a97888e42 * {
-  color: #111827 !important;
-}
-
-.eas6a97888e42 {
-  max-width: 360px !important;
-  border-radius: 14px !important;
-  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.6), 0 6px 12px -2px rgba(0, 0, 0, 0.4) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
-  overflow: hidden !important;
-  z-index: 99999 !important;
-}
-
-/* 2. ExoClick Native Recommendation Widget: Constrain images so they look clean */
-.exoclick-native-container {
-  width: 100% !important;
-  overflow: hidden !important;
-}
-
-.exoclick-native-container .eas6a97888e20 {
-  display: block !important;
-  width: 100% !important;
-  max-width: 100% !important;
-}
-
-.exoclick-native-container img,
-.eas6a97888e20 img {
-  max-height: 180px !important;
-  width: 100% !important;
-  object-fit: cover !important;
-  border-radius: 10px !important;
-}
-
-/* 3. ExoClick Display Banner Constraints */
-.eas6a97888e2 {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  max-width: 100% !important;
-  margin: 0 auto !important;
-}
-
-.eas6a97888e2 img {
-  max-width: 100% !important;
-  height: auto !important;
-  border-radius: 10px !important;
-}
-
-/* 4. ExoClick Sticky Banner (Footer) Styling */
-.exoclick-sticky-container {
-  position: fixed !important;
-  bottom: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 9998 !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  padding: 6px 12px !important;
-  background: rgba(12, 15, 13, 0.90) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border-top: 1px solid var(--line) !important;
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45) !important;
-}
-
-.eas6a97888e17 {
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
-  max-width: 100% !important;
-}
-
-.eas6a97888e17 img {
-  max-height: 90px !important;
-  object-fit: contain !important;
-  border-radius: 6px !important;
-}
-
-/* ExoClick Outstream Video (6066272) */
-.eas6a97888e37 {
-  display: block !important;
-  max-width: 100% !important;
-  margin: 1rem auto !important;
-  text-align: center !important;
-}
-
-.eas6a97888e37 video,
-.eas6a97888e37 iframe {
-  max-width: 100% !important;
-  border-radius: 8px !important;
-}
-
-

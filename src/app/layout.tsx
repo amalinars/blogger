@@ -1,84 +1,75 @@
-import type { Metadata, Viewport } from 'next';
-import { JetBrains_Mono, Newsreader, Plus_Jakarta_Sans } from 'next/font/google';
-import { AdNetworkManager } from '@/components/ad-network-manager';
-import { SITE } from '@/lib/site-config';
-import './globals.css';
-
-const newsreader = Newsreader({
-  variable: '--font-editorial',
-  subsets: ['latin'],
-  display: 'swap',
-  style: ['normal', 'italic'],
-});
+import type { Metadata, Viewport } from "next";
+import { JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: '--font-ui',
-  subsets: ['latin'],
-  display: 'swap',
+  variable: "--font-ui",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
-  variable: '--font-code',
-  subsets: ['latin'],
-  display: 'swap',
+  variable: "--font-code",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: SITE.title,
-  description: SITE.description,
-  applicationName: SITE.name,
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true,
-  },
-  verification: {
-    other: {
-      '6a97888e-site-verification': '0493887f12093535c450f67235dce0ba',
-    },
+  title: "IPRadar.io | Real-Time IP Intelligence, Geolocation & Network Suite",
+  description: "Detect your public IPv4 and IPv6 address, perform IP whois lookups, test internet speed, analyze DNS records, and test connection security.",
+  applicationName: "IPRadar",
+  icons: {
+    icon: "/favicon.ico",
   },
   openGraph: {
-    title: SITE.title,
-    description: SITE.description,
-    type: 'website',
-    locale: 'en_US',
-    siteName: SITE.name,
-  },
-  twitter: {
-    card: 'summary',
-    title: SITE.title,
-    description: SITE.description,
-  },
-  formatDetection: {
-    telephone: false,
-    email: false,
-    address: false,
+    title: "IPRadar.io - Real-Time IP Intelligence & Network Suite",
+    description: "Check your public IPv4/IPv6 address, ISP, location coordinates, WHOIS records, and connection privacy status.",
+    type: "website",
+    locale: "en_US",
   },
 };
 
 export const viewport: Viewport = {
-  width: 'device-width',
+  width: "device-width",
   initialScale: 1,
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f1f3ec' },
-    { media: '(prefers-color-scheme: dark)', color: '#0c0f0d' },
-  ],
+  themeColor: "#070c18",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html
       lang="en"
-      className={`${newsreader.variable} ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
+      className={`dark ${plusJakartaSans.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-[100dvh] antialiased">
-        <div className="route-grid" aria-hidden="true" />
-        {children}
-
-        {/* Dynamic Ad Network Loader (Monetag MultiTag) */}
-        <AdNetworkManager />
+      <head>
+        {/* OnClick (Popunder) Ad Tag */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(s){s.dataset.zone='12126541',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
+          }}
+        />
+        {/* In-Page Push Ad Tag */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(s){s.dataset.zone='12126546',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
+          }}
+        />
+        {/* Vignette Ad Tag */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(s){s.dataset.zone='12126548',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
+          }}
+        />
+      </head>
+      <body className="min-h-screen bg-[#070c18] text-slate-100 antialiased font-sans selection:bg-cyan-500 selection:text-slate-950">
+        <div className="fixed inset-0 pointer-events-none bg-grid-pattern opacity-40 z-0" aria-hidden="true" />
+        <div className="relative z-10 flex flex-col min-h-screen">
+          {children}
+        </div>
       </body>
     </html>
   );
