@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 automation.monetag.flow
-Workflow automasi khusus Monetag:
-- Tanpa menunggu flow shortlink langkah 1-3.
-- Fokus memicu tayangan iklan: MultiTag (Popunder/OnClick), In-Page Push, Vignette.
-- Interaksi humanize murni pada tab Popunder & Direct Link (dwell time + natural scroll/mouse wander).
-- Kompatibel penuh dengan GUI dashboard (event stepper & reporting).
+Workflow automasi penjelajahan web langsung & impresi iklan Monetag:
+- Navigasi web IPRadar / target URL langsung secara natural (bukan shortlink gateway).
+- Memicu impresi multi-format: OnClick / Popunder, In-Page Push, dan Vignette.
+- Penanganan redirect advertiser landing page secara graceful dengan dwell viewability.
+- Dwell Direct Link / Smartlink untuk yield CPM maksimal.
 """
 
 import os
@@ -62,8 +62,18 @@ def run_monetag_session(
     humanize_enabled = bool(config.get("humanize", True))
     enable_verifier = bool(config.get("run_browser_verifier", False))
 
-    popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 5.0, "max": 8.5}
-    direct_link_dwell_cfg = config.get("dwell_direct_link_seconds", {}) or {"min": 6.0, "max": 10.0}
+    traffic_mode = config.get("traffic_mode", "fast_impression")
+    is_deep = (traffic_mode == "deep_browse")
+
+    if is_deep:
+        popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 8.0, "max": 14.0}
+        direct_link_dwell_cfg = config.get("dwell_direct_link_seconds", {}) or {"min": 10.0, "max": 16.0}
+        interaction_count_range = (3, 5)
+    else:
+        popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 5.0, "max": 8.5}
+        direct_link_dwell_cfg = config.get("dwell_direct_link_seconds", {}) or {"min": 6.0, "max": 10.0}
+        interaction_count_range = (2, 3)
+
     direct_link_chance = float(config.get("direct_link_chance", 0.50))
 
     session_start = time.time()
@@ -177,9 +187,8 @@ def run_monetag_session(
             _emit(
                 event_callback,
                 "stepper_update",
-                worker_id=worker_id,
-                stage="🌐 MultiTag Web",
-                status="Membuka web Monetag...",
+                stage="🌐 Kunjungan Web",
+                status="Membuka web target...",
             )
             log(f"Membuka halaman target: {target_url}", "bold yellow")
             try:
@@ -199,16 +208,16 @@ def run_monetag_session(
             event_callback,
             "stepper_update",
             worker_id=worker_id,
-            stage="📜 Natural Wander",
-            status="Scroll santai & inisialisasi tag...",
+            stage="📜 Scroll & Viewability",
+            status="Scroll halaman & inisialisasi tag...",
         )
         log("Membaca konten & scrolling cepat untuk memicu tag Monetag...", "cyan")
         vp = page.viewport_size or {"width": 1366, "height": 768}
         human_wander(page, duration_seconds=random.uniform(1.2, 2.2))
         human_scroll(page, scroll_amount=random.randint(280, 520))
 
-        def get_gw() -> Any:
-            """Mencari tab yang memuat target gateway / shortlink."""
+        def get_target_page() -> Any:
+            """Mencari tab yang memuat target web utama."""
             for p in context.pages:
                 if not p.is_closed() and target_domain in str(p.url):
                     return p
@@ -232,7 +241,7 @@ def run_monetag_session(
             # Gabungkan tab dari on_popup dan tab dari context.pages yang bukan gateway
             candidate_tabs: List[Any] = []
             for p in list(popups_opened) + get_adv_pages():
-                if p not in candidate_tabs and not p.is_closed() and p != get_gw() and (not direct_page or p != direct_page):
+                if p not in candidate_tabs and not p.is_closed() and p != get_target_page() and (not direct_page or p != direct_page):
                     candidate_tabs.append(p)
 
 
@@ -294,11 +303,11 @@ def run_monetag_session(
                 except Exception as ex:
                     log(f"Peringatan proses popup: {ex}", "dim")
 
-            # Kembalikan fokus ke tab shortlink gateway
-            gw = get_gw()
-            if gw and not gw.is_closed():
+            # Kembalikan fokus ke tab web target
+            main_p = get_target_page()
+            if main_p and not main_p.is_closed():
                 try:
-                    gw.bring_to_front()
+                    main_p.bring_to_front()
                 except Exception:
                     pass
             return count
@@ -307,9 +316,8 @@ def run_monetag_session(
         _emit(
             event_callback,
             "stepper_update",
-            worker_id=worker_id,
             stage="🎯 Interaksi Halaman",
-            status="Interaksi natural & audit impresi...",
+            status="Interaksi natural & trigger OnClick...",
         )
         log("Memulai interaksi halaman untuk memicu OnClick, In-Page Push & Vignette...", "bold yellow")
 
@@ -381,10 +389,10 @@ def run_monetag_session(
             "header",
         ]
 
-        # Lakukan 2-3 interaksi cepat untuk trigger OnClick
-        num_interactions = random.randint(2, 3)
+        # Lakukan interaksi cepat untuk trigger OnClick
+        num_interactions = random.randint(*interaction_count_range)
         for i_idx in range(num_interactions):
-            gw = get_gw()
+            gw = get_target_page()
             if gw.is_closed():
                 break
 
@@ -421,7 +429,7 @@ def run_monetag_session(
             drain_popups(f"Interaksi #{i_idx + 1}")
 
         # ── 4. Cek & Dwell Overlay Vignette Banner ──
-        gw = get_gw()
+        gw = get_target_page()
         if gw and not gw.is_closed():
             try:
                 vignette_close = gw.locator(
@@ -460,7 +468,7 @@ def run_monetag_session(
             log(f"🔗 Membuka Direct Link Monetag di tab baru & dwell {direct_dwell:.1f}s...", "cyan")
             direct_page = None
             try:
-                gw = get_gw()
+                gw = get_target_page()
                 try:
                     with context.expect_page(timeout=10000) as new_page_info:
                         gw.evaluate(
@@ -506,8 +514,7 @@ def run_monetag_session(
                         direct_page.close()
                     except Exception:
                         pass
-
-                    gw = get_gw()
+                    gw = get_target_page()
                     if gw and not gw.is_closed():
                         try:
                             gw.bring_to_front()

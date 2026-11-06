@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unified Terminal CLI Entrypoint for Bot Shortlink (Adsterra & Monetag).
+"""Unified Terminal CLI Entrypoint for Bot Ad Impression (Monetag).
 
 Menjalankan bot langsung dari terminal:
 - Mendukung mode Adsterra, Monetag, atau Hybrid.
@@ -54,7 +54,7 @@ BLUE = "\033[34m"
 
 def print_banner(node_name: str, target: str, workers: int, unlimited: bool, headless: bool, url: str) -> None:
     print(f"\n{BOLD}{CYAN}╔═══════════════════════════════════════════════════════════════════╗{RESET}", flush=True)
-    print(f"{BOLD}{CYAN}║     🚀 BOT SHORTLINK RUNNER - DISTRIBUTED CLI TERMINAL            ║{RESET}", flush=True)
+    print(f"{BOLD}{CYAN}║     🚀 BOT AD IMPRESSION RUNNER - DISTRIBUTED CLI TERMINAL         ║{RESET}", flush=True)
     print(f"{BOLD}{CYAN}╚═══════════════════════════════════════════════════════════════════╝{RESET}", flush=True)
     print(f"  {BOLD}Node ID / Name :{RESET} {GREEN}{node_name}{RESET}", flush=True)
     print(f"  {BOLD}Target Network :{RESET} {MAGENTA if 'monetag' in target else YELLOW}{target.upper()}{RESET}", flush=True)
@@ -196,7 +196,7 @@ class BotRunnerCLI:
 
         elif etype == "session_started":
             w["stepper"] = "🌐 Buka Web"
-            w["activity"] = "Membuka halaman target web shortlink..."
+            w["activity"] = "Membuka halaman web target..."
             logs.append(f"[{ts}] 🌐 Membuka target: {self.args.url}")
             w["logs"] = logs[-15:]
             print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🌐 Membuka halaman target: {self.args.url}", flush=True)
@@ -245,9 +245,9 @@ class BotRunnerCLI:
             print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🎯 Interaksi iklan: {ad_type}", flush=True)
 
         elif etype == "flow_completed":
-            w["stepper"] = "🏁 Flow Lolos"
-            w["activity"] = "Seluruh tahapan shortlink berhasil diselesaikan!"
-            logs.append(f"[{ts}] 🏁 Seluruh alur shortlink selesai dengan sukses")
+            w["stepper"] = "🏁 Impresi Selesai"
+            w["activity"] = "Seluruh tahapan impresi iklan berhasil diselesaikan!"
+            logs.append(f"[{ts}] 🏁 Seluruh alur impresi iklan selesai dengan sukses")
             w["logs"] = logs[-15:]
 
         elif etype == "session_completed":
@@ -403,7 +403,7 @@ class BotRunnerCLI:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bot Shortlink Runner CLI (Monetag) dengan Telemetry Supabase Realtime.",
+        description="Bot Ad Impression Runner CLI (Monetag) dengan Telemetry Supabase Realtime.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
@@ -446,7 +446,7 @@ def parse_args() -> argparse.Namespace:
         "--url",
         type=str,
         default="https://article.riztama.my.id",
-        help="URL web shortlink tujuan",
+        help="URL web target tujuan",
     )
     parser.add_argument(
         "--name",

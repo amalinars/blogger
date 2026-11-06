@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unified modern native desktop GUI for Bot Shortlink (Monetag Automation).
+"""Unified modern native desktop GUI for Bot Ad Impression (Monetag Automation).
 
 Built with PySide6 (Qt). Fokus eksekusi multi-worker Monetag MultiTag & Direct Link.
 """
@@ -441,7 +441,7 @@ class ProxyTesterThread(QThread):
 class Dashboard(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Bot Shortlink — Controller Dasbor Monetag")
+        self.setWindowTitle("Bot Traffic & Ad Impression Controller (Monetag)")
         self.resize(1260, 830)
         self.workers_state: Dict[int, Dict[str, Any]] = {}
         self.concurrency = 5
@@ -493,7 +493,7 @@ class Dashboard(QMainWindow):
         # Header row
         header = QHBoxLayout()
         title_block = QVBoxLayout()
-        t = QLabel("Bot Shortlink & Ad Controller (Monetag Automation)")
+        t = QLabel("Bot Ad Impression & Traffic Controller (Monetag)")
         t.setObjectName("title")
         self.target_label = QLabel("Monetag Target: https://article.riztama.my.id/")
         self.target_label.setObjectName("subtitle")
@@ -561,10 +561,10 @@ class Dashboard(QMainWindow):
         m_grid.addWidget(QLabel("Alur Kerja Bot:"), 0, 4)
         self.flow_mode_combo = QComboBox()
         self.flow_mode_combo.addItems([
-            "🔗 Shortlink 3-Langkah (~70s)",
-            "⚡ Fast Ads Dwell (~15s)",
+            "⚡ Fast Impression Mode (~15s)",
+            "🌐 Deep Browse & Dwell (~30s)",
         ])
-        self.flow_mode_combo.setToolTip("Pilih alur kerja penjelajahan halaman artikel & verifikasi gateway shortlink.")
+        self.flow_mode_combo.setToolTip("Pilih alur penjelajahan web & durasi dwell impresi Monetag.")
         self.flow_mode_combo.currentIndexChanged.connect(self._update_worker_summary)
         m_grid.addWidget(self.flow_mode_combo, 0, 5)
 
@@ -642,16 +642,16 @@ class Dashboard(QMainWindow):
         # Tabs Container
         self.tabs = QTabWidget()
 
-        # ── TAB 1: DASHBOARD & STEPPER FLOW ──
+        # ── TAB 1: DASHBOARD & IMPRESI FLOW ──
         tab_dashboard = QWidget()
         dash_layout = QVBoxLayout(tab_dashboard)
         dash_layout.setContentsMargins(6, 8, 6, 6)
         dash_layout.setSpacing(10)
 
         # Worker table card
-        table_card, table_layout = self._card("DAFTAR BROWSER & PEMANTAU STEPPER FLOW REALTIME")
+        table_card, table_layout = self._card("DAFTAR BROWSER & PEMANTAU IMPRESI REALTIME")
 
-        # Stepper Pipeline Guide Banner
+        # Impression Pipeline Guide Banner
         pipeline_frame = QFrame()
         pipeline_frame.setStyleSheet("background-color: #1b1f26; border-radius: 6px; padding: 4px 8px;")
         self.pipeline_box = QHBoxLayout(pipeline_frame)
@@ -695,7 +695,7 @@ class Dashboard(QMainWindow):
         row.addStretch(1)
         sum_layout.addLayout(row)
         dash_layout.addWidget(sum_card)
-        self.tabs.addTab(tab_dashboard, "⚡ Dashboard & Stepper Flow")
+        self.tabs.addTab(tab_dashboard, "⚡ Dashboard & Impresi Flow")
 
         # ── TAB 2: POOL & STATUS PEMAKAIAN PROXY ──
         tab_proxy = QWidget()
@@ -1084,14 +1084,15 @@ class Dashboard(QMainWindow):
         steps_info = [
             ("💎 Monetag Flow:", "#c77dff"),
             ("1. 🛡️ Audit IP", "#38d6d6"), ("➔", "#6b7280"),
-            ("2. 🌐 MultiTag Web", "#38d6d6"), ("➔", "#6b7280"),
-            ("3. 📜 Natural Wander", "#5aa9ff"), ("➔", "#6b7280"),
-            ("4. 📑 Dwell Popunder", "#c77dff"), ("➔", "#6b7280"),
-            ("5. 🔗 Dwell Direct Link", "#ffcc33"), ("➔", "#6b7280"),
-            ("6. ✅ Selesai", "#3ddc84"),
+            ("2. 🌐 Buka Web", "#38d6d6"), ("➔", "#6b7280"),
+            ("3. 💬 In-Page Push", "#ffcc33"), ("➔", "#6b7280"),
+            ("4. 👆 Interaksi Halaman", "#5aa9ff"), ("➔", "#6b7280"),
+            ("5. 📑 Dwell Popunder", "#c77dff"), ("➔", "#6b7280"),
+            ("6. 🔗 Direct Link", "#50fa7b"), ("➔", "#6b7280"),
+            ("✅ Selesai", "#3ddc84"),
         ]
         if hasattr(self, "hint_label"):
-            self.hint_label.setText("💎 Target Monetag Aktif: Seluruh browser menjalankan flow Monetag.")
+            self.hint_label.setText("💎 Target Monetag Aktif: Browser menjalankan navigasi web langsung, pemicu OnClick, In-Page Push & Direct Link.")
         for text, color in steps_info:
             lbl = QLabel(text)
             lbl.setStyleSheet(f"color: {color}; font-size: 11px; font-weight: {'700' if text not in ('➔', '  |  ') else '400'};")
@@ -1115,7 +1116,7 @@ class Dashboard(QMainWindow):
         cfg["direct_link_chance"] = float(self.direct_chance_spin.value()) / 100.0
 
         flow_idx = self.flow_mode_combo.currentIndex()
-        cfg["traffic_mode"] = "direct_article" if flow_idx == 1 else "shortlink"
+        cfg["traffic_mode"] = "deep_browse" if flow_idx == 1 else "fast_impression"
 
         cfg["max_uses_per_day"] = int(self.max_uses_spin.value())
         cfg["proxy_cooldown_hours"] = float(self.cooldown_spin.value())
