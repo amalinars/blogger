@@ -11,7 +11,7 @@ import uuid
 import threading
 import concurrent.futures
 from urllib.parse import urlparse
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Tuple
 import requests
 
 # Path default ke data/proxies.json di root project
@@ -94,10 +94,101 @@ class ProxyManager:
         self.timeout = timeout
         self._lock = threading.RLock()
         self._ensure_file()
+
+        # Supabase Distributed Coordination (Zero Race Condition across VPS / Colab)
+        self.supabase_enabled = False
+        self.supabase_rpc_available = False
+        sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "supabase_config.json")
+        if not os.path.exists(sb_cfg_file):
+            sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "telemetry_config.json")
+        if os.path.exists(sb_cfg_file):
+            try:
+                with open(sb_cfg_file, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                self.supabase_url = cfg.get("supabase_url", "").rstrip("/")
+                self.supabase_key = cfg.get("supabase_key", "")
+                self.supabase_schema = cfg.get("schema", "proxxies")
+                self.supabase_table = cfg.get("table", "proxy_list")
+                if self.supabase_url and self.supabase_key:
+                    self.supabase_enabled = True
+            except Exception:
+                pass
+
         if reset_stale_usage:
             self.reset_usage_to_idle()
         if reset_cursor:
             self.reset_cursor(0)
+
+    def _supabase_rpc(self, fn_name: str, payload: Dict[str, Any], timeout: float = 8.0) -> Tuple[Any, int]:
+        """Memanggil PostgreSQL Stored Procedure (RPC) di Supabase dengan aman."""
+        if not self.supabase_enabled:
+            return None, 0
+        endpoint = f"{self.supabase_url}/rest/v1/rpc/{fn_name}"
+        headers = {
+            "apikey": self.supabase_key,
+            "Authorization": f"Bearer {self.supabase_key}",
+            "Accept-Profile": self.supabase_schema,
+            "Content-Profile": self.supabase_schema,
+            "Content-Type": "application/json",
+        }
+        try:
+            resp = requests.post(endpoint, headers=headers, json=payload, timeout=timeout)
+            if resp.status_code in (200, 201):
+                return resp.json(), resp.status_code
+            return None, resp.status_code
+        except Exception:
+            return None, 0
+
+    def _acquire_proxy_supabase(
+        self,
+        caller_id: str,
+        target: Optional[str] = None,
+        max_uses_per_day: int = 2,
+        cooldown_seconds: float = 6 * 3600,
+        lease_seconds: int = 600,
+        window_seconds: float = 24 * 3600,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Mengambil 1 proxy dari Supabase dengan PostgreSQL atomic lock (FOR UPDATE SKIP LOCKED).
+        Menjamin 100% bebas race condition meskipun dijalankan di puluhan VPS / Colab sekaligus.
+        """
+        payload = {
+            "p_caller_id": caller_id,
+            "p_target": target or "monetag",
+            "p_max_uses_per_day": int(max_uses_per_day),
+            "p_cooldown_seconds": int(cooldown_seconds),
+            "p_lease_seconds": int(lease_seconds),
+            "p_window_seconds": int(window_seconds),
+        }
+        res, status = self._supabase_rpc("acquire_proxy", payload)
+        if status in (200, 201):
+            self.supabase_rpc_available = True
+            if isinstance(res, list) and len(res) > 0:
+                row = res[0]
+                host = row.get("host")
+                port = int(row.get("port"))
+                user = row.get("username", "")
+                pwd = row.get("password", "")
+                proxy_url = f"http://{user}:{pwd}@{host}:{port}" if user and pwd else f"http://{host}:{port}"
+                return {
+                    "id": row.get("id"),
+                    "supabase_id": row.get("id"),
+                    "host": host,
+                    "port": port,
+                    "username": user,
+                    "password": pwd,
+                    "proxy_url": proxy_url,
+                    "country": row.get("country", "US"),
+                    "connection_type": row.get("connection_type", "residential"),
+                    "health": row.get("health", "ALIVE"),
+                    "usage": "IN_USE",
+                    "leased_by": caller_id,
+                    "lease_token": caller_id,
+                    "target_usage": row.get("target_usage") or {},
+                    "source": "supabase_rpc",
+                }
+            return None  # RPC sukses tapi tidak ada kandidat proxy tersedia saat ini
+        return None
 
     def _ensure_file(self):
         """Memastikan direktori dan proxies.json ada, melakukan migrasi jika masih berupa format array lama."""
@@ -587,6 +678,19 @@ class ProxyManager:
             cursor = data.get("cursor", 0) % total
             lease_token = caller_id or f"lease_{uuid.uuid4().hex[:8]}"
 
+            # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition Antar Node)
+            if self.supabase_enabled:
+                sb_proxy = self._acquire_proxy_supabase(
+                    caller_id=lease_token,
+                    target=target,
+                    max_uses_per_day=max_uses_per_day,
+                    cooldown_seconds=cooldown_seconds,
+                    window_seconds=window_seconds,
+                )
+                if sb_proxy is not None:
+                    return sb_proxy
+                if self.supabase_rpc_available:
+                    return None
             # Dua putaran bertingkat (Two-Tier Priority Queue):
             # Putaran 1 (require_fresh=True): Wajib cari proxy yang count == 0 (Fresh / belum pernah dipakai)
             # Putaran 2 (require_fresh=False): Jika stok fresh 0/2 habis total, baru ambil yang sekunder (1/2, lolos cooldown)
@@ -781,9 +885,18 @@ class ProxyManager:
         - Jika proxy DEAD, tetap DEAD (tidak otomatis jadi ALIVE).
         - Pemanggilan release aman dan tidak membatalkan alokasi milik caller lain.
         """
+        # Supabase Distributed Release
+        if self.supabase_enabled:
+            sb_id = None
+            if isinstance(identifier, dict):
+                sb_id = identifier.get("supabase_id") or identifier.get("id")
+            elif isinstance(identifier, int):
+                sb_id = identifier
+            if sb_id and isinstance(sb_id, int):
+                self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": caller_id})
+
         if isinstance(identifier, dict):
             identifier = identifier.get("id") or identifier.get("proxy_url") or ""
-
         with self._lock:
             data = self._load_raw()
             proxies = data.get("proxies", [])
@@ -820,6 +933,19 @@ class ProxyManager:
         Menambah count, memperbarui last_used, dan menyimpan riwayat epoch.
         Otomatis me-reset count jika pemakaian terakhir sudah melebihi window 24 jam.
         """
+        # Supabase Distributed Target Hit Record
+        if self.supabase_enabled:
+            sb_id = None
+            if isinstance(identifier, dict):
+                sb_id = identifier.get("supabase_id") or identifier.get("id")
+            elif isinstance(identifier, int):
+                sb_id = identifier
+            if sb_id and isinstance(sb_id, int):
+                self._supabase_rpc("record_target_hit", {
+                    "p_proxy_id": sb_id,
+                    "p_target": target,
+                    "p_window_seconds": int(window_seconds),
+                })
         with self._lock:
             data = self._load_raw()
             proxies = data.get("proxies", [])
@@ -1023,9 +1149,22 @@ class ProxyManager:
         3. Error fatal level driver/proxy test (test_proxy_network gagal):
            -> Langsung ditandai DEAD.
         """
+        # Supabase Distributed Failure / Cooldown Report
+        if self.supabase_enabled:
+            sb_id = None
+            if isinstance(identifier, dict):
+                sb_id = identifier.get("supabase_id") or identifier.get("id")
+            elif isinstance(identifier, int):
+                sb_id = identifier
+            if sb_id and isinstance(sb_id, int):
+                self._supabase_rpc("report_failure", {
+                    "p_proxy_id": sb_id,
+                    "p_error": str(error_message or "Error")[:200],
+                    "p_is_fatal": is_proxy_error,
+                })
+
         if isinstance(identifier, dict):
             identifier = identifier.get("id") or identifier.get("proxy_url") or identifier.get("leased_by") or ""
-
         proxy_id = None
         proxy_url = None
         fail_count = 0
