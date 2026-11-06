@@ -39,7 +39,6 @@ from core.telemetry_reporter import get_telemetry_reporter
 from automation.engine import load_config
 from automation.session import SessionBudget
 from automation.monetag.flow import monetag_worker_thread_loop, run_monetag_session
-from automation.exoclick.flow import exoclick_worker_thread_loop
 
 # ANSI Color codes untuk terminal modern
 RESET = "\033[0m"
@@ -116,9 +115,7 @@ class BotRunnerCLI:
 
         self.workers_state: Dict[int, Dict[str, Any]] = {}
         for wid in range(1, self.args.workers + 1):
-            t_net = "💎 Monetag" if self.args.target == "monetag" else "🎯 ExoClick"
-            if self.args.target == "both":
-                t_net = "💎 Monetag" if wid % 2 == 1 else "🎯 ExoClick"
+            t_net = "💎 Monetag"
             self.workers_state[wid] = {
                 "worker_id": wid,
                 "target_net": t_net,
@@ -302,10 +299,7 @@ class BotRunnerCLI:
                 health = p.get("health", "ALIVE")
                 tu = p.get("target_usage") or {}
                 mn_hit = (tu.get("monetag") or {}).get("count", 0)
-                exo_hit = (tu.get("exoclick") or {}).get("count", 0)
-                l_mn = (tu.get("monetag") or {}).get("last_used", 0) or 0
-                l_exo = (tu.get("exoclick") or {}).get("last_used", 0) or 0
-                last_used = max(l_mn, l_exo)
+                last_used = (tu.get("monetag") or {}).get("last_used", 0) or 0
 
                 p_list.append({
                     "ip": ip,
@@ -316,7 +310,6 @@ class BotRunnerCLI:
                     "is_active": is_active,
                     "used_by": active_ips.get(ip, None),
                     "monetag_hit": mn_hit,
-                    "exoclick_hit": exo_hit,
                     "last_used": last_used,
                     "latency_ms": p.get("latency_ms", 0),
                 })
@@ -364,23 +357,14 @@ class BotRunnerCLI:
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
-                t = self.args.target if self.args.target in ("monetag", "exoclick") else None
-                reset_hits = self.proxy_manager.reset_target_usage(t)
+                reset_hits = self.proxy_manager.reset_target_usage("monetag")
                 self.budget.reset_proxy_counts()
                 print(f"\n{YELLOW}♻️ [Mode Tanpa Batas] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
 
         # Spawn workers
         for wid in range(1, self.args.workers + 1):
-            if self.args.target == "monetag":
-                w_fn = monetag_worker_thread_loop
-                w_tag = "Monetag"
-            elif self.args.target == "exoclick":
-                w_fn = exoclick_worker_thread_loop
-                w_tag = "ExoClick"
-            else:
-                is_m = (wid % 2 == 1)
-                w_fn = monetag_worker_thread_loop if is_m else exoclick_worker_thread_loop
-                w_tag = "Monetag" if is_m else "ExoClick"
+            w_fn = monetag_worker_thread_loop
+            w_tag = "Monetag"
 
             t = threading.Thread(
                 target=w_fn,
@@ -419,14 +403,14 @@ class BotRunnerCLI:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bot Shortlink Runner CLI (Monetag & ExoClick) dengan Telemetry Supabase Realtime.",
+        description="Bot Shortlink Runner CLI (Monetag) dengan Telemetry Supabase Realtime.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
         "--target",
-        choices=["monetag", "exoclick", "both"],
-        default="exoclick",
-        help="Jaringan iklan target: monetag, exoclick, atau both",
+        choices=["monetag"],
+        default="monetag",
+        help="Jaringan iklan target: monetag",
     )
     parser.add_argument(
         "-w", "--workers",
