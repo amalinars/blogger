@@ -1065,28 +1065,34 @@ class ProxyManager:
         max_uses_per_day: int = 2,
         cooldown_seconds: float = 6 * 3600,
     ) -> Dict[str, Any]:
-        """Format ringkasan pemakaian IP per target (misal: 'Hit 1/2 (Baru)' atau 'Hit 2/2 (Sesi 2)')."""
-        p_id = proxy_or_id.get("id") if isinstance(proxy_or_id, dict) else str(proxy_or_id)
-        info = self.get_target_usage(
-            p_id,
-            target=target,
-            max_uses_per_day=max_uses_per_day,
-            cooldown_seconds=cooldown_seconds,
-        )
-        count = int(info.get("count", 0) or 0)
+        """Format ringkasan pemakaian IP per target (misal: 'Hit 1/2 (Baru)' atau 'Hit 2/2 (Sesi 2 - Lolos Cooldown 6 Jam)')."""
+        if isinstance(proxy_or_id, dict) and "target_usage" in proxy_or_id and isinstance(proxy_or_id["target_usage"], dict):
+            t_data = proxy_or_id["target_usage"].get(target) or {}
+            count = int(t_data.get("count", 0) or 0)
+        else:
+            p_id = proxy_or_id.get("id") if isinstance(proxy_or_id, dict) else str(proxy_or_id)
+            info = self.get_target_usage(
+                p_id,
+                target=target,
+                max_uses_per_day=max_uses_per_day,
+                cooldown_seconds=cooldown_seconds,
+            )
+            count = int(info.get("count", 0) or 0)
+
         curr = min(count + 1, max_uses_per_day)
         if count == 0:
             summary = f"Hit {curr}/{max_uses_per_day} (Baru)"
         elif count == 1:
-            summary = f"Hit {curr}/{max_uses_per_day} (Sesi 2)"
+            summary = f"Hit {curr}/{max_uses_per_day} (Sesi 2 - Lolos Cooldown 6 Jam)"
         else:
-            summary = f"Hit {count}/{max_uses_per_day} (Habis)"
+            summary = f"Hit {count}/{max_uses_per_day} (Habis Hari Ini)"
+
         return {
             "current_hit": curr,
             "count": count,
             "max_uses": max_uses_per_day,
             "summary_text": summary,
-            "can_use": info.get("can_use", True),
+            "can_use": count < max_uses_per_day,
         }
 
     def record_target_hit(
@@ -1096,8 +1102,7 @@ class ProxyManager:
         window_seconds: float = 24 * 3600,
     ) -> bool:
         """Alias praktis untuk record_target_usage yang menerima dict proxy atau ID string."""
-        p_id = proxy_or_id.get("id") if isinstance(proxy_or_id, dict) else str(proxy_or_id)
-        return self.record_target_usage(identifier=p_id, target=target, window_seconds=window_seconds)
+        return self.record_target_usage(identifier=proxy_or_id, target=target, window_seconds=window_seconds)
 
     def get_proxy_info(self, proxy: Dict[str, Any]) -> Dict[str, Any]:
         """Mengekstrak informasi dasar IP, negara, dan id dari dictionary proxy."""

@@ -366,12 +366,14 @@ class BotRunnerCLI:
         pool_lock = threading.Lock()
 
         def _reset_pool() -> None:
+            if getattr(self.proxy_manager, "supabase_enabled", False):
+                return
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
                 reset_hits = self.proxy_manager.reset_target_usage("monetag")
                 self.budget.reset_proxy_counts()
-                print(f"\n{YELLOW}♻️ [Mode Tanpa Batas] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
+                print(f"\n{YELLOW}♻️ [Mode Tanpa Batas Lokal] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
 
         # Spawn workers
         for wid in range(1, self.args.workers + 1):

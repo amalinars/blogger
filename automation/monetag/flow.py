@@ -608,14 +608,15 @@ def monetag_worker_thread_loop(
 
         if not proxy:
             stats = proxy_manager.get_stats()
-            if getattr(budget, "unlimited", False) and reset_pool_callback:
+            # Hanya jalankan reset pool lokal jika TIDAK menggunakan database Supabase
+            if getattr(budget, "unlimited", False) and reset_pool_callback and not getattr(proxy_manager, "supabase_enabled", False):
                 reset_pool_callback()
                 _log("Pool IP habis — direset untuk rotasi ulang.", "cyan")
                 time.sleep(1.0)
                 continue
 
-            _log("Menunggu IP yang tersedia / selesai cooldown...", "dim")
-            time.sleep(3.0)
+            _log("Menunggu IP yang tersedia / selesai masa cooldown 6 jam...", "dim")
+            time.sleep(5.0)
             continue
 
         proxy_id = proxy.get("id") or proxy.get("proxy_url")
