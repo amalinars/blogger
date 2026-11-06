@@ -60,10 +60,10 @@ def run_monetag_session(
     direct_link_url = config.get("direct_link_url", "https://uplcm.com/4/12124796")
     headless = bool(config.get("headless", True))
     humanize_enabled = bool(config.get("humanize", True))
-    enable_verifier = bool(config.get("run_browser_verifier", True))
+    enable_verifier = bool(config.get("run_browser_verifier", False))
 
-    popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 10.0, "max": 18.0}
-    direct_link_dwell_cfg = config.get("dwell_direct_link_seconds", {}) or {"min": 12.0, "max": 24.0}
+    popunder_dwell_cfg = config.get("dwell_popup_seconds", {}) or {"min": 5.0, "max": 8.5}
+    direct_link_dwell_cfg = config.get("dwell_direct_link_seconds", {}) or {"min": 6.0, "max": 10.0}
     direct_link_chance = float(config.get("direct_link_chance", 0.50))
 
     session_start = time.time()
@@ -190,8 +190,8 @@ def run_monetag_session(
             except Exception as e:
                 log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
 
-            # Jeda natural membaca halaman awal (2.0 - 3.5 dtk)
-            time.sleep(random.uniform(2.0, 3.5))
+            # Jeda natural membaca halaman awal (1.0 - 1.8 dtk)
+            time.sleep(random.uniform(1.0, 1.8))
             log("🟢 Halaman awal berhasil termuat. Giliran koneksi diserahkan ke worker berikutnya!", "bold green")
 
         # ── 2. Perilaku Membaca Natural (Scroll & Mouse Wander) ──
@@ -202,10 +202,10 @@ def run_monetag_session(
             stage="📜 Natural Wander",
             status="Scroll santai & inisialisasi tag...",
         )
-        log("Membaca konten & scrolling santai untuk memicu tag Monetag...", "cyan")
+        log("Membaca konten & scrolling cepat untuk memicu tag Monetag...", "cyan")
         vp = page.viewport_size or {"width": 1366, "height": 768}
-        human_wander(page, duration_seconds=random.uniform(3.0, 5.0))
-        human_scroll(page, scroll_amount=random.randint(240, 480))
+        human_wander(page, duration_seconds=random.uniform(1.2, 2.2))
+        human_scroll(page, scroll_amount=random.randint(280, 520))
 
         def get_gw() -> Any:
             """Mencari tab yang memuat target gateway / shortlink."""
@@ -227,7 +227,7 @@ def run_monetag_session(
         def drain_popups(tag_name: str = "Popunder") -> int:
             nonlocal popunders_processed
             count = 0
-            time.sleep(1.0)
+            time.sleep(0.4)
 
             # Gabungkan tab dari on_popup dan tab dari context.pages yang bukan gateway
             candidate_tabs: List[Any] = []
@@ -243,20 +243,20 @@ def run_monetag_session(
                 try:
                     popup.bring_to_front()
                     # Tunggu jika URL masih about:blank sebelum navigasi selesai
-                    for _ in range(8):
+                    for _ in range(6):
                         if popup.is_closed() or (popup.url and popup.url != "about:blank"):
                             break
-                        time.sleep(0.5)
+                        time.sleep(0.3)
 
                     try:
-                        popup.wait_for_load_state("domcontentloaded", timeout=9000)
+                        popup.wait_for_load_state("domcontentloaded", timeout=6000)
                     except Exception:
                         pass
-                    time.sleep(1.2)
+                    time.sleep(0.6)
                     popup_url = str(popup.url or "")
                     dwell_time = random.uniform(
-                        float(popunder_dwell_cfg.get("min", 10.0)),
-                        float(popunder_dwell_cfg.get("max", 18.0)),
+                        float(popunder_dwell_cfg.get("min", 5.0)),
+                        float(popunder_dwell_cfg.get("max", 8.5)),
                     )
                     _emit(
                         event_callback,
@@ -271,9 +271,9 @@ def run_monetag_session(
                     has_interacted = False
                     while time.time() < end_dwell and not popup.is_closed():
                         if humanize_enabled:
-                            human_wander(popup, duration_seconds=random.uniform(1.0, 1.8))
-                            human_scroll(popup, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
-                            if not has_interacted and random.random() < 0.40:
+                            human_wander(popup, duration_seconds=random.uniform(0.8, 1.4))
+                            human_scroll(popup, scroll_amount=random.randint(200, 450), pause_range=(0.15, 0.3))
+                            if not has_interacted and random.random() < 0.50:
                                 try:
                                     vp_adv = popup.viewport_size or {"width": 1280, "height": 800}
                                     neut_x = random.randint(120, vp_adv["width"] - 120)
@@ -282,7 +282,7 @@ def run_monetag_session(
                                     has_interacted = True
                                 except Exception:
                                     pass
-                        time.sleep(1.2)
+                        time.sleep(0.8)
 
                     log(f"✅ Selesai dwell iklan {tag_name} ({_host(popup_url)}). Menutup tab...", "green")
                     try:
@@ -332,16 +332,16 @@ def run_monetag_session(
                     except Exception:
                         pass
                     dwell_time = random.uniform(
-                        float(popunder_dwell_cfg.get("min", 10.0)),
-                        float(popunder_dwell_cfg.get("max", 18.0)),
+                        float(popunder_dwell_cfg.get("min", 5.0)),
+                        float(popunder_dwell_cfg.get("max", 8.5)),
                     )
-                    log(f"⏳ Dwell di halaman redirect advertiser selama {dwell_time:.1f}s...", "magenta")
+                    log(f"⏳ Dwell cepat di halaman redirect advertiser selama {dwell_time:.1f}s...", "magenta")
                     end_time = time.time() + dwell_time
                     while time.time() < end_time and not page.is_closed():
                         if humanize_enabled:
-                            human_wander(page, duration_seconds=random.uniform(1.2, 2.0))
-                            human_scroll(page, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
-                        time.sleep(1.0)
+                            human_wander(page, duration_seconds=random.uniform(0.8, 1.4))
+                            human_scroll(page, scroll_amount=random.randint(200, 420), pause_range=(0.15, 0.3))
+                        time.sleep(0.8)
 
                     popunders_processed += 1
                     log(f"✅ Selesai dwell impresi advertiser ({_host(curr_url)}).", "green")
@@ -381,8 +381,8 @@ def run_monetag_session(
             "header",
         ]
 
-        # Lakukan 2-4 interaksi natural terdistribusi
-        num_interactions = random.randint(2, 4)
+        # Lakukan 2-3 interaksi cepat untuk trigger OnClick
+        num_interactions = random.randint(2, 3)
         for i_idx in range(num_interactions):
             gw = get_gw()
             if gw.is_closed():
@@ -397,14 +397,14 @@ def run_monetag_session(
             chosen_sel = random.choice(interaction_selectors)
             try:
                 elem = gw.locator(chosen_sel).first
-                if elem.is_visible(timeout=2000):
+                if elem.is_visible(timeout=1200):
                     elem.scroll_into_view_if_needed()
-                    time.sleep(random.uniform(0.5, 1.2))
+                    time.sleep(random.uniform(0.2, 0.5))
                     if humanize_enabled:
-                        human_wander(gw, duration_seconds=random.uniform(1.0, 2.0))
+                        human_wander(gw, duration_seconds=random.uniform(0.6, 1.2))
                     log(f"👆 [Interaksi #{i_idx + 1}] Klik elemen natural: {chosen_sel}", "cyan")
                     human_click(gw, elem)
-                    time.sleep(random.uniform(1.5, 2.5))
+                    time.sleep(random.uniform(0.8, 1.5))
                 else:
                     # Klik area netral
                     vp_curr = gw.viewport_size or {"width": 1366, "height": 768}
@@ -412,7 +412,7 @@ def run_monetag_session(
                     click_y = random.randint(150, vp_curr["height"] - 200)
                     log(f"👆 [Interaksi #{i_idx + 1}] Klik area netral viewport ({click_x}, {click_y})", "cyan")
                     gw.mouse.click(click_x, click_y)
-                    time.sleep(random.uniform(1.5, 2.5))
+                    time.sleep(random.uniform(0.8, 1.5))
             except Exception as e_click:
                 log(f"Catatan klik #{i_idx + 1}: {e_click}", "dim")
 
@@ -436,11 +436,10 @@ def run_monetag_session(
                         status="Dwell vignette overlay...",
                     )
                     log("🖼️ Vignette overlay terdeteksi. Dwell untuk validasi impresi...", "yellow")
-                    time.sleep(random.uniform(3.5, 6.0))
-                    if humanize_enabled:
-                        human_wander(gw, duration_seconds=random.uniform(1.5, 2.5))
+                    # Dwell 2.0 - 3.5 detik agar Monetag merekam impresi penuh
+                    time.sleep(random.uniform(2.0, 3.5))
                     human_click(gw, vignette_close)
-                    time.sleep(1.5)
+                    time.sleep(0.8)
                     drain_popups("Post Vignette")
             except Exception:
                 pass
@@ -448,8 +447,8 @@ def run_monetag_session(
         # ── 6. Direct Link Monetag (Cuan Tertinggi) ──
         if random.random() < direct_link_chance and direct_link_url:
             direct_dwell = random.uniform(
-                float(direct_link_dwell_cfg.get("min", 12.0)),
-                float(direct_link_dwell_cfg.get("max", 24.0)),
+                float(direct_link_dwell_cfg.get("min", 6.0)),
+                float(direct_link_dwell_cfg.get("max", 10.0)),
             )
             _emit(
                 event_callback,
@@ -660,5 +659,5 @@ def monetag_worker_thread_loop(
         finally:
             proxy_manager.release_proxy(proxy)
 
-        # Jeda antar-sesi worker
-        time.sleep(random.uniform(2.5, 5.0))
+        # Jeda antar-sesi worker (dipercepat agar rotasi impresi tinggi)
+        time.sleep(random.uniform(0.8, 1.8))
