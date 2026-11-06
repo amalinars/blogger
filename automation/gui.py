@@ -347,7 +347,8 @@ class RunController(QObject):
 
     def stop(self) -> None:
         self.stop_event.set()
-
+        if self.proxy_manager:
+            self.proxy_manager.reset_usage_to_idle()
 
 class HarvesterThread(QThread):
     """Worker background thread untuk GoLogin Proxy Grabber di dalam GUI."""
@@ -466,6 +467,8 @@ class Dashboard(QMainWindow):
     def closeEvent(self, event) -> None:
         if self.controller and self.controller.running:
             self.controller.stop()
+        if self._shared_pm:
+            self._shared_pm.reset_usage_to_idle()
         if self.harvester_thread and self.harvester_thread.isRunning():
             self.harvester_thread.stop()
             self.harvester_thread.wait(2000)

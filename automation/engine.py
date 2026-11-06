@@ -208,6 +208,7 @@ def build_camoufox_kwargs(
         "block_webrtc": True,
         "firefox_user_prefs": user_prefs,
         "os": random.choice(["windows", "macos"]),
+        "i_know_what_im_doing": True,
     }
 
     if proxy_dict:

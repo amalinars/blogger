@@ -88,6 +88,7 @@ class ProxyManager:
         timeout: int = CHECK_TIMEOUT,
         reset_stale_usage: bool = False,
         reset_cursor: bool = False,
+        enable_supabase: Optional[bool] = None,
     ):
         self.filepath = os.path.abspath(filepath)
         self.check_url = check_url
@@ -96,23 +97,26 @@ class ProxyManager:
         self._ensure_file()
 
         # Supabase Distributed Coordination (Zero Race Condition across VPS / Colab)
+        is_default_file = (self.filepath == os.path.abspath(DEFAULT_PROXY_FILE))
+        should_use_supabase = enable_supabase if enable_supabase is not None else is_default_file
         self.supabase_enabled = False
         self.supabase_rpc_available = False
-        sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "supabase_config.json")
-        if not os.path.exists(sb_cfg_file):
-            sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "telemetry_config.json")
-        if os.path.exists(sb_cfg_file):
-            try:
-                with open(sb_cfg_file, "r", encoding="utf-8") as f:
-                    cfg = json.load(f)
-                self.supabase_url = cfg.get("supabase_url", "").rstrip("/")
-                self.supabase_key = cfg.get("supabase_key", "")
-                self.supabase_schema = cfg.get("schema", "proxxies")
-                self.supabase_table = cfg.get("table", "proxy_list")
-                if self.supabase_url and self.supabase_key:
-                    self.supabase_enabled = True
-            except Exception:
-                pass
+        if should_use_supabase:
+            sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "supabase_config.json")
+            if not os.path.exists(sb_cfg_file):
+                sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "telemetry_config.json")
+            if os.path.exists(sb_cfg_file):
+                try:
+                    with open(sb_cfg_file, "r", encoding="utf-8") as f:
+                        cfg = json.load(f)
+                    self.supabase_url = cfg.get("supabase_url", "").rstrip("/")
+                    self.supabase_key = cfg.get("supabase_key", "")
+                    self.supabase_schema = cfg.get("schema", "proxxies")
+                    self.supabase_table = cfg.get("table", "proxy_list")
+                    if self.supabase_url and self.supabase_key:
+                        self.supabase_enabled = True
+                except Exception:
+                    pass
 
         if reset_stale_usage:
             self.reset_usage_to_idle()
@@ -847,17 +851,43 @@ class ProxyManager:
             self._save_raw(data)
             return None
 
-    def reset_usage_to_idle(self) -> int:
+    def reset_usage_to_idle(self, caller_id: Optional[str] = None) -> int:
         """
-        Membersihkan seluruh status IN_USE menjadi IDLE.
-        Menangani kasus jika ada proses sebelumnya yang mati mendadak (killed/crashed)
-        sehingga status proxy tidak terkunci di IN_USE.
+        Membersihkan seluruh status IN_USE menjadi IDLE, baik di proxies.json lokal
+        maupun di database Supabase (agar proxy tidak terkunci jika bot dihentikan/Ctrl+C).
         """
+        # 1. Bersihkan di Supabase via REST PATCH langsung
+        if self.supabase_enabled:
+            endpoint = f"{self.supabase_url}/rest/v1/{self.supabase_table}"
+            if caller_id:
+                endpoint += f"?leased_by=eq.{caller_id}"
+            else:
+                endpoint += "?usage=eq.IN_USE"
+
+            headers = {
+                "apikey": self.supabase_key,
+                "Authorization": f"Bearer {self.supabase_key}",
+                "Accept-Profile": self.supabase_schema,
+                "Content-Profile": self.supabase_schema,
+                "Content-Type": "application/json",
+            }
+            patch_data = {
+                "usage": "IDLE",
+                "leased_by": None,
+                "lease_expires_at": None,
+            }
+            try:
+                requests.patch(endpoint, headers=headers, json=patch_data, timeout=6)
+            except Exception:
+                pass
+
+        # 2. Bersihkan di file lokal
         with self._lock:
             data = self._load_raw()
             cleaned = 0
             for p in data.get("proxies", []):
-                if p.get("usage") == USAGE_IN_USE or p.get("leased_by") is not None:
+                matches_caller = (not caller_id) or (p.get("leased_by") == caller_id)
+                if matches_caller and (p.get("usage") == USAGE_IDLE or p.get("usage") == USAGE_IN_USE or p.get("leased_by") is not None):
                     p["usage"] = USAGE_IDLE
                     p["leased_by"] = None
                     p["lease_time"] = None

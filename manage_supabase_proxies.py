@@ -129,12 +129,18 @@ def list_proxies() -> None:
         print(f" {idx:2d}. {p.get('host')}:{p.get('port')}{auth} | {p.get('country', 'US')} | Status: {p.get('health', 'ALIVE')}")
     print("-" * 75)
 
+def reset_all_idle() -> None:
+    pm = ProxyManager()
+    cleaned = pm.reset_usage_to_idle()
+    print(f"✅ Seluruh status proxy di Supabase & file lokal berhasil dikembalikan ke IDLE (Total: {cleaned} lokal).")
+
 
 def main():
     parser = argparse.ArgumentParser(description="Manajemen Proxy Supabase (Schema: proxxies)")
     parser.add_argument("--test", action="store_true", help="Uji koneksi ke Supabase & schema proxxies")
     parser.add_argument("--pull", action="store_true", help="Tarik proxy dari Supabase ke data/proxies.json lokal")
     parser.add_argument("--list", action="store_true", help="Tampilkan seluruh proxy di Supabase")
+    parser.add_argument("--reset-idle", action="store_true", help="Kembalikan seluruh status proxy (IN_USE) menjadi IDLE di Supabase")
     parser.add_argument("--upload-file", type=str, help="Upload file berisi daftar proxy (1 baris per proxy: host:port:user:pass)")
     parser.add_argument("--upload", type=str, help="Upload string proxy langsung (contoh: host:port:user:pass)")
 
@@ -146,6 +152,8 @@ def main():
         pull_proxies()
     elif args.list:
         list_proxies()
+    elif args.reset_idle:
+        reset_all_idle()
     elif args.upload_file:
         if not os.path.exists(args.upload_file):
             print(f"❌ File tidak ditemukan: {args.upload_file}")

@@ -16,6 +16,7 @@ Contoh pemakaian:
 from __future__ import annotations
 
 import argparse
+import atexit
 import os
 import signal
 import sys
@@ -394,6 +395,20 @@ class BotRunnerCLI:
             if wid < self.args.workers:
                 time.sleep(1.0)
 
+        # Daftarkan handler pembersihan status proxy saat Ctrl+C / Stop / Exit
+        def _cleanup(*_):
+            self.stop_event.set()
+            print(f"\n{CYAN}🔄 Mereset status proxy yang digunakan kembali ke IDLE di Supabase & lokal...{RESET}", flush=True)
+            cleaned = self.proxy_manager.reset_usage_to_idle()
+            print(f"{GREEN}✅ Status proxy berhasil dikembalikan ke IDLE (Total: {cleaned} lokal).{RESET}\n", flush=True)
+
+        try:
+            signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
+            signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+        except Exception:
+            pass
+        atexit.register(_cleanup)
+
         # Heartbeat loop
         try:
             while not self.stop_event.is_set():
@@ -401,11 +416,10 @@ class BotRunnerCLI:
                 time.sleep(2.0)
         except KeyboardInterrupt:
             print(f"\n{YELLOW}⚠️ Menghentikan worker secara aman...{RESET}")
+        finally:
             self.stop_event.set()
-
-        # Final broadcast
-        self._broadcast_now()
-        print(f"\n{GREEN}✅ Bot selesai dijalankan secara bersih.{RESET}\n")
+            self._broadcast_now()
+            print(f"{GREEN}✅ Bot selesai dijalankan secara bersih.{RESET}\n")
 
 
 def parse_args() -> argparse.Namespace:
