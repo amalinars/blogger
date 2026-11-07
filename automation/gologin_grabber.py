@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.proxy_manager import (
-    append_proxies,
+    upload_to_supabase,
     get_stats,
     get_proxy_by_index,
     acquire_proxy,
@@ -522,7 +522,8 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
 
                 if captured_in_round:
                     all_captured_proxies.extend(captured_in_round)
-                    print(f"✅ Putaran #{round_idx} sukses! Mendapatkan {len(captured_in_round)} proxy.")
+                    uploaded_count = upload_to_supabase(captured_in_round)
+                    print(f"✅ Putaran #{round_idx} sukses! Mendapatkan {len(captured_in_round)} proxy (☁️ {uploaded_count} terupload langsung ke Supabase).")
                 else:
                     print(f"❌ Putaran #{round_idx} gagal mendapatkan proxy.")
                     page.screenshot(path=f"data/gologin_grab_error_round_{round_idx}.png")
@@ -548,18 +549,12 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
         except Exception:
             pass
 
-    # Simpan hasil akumulasi seluruh putaran ke Proxy Management
+    # Selesai seluruh putaran grab (seluruh proxy langsung tersimpan di Supabase)
     if all_captured_proxies:
-        added_count = append_proxies(all_captured_proxies)
-        stats = get_stats()
-
         print("\n==========================================================================")
         print("🎯 SELESAI SELURUH PUTARAN GRAB!")
         print(f"   - Total proxy baru didapat : {len(all_captured_proxies)}")
-        print(f"   - Proxy baru ditambahkan   : {added_count}")
-        print(f"   - Total proxy di database  : {stats['total']}")
-        print(f"   - Posisi Cursor Rotasi     : Index #{stats['cursor']}")
-        print("💾 Tersimpan persisten melalui Proxy Management (data/proxies.json)")
+        print("☁️ Tersimpan langsung ke database Supabase (proxxies.proxy_list)")
         print("==========================================================================")
 
     return all_captured_proxies
@@ -629,10 +624,11 @@ def run_gologin_harvest_job(
                     _log(f"⚠️ [W{worker_id}] Proxy index {proxy_index} tidak ditemukan di Proxy Management.", "yellow")
                     break
             else:
-                selected_proxy = acquire_proxy(caller_id=caller_id)
+                selected_proxy = acquire_proxy(caller_id=caller_id, target="gologin")
                 if selected_proxy:
                     is_acquired = True
-                    _log(f"🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')})", "green")
+                    src = "Supabase" if selected_proxy.get("source") == "supabase_rpc" else "Lokal"
+                    _log(f"🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')}) [{src}]", "green")
                 else:
                     _log(f"⚠️ [W{worker_id}] Seluruh proxy di pool sedang digunakan atau DEAD. Menunggu 3 detik...", "yellow")
                     time.sleep(3.0)
@@ -657,10 +653,10 @@ def run_gologin_harvest_job(
                 _log(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", "red")
                 if is_acquired and selected_proxy:
                     is_proxy_err = any(k.lower() in str(e).lower() for k in ["proxy", "timeout", "connection", "reset"])
-                    report_failure(selected_proxy.get("id") or selected_proxy.get("proxy_url"), error_message=str(e), is_proxy_error=is_proxy_err)
+                    report_failure(selected_proxy, error_message=str(e), is_proxy_error=is_proxy_err)
             finally:
                 if is_acquired and selected_proxy:
-                    release_proxy(selected_proxy.get("id") or selected_proxy.get("proxy_url"), caller_id=caller_id)
+                    release_proxy(selected_proxy, caller_id=caller_id)
                     _log(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.", "dim")
 
             if proxy_index is not None:
@@ -687,7 +683,7 @@ def run_gologin_harvest_job(
 
     _log("=" * 65, "cyan")
     _log(f"📊 Total proxy baru yang berhasil terkumpul: {state['total_added']} proxy.", "bold green")
-    _log("💾 Seluruh proxy yang didapat telah aman tersimpan di data/proxies.json.", "green")
+    _log("☁️ Seluruh proxy yang didapat telah langsung diupload ke database Supabase (proxxies.proxy_list).", "bold green")
     _log("=" * 65, "cyan")
     return state["total_added"]
 

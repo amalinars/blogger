@@ -677,13 +677,6 @@ class ProxyManager:
         - Tidak menyebabkan infinite loop jika tidak ada proxy tersedia.
         """
         with self._lock:
-            data = self._load_raw()
-            proxies = data.get("proxies", [])
-            total = len(proxies)
-            if total == 0:
-                return None
-
-            cursor = data.get("cursor", 0) % total
             lease_token = caller_id or f"lease_{uuid.uuid4().hex[:8]}"
 
             # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition Antar Node)
@@ -700,6 +693,14 @@ class ProxyManager:
                     return sb_proxy
                 if self.supabase_rpc_available:
                     return None
+
+            data = self._load_raw()
+            proxies = data.get("proxies", [])
+            total = len(proxies)
+            if total == 0:
+                return None
+
+            cursor = data.get("cursor", 0) % total
             # Dua putaran bertingkat (Two-Tier Priority Queue):
             # Putaran 1 (require_fresh=True): Wajib cari proxy yang count == 0 (Fresh / belum pernah dipakai)
             # Putaran 2 (require_fresh=False): Jika stok fresh 0/2 habis total, baru ambil yang sekunder (1/2, lolos cooldown)
@@ -930,6 +931,7 @@ class ProxyManager:
         - Jika proxy DEAD, tetap DEAD (tidak otomatis jadi ALIVE).
         - Pemanggilan release aman dan tidak membatalkan alokasi milik caller lain.
         """
+        supabase_ok = False
         # Supabase Distributed Release
         if self.supabase_enabled:
             sb_id = None
@@ -939,8 +941,9 @@ class ProxyManager:
                 sb_id = identifier
             if sb_id and isinstance(sb_id, int):
                 sb_caller = f"{self.node_id}:{caller_id}" if caller_id and not str(caller_id).startswith(f"{self.node_id}:") else caller_id
-                self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
-
+                _, status = self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
+                if status in (200, 201, 204):
+                    supabase_ok = True
         if isinstance(identifier, dict):
             identifier = identifier.get("id") or identifier.get("proxy_url") or ""
         with self._lock:
@@ -962,7 +965,7 @@ class ProxyManager:
                     self._save_raw(data)
                     return True
 
-            return False
+            return supabase_ok
 
     # =========================================================================
     # 3b. MODULAR TARGET USAGE TRACKER (ADSTERRA, YOUTUBE, DLL)
@@ -1421,7 +1424,7 @@ class ProxyManager:
         if not url or not key:
             return 0
 
-        endpoint = f"{url}/rest/v1/{table}"
+        endpoint = f"{url}/rest/v1/{table}?on_conflict=host,port,username"
         headers = {
             "apikey": key,
             "Authorization": f"Bearer {key}",
@@ -1431,15 +1434,27 @@ class ProxyManager:
             "Prefer": "resolution=merge-duplicates",
         }
 
+        seen = set()
         payloads = []
         for p in proxy_list:
             parsed = self._parse_proxy_input(p)
             if not parsed:
                 continue
+            host = parsed.get("host")
+            try:
+                port = int(parsed.get("port"))
+            except (ValueError, TypeError):
+                continue
+            username = parsed.get("username", "")
+            key_tuple = (host, port, username)
+            if key_tuple in seen:
+                continue
+            seen.add(key_tuple)
+
             payloads.append({
-                "host": parsed.get("host"),
-                "port": int(parsed.get("port")),
-                "username": parsed.get("username", ""),
+                "host": host,
+                "port": port,
+                "username": username,
                 "password": parsed.get("password", ""),
                 "country": parsed.get("country", "US"),
                 "connection_type": parsed.get("connection_type", "residential"),
@@ -1449,13 +1464,20 @@ class ProxyManager:
         if not payloads:
             return 0
 
-        try:
-            resp = requests.post(endpoint, headers=headers, json=payloads, timeout=15)
-            if resp.status_code in (200, 201):
-                return len(payloads)
-            return 0
-        except Exception:
-            return 0
+        batch_size = 100
+        uploaded = 0
+        for i in range(0, len(payloads), batch_size):
+            chunk = payloads[i:i + batch_size]
+            try:
+                resp = requests.post(endpoint, headers=headers, json=chunk, timeout=15)
+                if resp.status_code in (200, 201):
+                    uploaded += len(chunk)
+                else:
+                    print(f"⚠️ Gagal upload batch ke Supabase: HTTP {resp.status_code} - {resp.text[:200]}")
+            except Exception as e:
+                print(f"⚠️ Error koneksi saat upload ke Supabase: {e}")
+
+        return uploaded
 
 # =============================================================================
 # SINGLETON INSTANCE & CONVENIENCE FUNCTIONS
@@ -1578,6 +1600,10 @@ def append_proxy(proxy_data: Union[Dict[str, Any], str]) -> Optional[Dict[str, A
 def append_proxies(proxy_list: List[Union[Dict[str, Any], str]]) -> int:
     """Menambahkan/meng-append daftar proxy baru ke proxies.json."""
     return get_manager().append_proxies(proxy_list)
+
+def upload_to_supabase(proxy_list: List[Union[Dict[str, Any], str]], config_file: Optional[str] = None) -> int:
+    """Mengupload daftar proxy ke database Supabase (REST API)."""
+    return get_manager().upload_to_supabase(proxy_list, config_file=config_file)
 
 
 def get_proxy_by_index(index: int) -> Optional[Dict[str, Any]]:
