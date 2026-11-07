@@ -6,8 +6,8 @@ YouTube Organic Search & Engagement Worker using Camoufox Anti-Detect Browser.
 Spesifikasi & Alur Kerja:
 1. Search Organik: Ketik 'horrornologi' pada kolom pencarian YouTube dengan jeda ketikan manusiawi.
 2. Balanced Strategy (50/50):
-   - Strategi A (50%): Klik langsung video dari channel 'horrornologi' di hasil pencarian.
-   - Strategi B (50%): Klik kartu channel 'horrornologi', masuk ke tab 'Videos', dan klik video TERBARU (Index 0).
+   - Strategi A: Klik video dari channel target di hasil pencarian secara acak.
+   - Strategi B: Masuk ke tab 'Videos' channel target, memindai seluruh daftar, dan memilih video SECARA ACAK (bebas aturan index).
 3. Dynamic Watch Duration (~50% Durasi Asli):
    - Otomatis membaca durasi asli video dari YouTube player API.
    - Menonton sekitar 45% - 65% dari total durasi secara dinamis (tidak statis/tetap).
@@ -180,7 +180,7 @@ def execute_search_flow(
 ) -> Tuple[bool, str, str, Optional[float]]:
     """
     Eksekusi alur pencarian organik YouTube.
-    Prioritas utama: masuk ke channel target dan klik video TERBARU (Index 0).
+    Prioritas utama: masuk ke channel target dan klik video SECARA ACAK dari daftar tab Videos.
     Mengembalikan: (success: bool, flow_type: str, video_title: str, initial_badge_duration: Optional[float])
     """
     if event_callback:
@@ -239,7 +239,7 @@ def execute_search_flow(
     roll = random.random()
     choose_direct_search = roll < direct_weight
 
-    chosen_flow = "Direct Search Video" if choose_direct_search else "Channel Latest Video (Index 0)"
+    chosen_flow = "Direct Search Video" if choose_direct_search else "Channel Video (Random)"
     emit_log(f"Strategi Terpilih: {chosen_flow}", tag=tag, style="magenta", event_callback=event_callback, worker_id=worker_id)
     if event_callback:
         event_callback("strategy_selected", {"worker_id": worker_id, "flow_type": chosen_flow})
@@ -254,21 +254,22 @@ def execute_search_flow(
         if event_callback:
             event_callback("status_update", {"worker_id": worker_id, "status": "Fallback: Masuk Channel..."})
 
-    # STRATEGI 2 (DEFAULT): MASUK CHANNEL DULU -> KLIK VIDEO TERBARU (INDEX 0)
+    # STRATEGI 2 (DEFAULT): MASUK CHANNEL DULU -> KLIK VIDEO SECARA ACAK
     channel_opened = _open_channel_page(page, target_channel, tag=tag, event_callback=event_callback, worker_id=worker_id)
     if channel_opened:
-        video_found, video_title, dur_badge = _pick_latest_video_index_0(page, tag=tag, event_callback=event_callback, worker_id=worker_id)
+        video_found, video_title, dur_badge = _pick_random_channel_video(page, tag=tag, event_callback=event_callback, worker_id=worker_id)
         if video_found:
-            return True, "Channel Latest Video (Index 0)", video_title, dur_badge
+            return True, "Channel Video (Random)", video_title, dur_badge
 
     # Fallback darurat
     emit_log("Fallback darurat pencarian link video watch...", tag=tag, style="yellow", event_callback=event_callback, worker_id=worker_id)
-    any_video = page.query_selector("a#video-title-link, a#video-title, a[href*='/watch?v=']")
-    if any_video:
-        title = any_video.get_attribute("title") or any_video.inner_text().strip() or "YouTube Video"
-        safe_click(page, any_video, tag=tag)
+    any_videos = page.query_selector_all("a#video-title-link, a#video-title, a[href*='/watch?v=']")
+    if any_videos:
+        chosen_fallback = random.choice(any_videos)
+        title = chosen_fallback.get_attribute("title") or chosen_fallback.inner_text().strip() or "YouTube Video"
+        safe_click(page, chosen_fallback, tag=tag)
         time.sleep(random.uniform(2.5, 4.0))
-        return True, "Fallback Video", title, None
+        return True, "Fallback Video (Random)", title, None
 
     return False, "Failed", "", None
 
@@ -309,8 +310,8 @@ def _pick_video_from_search_results(
             continue
 
     if matching_videos:
-        chosen_elem, chosen_title = random.choice(matching_videos[:5])
-        emit_log(f"🎬 Video Direct Search: '{chosen_title}'", tag=tag, style="green", event_callback=event_callback, worker_id=worker_id)
+        chosen_elem, chosen_title = random.choice(matching_videos)
+        emit_log(f"🎬 Video Direct Search (Acak): '{chosen_title}'", tag=tag, style="green", event_callback=event_callback, worker_id=worker_id)
         if event_callback:
             event_callback("video_picked", {
                 "worker_id": worker_id,
@@ -406,81 +407,100 @@ def is_ad_active(page: Page) -> bool:
         return False
 
 
-def _pick_latest_video_index_0(
+def _pick_random_channel_video(
     page: Page,
     tag: str = "[YT]",
     event_callback=None,
     worker_id: int = 1,
 ) -> Tuple[bool, str, Optional[float]]:
     """
-    Mengambil video paling terbaru / teratas (INDEX 0) di tab Videos channel.
+    Mengambil video secara ACAK dari seluruh daftar tab Videos channel (bebas aturan/acak total).
     Mendukung komponen modern YouTube (ytLockupMetadataViewModelTitle / ytd-rich-item-renderer).
     Mengembalikan: (success, video_title, initial_badge_duration)
     """
-    emit_log("Memilih video TERBARU (Index 0)...", tag=tag, style="cyan", event_callback=event_callback, worker_id=worker_id)
+    emit_log("Memindai seluruh daftar video channel (Mode Acak)...", tag=tag, style="cyan", event_callback=event_callback, worker_id=worker_id)
     if event_callback:
-        event_callback("status_update", {"worker_id": worker_id, "status": "Memilih Video Terbaru (Index 0)..."})
+        event_callback("status_update", {"worker_id": worker_id, "status": "Memilih Video Secara Acak..."})
 
     time.sleep(random.uniform(1.5, 2.5))
     try:
-        page.evaluate("window.scrollBy(0, 250);")
+        # Scroll dinamis agar daftar video termuat lebih banyak di grid
+        page.evaluate("window.scrollBy(0, 450);")
     except Exception:
         pass
     time.sleep(1.0)
 
     try:
-        video_info = page.evaluate("""() => {
-            const items = Array.from(document.querySelectorAll('ytd-rich-item-renderer, ytd-rich-grid-media, ytd-grid-video-renderer, ytd-video-renderer'));
-            for (const item of items) {
+        videos_list = page.evaluate("""() => {
+            const items = Array.from(document.querySelectorAll(
+                'ytd-rich-item-renderer, ytd-rich-grid-media, ytd-grid-video-renderer, ytd-video-renderer'
+            ));
+            const list = [];
+            for (let idx = 0; idx < items.length; idx++) {
+                const item = items[idx];
                 const link = item.querySelector('a.ytLockupMetadataViewModelTitle, a#video-title-link, a#video-title, a[href*="/watch?v="]');
                 if (!link) continue;
                 const href = link.getAttribute('href');
                 if (!href || !href.includes('/watch?v=')) continue;
-                
+
                 let title = link.getAttribute('title') || link.innerText.trim();
                 if (!title || title.length < 3) {
                     const titleEl = item.querySelector('h3, #video-title, .ytLockupMetadataViewModelTitle');
                     if (titleEl) title = titleEl.innerText.trim();
                 }
-                
+
                 let dur = '';
                 const timeSpan = item.querySelector('span.badge-shape-wiz__text, ytd-thumbnail-overlay-time-status-renderer span, .ytLockupViewModelContentImage');
                 if (timeSpan) {
                     dur = timeSpan.innerText.trim() || timeSpan.getAttribute('title') || '';
                 }
-                return { href, title: title || 'Latest Video', dur };
+                list.push({ href, title: title || `Video #${idx + 1}`, dur, index: idx });
             }
-            return null;
+            return list;
         }""")
     except Exception:
-        video_info = None
+        videos_list = None
 
-    if video_info and video_info.get("href"):
-        chosen_title = video_info["title"]
-        dur_sec = parse_time_str(video_info.get("dur", ""))
+    if videos_list and isinstance(videos_list, list) and len(videos_list) > 0:
+        # Pilih satu video secara acak dari seluruh daftar video yang berhasil dipindai
+        chosen_video = random.choice(videos_list)
+        chosen_title = chosen_video["title"]
+        chosen_idx = chosen_video.get("index", 0)
+        dur_sec = parse_time_str(chosen_video.get("dur", ""))
         dur_label = f" ({format_time(dur_sec)})" if dur_sec else ""
-        emit_log(f"🎬 Video Terbaru [Index 0]: '{chosen_title}'{dur_label}", tag=tag, style="green", event_callback=event_callback, worker_id=worker_id)
+        emit_log(f"🎬 Video Acak Terpilih [Urutan #{chosen_idx + 1}]: '{chosen_title}'{dur_label} (dari {len(videos_list)} video di daftar)", tag=tag, style="green", event_callback=event_callback, worker_id=worker_id)
         if event_callback:
             event_callback("video_picked", {
                 "worker_id": worker_id,
                 "title": chosen_title,
-                "flow_type": "Channel Latest Video (Index 0)",
-                "status": f"Latest[0]: {chosen_title[:30]}..."
+                "flow_type": "Channel Video (Random)",
+                "status": f"Random: {chosen_title[:30]}..."
             })
 
-        link_elem = page.query_selector("a.ytLockupMetadataViewModelTitle, ytd-rich-item-renderer a[href*='/watch?v='], a#video-title-link, a#video-title")
+        # Coba klik elemen link video spesifik yang terpilih
+        clean_href = chosen_video["href"].split("&")[0]
+        link_elem = page.query_selector(f"a[href*='{clean_href}']")
         if link_elem:
+            try:
+                page.evaluate("(el) => el.scrollIntoView({ behavior: 'smooth', block: 'center' })", link_elem)
+                time.sleep(0.5)
+            except Exception:
+                pass
             clicked = safe_click(page, link_elem, tag=tag)
             if clicked:
                 time.sleep(random.uniform(3.0, 5.0))
                 return True, chosen_title, dur_sec
 
-        target_url = video_info["href"] if video_info["href"].startswith("http") else f"https://www.youtube.com{video_info['href']}"
+        target_url = chosen_video["href"] if chosen_video["href"].startswith("http") else f"https://www.youtube.com{chosen_video['href']}"
+        emit_log(f"Navigasi ke video acak terpilih: {target_url}", tag=tag, style="cyan", event_callback=event_callback, worker_id=worker_id)
         page.goto(target_url, wait_until="domcontentloaded", timeout=45000)
         time.sleep(random.uniform(3.0, 5.0))
         return True, chosen_title, dur_sec
 
     return False, "", None
+
+
+_pick_latest_video_index_0 = _pick_random_channel_video
 
 
 def parse_time_str(time_str: str) -> Optional[float]:

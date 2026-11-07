@@ -155,3 +155,37 @@ def test_check_page_offline_or_error():
 
     assert check_page_offline_or_error(MockPage(True)) is True
     assert check_page_offline_or_error(MockPage(False)) is False
+
+
+def test_pick_random_channel_video(monkeypatch):
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    from automation.youtube.bot import _pick_random_channel_video
+
+    mock_videos = [
+        {"href": "/watch?v=vid1", "title": "Video 1", "dur": "05:00", "index": 0},
+        {"href": "/watch?v=vid2", "title": "Video 2", "dur": "10:00", "index": 1},
+        {"href": "/watch?v=vid3", "title": "Video 3", "dur": "15:00", "index": 2},
+    ]
+
+    class MockPage:
+        def evaluate(self, script, *args):
+            if "querySelectorAll" in str(script):
+                return mock_videos
+            return True
+
+        def query_selector(self, sel):
+            return None
+
+        def goto(self, url, **kwargs):
+            return None
+
+    page = MockPage()
+    picked_titles = set()
+    for _ in range(25):
+        ok, title, dur = _pick_random_channel_video(page, worker_id=1)
+        assert ok is True
+        assert title in ["Video 1", "Video 2", "Video 3"]
+        picked_titles.add(title)
+
+    # Menjamin hasil benar-benar acak (lebih dari 1 jenis video terpilih)
+    assert len(picked_titles) > 1
