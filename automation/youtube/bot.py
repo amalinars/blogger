@@ -976,11 +976,15 @@ def watch_video_dynamically(
     """
     handle_consent_dialog(page, tag=tag)
 
-    # 1. Pastikan video berputar (Play) jika tidak sedang ad
+    # 1. Pastikan video berputar (Play) dan audio aktif (tidak muted secara bot)
     try:
         page.evaluate("""() => {
             const v = document.querySelector('video');
-            if (v && v.paused) v.play().catch(() => {});
+            if (v) {
+                if (v.paused) v.play().catch(() => {});
+                v.muted = false;
+                v.volume = 0.5;
+            }
         }""")
     except Exception:
         pass

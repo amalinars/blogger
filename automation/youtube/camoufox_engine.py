@@ -88,6 +88,13 @@ def build_camoufox_kwargs(
         "media.autoplay.default": 0,
         "media.autoplay.blocking_policy": 0,
         "media.volume_scale": "1.0",
+        # Mencegah browser membekukan/pause pemutaran video saat headless/background
+        "media.suspend-bkgnd-video.enabled": False,
+        "dom.min_background_timeout_value": 4,
+        # Decoder media penuh & DRM
+        "media.eme.enabled": True,
+        "media.gmp-widevinecdm.enabled": True,
+        "media.gmp-widevinecdm.visible": True,
         # Matikan prompt notifikasi push web
         "dom.webnotifications.enabled": False,
         "dom.push.enabled": False,
