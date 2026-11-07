@@ -1187,7 +1187,7 @@ def run_worker_session(
     if event_callback:
         event_callback("status_update", {"worker_id": worker_id, "status": "Memvalidasi & Mengambil Proksi..."})
 
-    proxy_data = proxy_manager.acquire_proxy(caller_id=caller_id, exclusive=True, verify_alive=True)
+    proxy_data = proxy_manager.acquire_proxy(caller_id=caller_id, target="youtube", exclusive=True, verify_alive=False)
     if not proxy_data:
         emit_log("Tidak ada proksi tersedia dalam pool. Antre 5s...", tag=tag, style="yellow", event_callback=event_callback, worker_id=worker_id)
         if event_callback:
@@ -1200,7 +1200,8 @@ def run_worker_session(
     country = proxy_data.get("country", "Unknown")
     badge = get_country_badge(country)
 
-    emit_log(f"Proksi Diambil: {proxy_id} ({ip} | {badge})", tag=tag, style="cyan", event_callback=event_callback, worker_id=worker_id)
+    src = "Supabase" if proxy_data.get("source") == "supabase_rpc" else "Lokal"
+    emit_log(f"Proksi Diambil: {proxy_id} ({ip} | {badge}) [{src}]", tag=tag, style="cyan", event_callback=event_callback, worker_id=worker_id)
     if event_callback:
         event_callback("proxy_assigned", {
             "worker_id": worker_id,
@@ -1306,6 +1307,7 @@ def run_worker_session(
             )
 
             if session_success:
+                proxy_manager.record_target_usage(proxy_data, target="youtube")
                 if event_callback:
                     event_callback("session_completed", {
                         "worker_id": worker_id,
@@ -1325,10 +1327,10 @@ def run_worker_session(
             event_callback("status_update", {"worker_id": worker_id, "status": f"Error: {err_text[:30]}"})
     finally:
         # 6. Lepas Proksi Bersih
-        if proxy_id:
+        if proxy_data:
             if proxy_error_msg:
-                proxy_manager.report_failure(proxy_id, error_message=proxy_error_msg, is_proxy_error=True)
-            proxy_manager.release_proxy(proxy_id, caller_id=caller_id)
+                proxy_manager.report_failure(proxy_data, error_message=proxy_error_msg, is_proxy_error=True)
+            proxy_manager.release_proxy(proxy_data, caller_id=caller_id)
             emit_log(f"Proksi {proxy_id} berhasil dilepaskan.", tag=tag, style="dim", event_callback=event_callback, worker_id=worker_id)
 
     return session_success
