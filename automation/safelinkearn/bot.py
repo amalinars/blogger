@@ -157,42 +157,52 @@ def _is_destination_url(url: str) -> bool:
 def try_solve_turnstile(page: Any, tag: str = "") -> bool:
     """Mencari iframe Turnstile dan mengklik checkbox jika perlu konfirmasi manusia."""
     try:
-        for frame in page.frames:
-            f_url = (frame.url or "").lower()
-            if "challenges.cloudflare.com" in f_url or "turnstile" in f_url or "captcha" in f_url:
-                for sel in [
-                    'input[type="checkbox"]',
-                    '.ctp-checkbox-label',
-                    '#challenge-stage input',
-                    '#challenge-stage',
-                    'span.mark',
-                    'label',
-                    'body',
-                ]:
-                    try:
-                        loc = frame.locator(sel)
-                        if loc.count() > 0 and loc.first.is_visible():
-                            loc.first.click(timeout=1000)
-                            logger.info(f"{tag}👉 Checkbox Turnstile diklik via {sel}")
-                            return True
-                    except Exception:
-                        continue
+        # 1. Pastikan area captcha terlihat di viewport agar mouse click valid
+        page.evaluate("""() => {
+            const el = document.getElementById('step-captcha') || document.querySelector('.cf-turnstile');
+            if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
+        }""")
+        time.sleep(0.3)
 
+        # 2. Coba klik via bounding box iframe di dalam container captcha
         for ifr_sel in [
+            '#step-captcha iframe',
+            '.cf-turnstile iframe',
             'iframe[src*="challenges.cloudflare.com"]',
             'iframe[src*="turnstile"]',
-            '#step-captcha iframe',
         ]:
             try:
                 ifr = page.query_selector(ifr_sel)
-                if ifr and ifr.is_visible():
+                if ifr:
+                    ifr.scroll_into_view_if_needed(timeout=1000)
                     box = ifr.bounding_box()
-                    if box:
-                        page.mouse.click(box["x"] + 28, box["y"] + (box["height"] / 2))
-                        logger.info(f"{tag}👉 Checkbox Turnstile diklik via bounding box iframe")
+                    if box and box["width"] > 20 and box["height"] > 20:
+                        click_x = box["x"] + 30
+                        click_y = box["y"] + (box["height"] / 2)
+                        page.mouse.click(click_x, click_y)
+                        logger.info(f"{tag}👉 Checkbox Turnstile diklik via bounding box ({ifr_sel})")
                         return True
             except Exception:
                 pass
+
+        # 3. Cari di seluruh frames (termasuk about:blank yang diinject Turnstile)
+        for frame in page.frames:
+            for sel in [
+                'input[type="checkbox"]',
+                '.ctp-checkbox-label',
+                '#challenge-stage input',
+                '#challenge-stage',
+                'span.mark',
+                'label',
+            ]:
+                try:
+                    loc = frame.locator(sel)
+                    if loc.count() > 0 and loc.first.is_visible():
+                        loc.first.click(timeout=1000)
+                        logger.info(f"{tag}👉 Checkbox Turnstile diklik di frame via {sel}")
+                        return True
+                except Exception:
+                    continue
     except Exception:
         pass
     return False
@@ -269,12 +279,12 @@ def run_single_attempt(
         logger.info(f"{tag}🌐 1. Membuka URL: {target_url}...")
         _emit("session_started")
         _emit("stepper_update", stage="🌐 Buka Link", status=f"Membuka {target_url[:55]}")
-        main_page.goto(target_url, timeout=45000, wait_until="domcontentloaded")
+        main_page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
         time.sleep(1.5)
 
         # 2. Tangani halaman gerbang awal (#go-btn form submit)
         logger.info(f"{tag}⏳ 2. Menunggu gerbang awal siap (#go-btn)...")
-        for _ in range(15):
+        for _ in range(25):
             time.sleep(1)
             try:
                 has_flow = main_page.evaluate("() => !!document.getElementById('flow-data')")
@@ -308,42 +318,15 @@ def run_single_attempt(
         last_top_wait = None
         last_bot_wait = None
         turnstile_wait_start: Optional[float] = None
+        seen_final_gate = False
 
         while time.time() - loop_start < max_timeout_sec:
             time.sleep(1.0)
 
-            # Periksa tab lain apakah sudah mencapai tujuan
-            for p in list(context.pages):
-                try:
-                    p_url = p.url or ""
-                    if _is_destination_url(p_url):
-                        logger.info(f"{tag}🎉🎉🎉 BERHASIL MENCAPAI TUJUAN AKHIR: {p_url}")
-                        _emit("stepper_update", stage="🎉 Selesai", status=f"Tujuan: {p_url[:55]}")
-                        result["success"] = True
-                        result["final_url"] = p_url
-                        result["steps_completed"] = len(steps_recorded)
-                        result["popups_detected"] = len(popups)
-                        result["elapsed_sec"] = round(time.time() - start_time, 2)
-                        return result
-                except Exception:
-                    pass
-
-            # Tutup popup iklan
-            if len(context.pages) > 1:
-                for p in list(context.pages):
-                    if p != main_page:
-                        try:
-                            p_url = p.url or ""
-                            if not _is_destination_url(p_url):
-                                p.close()
-                                logger.info(f"{tag}🛡️  Menutup popup iklan: {p_url[:60]}")
-                        except Exception:
-                            pass
-
-            # Cek main page URL
+            # Cek jika main_page sudah keluar dari internal domains setelah melewati gerbang akhir
             try:
                 curr_url = main_page.url
-                if _is_destination_url(curr_url):
+                if (seen_final_gate or "3/3" in str(steps_recorded)) and _is_destination_url(curr_url):
                     logger.info(f"{tag}🎉🎉🎉 BERHASIL MENCAPAI TUJUAN AKHIR: {curr_url}")
                     _emit("stepper_update", stage="🎉 Selesai", status=f"Tujuan: {curr_url[:55]}")
                     result["success"] = True
@@ -353,10 +336,34 @@ def run_single_attempt(
                     result["elapsed_sec"] = round(time.time() - start_time, 2)
                     return result
             except Exception:
-                continue
+                pass
 
+            # Tangani tab lain: tutup popup iklan jika bukan di gerbang akhir
+            try:
+                if len(context.pages) > 1:
+                    for p in list(context.pages):
+                        if p != main_page:
+                            try:
+                                p_url = p.url or ""
+                                if (seen_final_gate or "3/3" in str(steps_recorded)) and _is_destination_url(p_url):
+                                    logger.info(f"{tag}🎉🎉🎉 BERHASIL MENCAPAI TUJUAN AKHIR (Tab Baru): {p_url}")
+                                    _emit("stepper_update", stage="🎉 Selesai", status=f"Tujuan: {p_url[:55]}")
+                                    result["success"] = True
+                                    result["final_url"] = p_url
+                                    result["steps_completed"] = len(steps_recorded)
+                                    result["popups_detected"] = len(popups)
+                                    result["elapsed_sec"] = round(time.time() - start_time, 2)
+                                    return result
+                                else:
+                                    p.close()
+                                    logger.info(f"{tag}🛡️  Menutup popup iklan: {p_url[:60]}")
+                            except Exception:
+                                pass
+            except Exception:
+                pass
             # Cek apakah berada di halaman gerbang akhir (/go/...)
             if "/go/" in curr_url or "safelinkearn.com/go" in curr_url:
+                seen_final_gate = True
                 try:
                     open_state = main_page.evaluate("""() => {
                         const btn = document.getElementById('open-btn');
@@ -422,9 +429,11 @@ def run_single_attempt(
                         turnstile_wait_start = time.time()
                     elapsed_cf = time.time() - turnstile_wait_start
                     logger.info(f"{tag}🛡️ Menunggu penyelesaian Cloudflare Turnstile ({int(elapsed_cf)}s)...")
-                    try_solve_turnstile(main_page, tag=tag)
-                    if proxy_data and elapsed_cf > 25.0:
-                        logger.warning(f"{tag}⚠️ Turnstile tertahan > 25 detik pada proksi ini. Merotasi proksi...")
+                    # Coba klik jika sudah > 3 detik dan tiap interval 4 detik agar tidak me-reset challenge
+                    if elapsed_cf >= 3.0 and int(elapsed_cf) % 4 == 0:
+                        try_solve_turnstile(main_page, tag=tag)
+                    if proxy_data and elapsed_cf > 65.0:
+                        logger.warning(f"{tag}⚠️ Turnstile tertahan > 65 detik pada proksi ini. Merotasi proksi...")
                         break
                 time.sleep(1.0)
                 continue
@@ -444,11 +453,10 @@ def run_single_attempt(
                 main_page.evaluate("""() => {
                     const s = document.getElementById('step-sentinel');
                     if (s) {
-                        s.scrollIntoView(true);
+                        s.scrollIntoView({ behavior: 'instant', block: 'center' });
                     }
                 }""")
                 time.sleep(1.0)
-
             # Kasus C: Tombol atas aktif untuk diverifikasi ("Click to Verify", "Click to Continue", dsb.)
             if top_dis is False and "please wait" not in top_text.lower() and "scroll" not in top_text.lower() and top_text:
                 logger.info(f"{tag}🖱️ Mengklik tombol verifikasi atas: '{top_text}'...")

@@ -345,6 +345,7 @@ class BotRunnerCLI:
         is_safelink = self.args.target in ("safelink", "safelinkearn")
         default_url = "https://sfe.ad/pB5n5lnLGp" if is_safelink else "https://article.riztama.my.id"
         target_url = self.args.url or default_url
+        self.args.url = target_url
 
         print_banner(
             node_name=self.reporter.node_name,
@@ -405,7 +406,7 @@ class BotRunnerCLI:
             ts_now = datetime.now().strftime("%H:%M:%S")
             print(f"[{ts_now}] {CYAN}[W{wid}]{RESET} 🚀 Worker {w_tag} diaktifkan, mulai mencari & mengalokasikan proxy...", flush=True)
             if wid < self.args.workers:
-                time.sleep(1.0)
+                time.sleep(3.0)
 
         # Daftarkan handler pembersihan status proxy saat Ctrl+C / Stop / Exit
         def _cleanup(*_):
