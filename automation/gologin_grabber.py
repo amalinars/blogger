@@ -239,6 +239,7 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
         "headless": headless,
         "os": expected_os,
         "humanize": False,
+        "block_webrtc": True,
         "i_know_what_im_doing": True,
         "firefox_user_prefs": {
             "dom.webdriver.enabled": False,
@@ -258,11 +259,10 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
             "username": proxy_item["username"],
             "password": proxy_item["password"]
         }
-        try:
-            from camoufox.geolocation import geoip_allowed
-            geoip_allowed()
-            camoufox_opts["geoip"] = True
-        except Exception:
+        detected_ip = proxy_item.get("ip_detected") or proxy_item.get("ip")
+        if detected_ip and re.match(r"^\d+\.\d+\.\d+\.\d+$", str(detected_ip)):
+            camoufox_opts["geoip"] = str(detected_ip)
+        else:
             camoufox_opts["geoip"] = False
         host = proxy_item.get("host", "")
         if re.match(r"^\d+\.\d+\.\d+\.\d+$", host):
@@ -624,7 +624,7 @@ def run_gologin_harvest_job(
                     _log(f"⚠️ [W{worker_id}] Proxy index {proxy_index} tidak ditemukan di Proxy Management.", "yellow")
                     break
             else:
-                selected_proxy = acquire_proxy(caller_id=caller_id, target="gologin")
+                selected_proxy = acquire_proxy(caller_id=caller_id, target="gologin", verify_alive=True)
                 if selected_proxy:
                     is_acquired = True
                     src = "Supabase" if selected_proxy.get("source") == "supabase_rpc" else "Lokal"

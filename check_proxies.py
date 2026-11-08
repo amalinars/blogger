@@ -36,8 +36,11 @@ import requests
 PROJECT_ROOT = Path(__file__).resolve().parent
 PROXY_FILE = PROJECT_ROOT / "data" / "proxies.json"
 CONFIG_FILE = PROJECT_ROOT / "data" / "supabase_config.json"
-CHECK_URL = "http://api.ipify.org?format=json"
-
+CHECK_ENDPOINTS = [
+    ("http://api.ipify.org?format=json", "json", "ip"),
+    ("https://icanhazip.com", "text", None),
+    ("http://ip-api.com/json", "json", "query"),
+]
 
 def get_proxy_url(p: Dict[str, Any]) -> str:
     url = p.get("proxy_url")
@@ -52,27 +55,45 @@ def get_proxy_url(p: Dict[str, Any]) -> str:
     return f"http://{host}:{port}"
 
 
-def test_proxy(proxy_item: Dict[str, Any], index: int, timeout: int = 6) -> Dict[str, Any]:
+def test_proxy(proxy_item: Dict[str, Any], index: int, timeout: int = 12, retries: int = 2) -> Dict[str, Any]:
     proxy_url = get_proxy_url(proxy_item)
     country = proxy_item.get("country", "Unknown")
     proxies = {"http": proxy_url, "https": proxy_url}
 
-    start_time = time.time()
-    try:
-        resp = requests.get(CHECK_URL, proxies=proxies, timeout=timeout)
-        latency = round((time.time() - start_time) * 1000, 2)
-        if resp.status_code == 200:
-            ip_detected = resp.json().get("ip", "N/A")
-            return {
-                "index": index,
-                "status": "ALIVE",
-                "country": country,
-                "ip": ip_detected,
-                "latency_ms": latency,
-                "proxy_item": proxy_item,
-            }
-    except Exception:
-        pass
+    last_err = None
+    for attempt in range(max(1, retries)):
+        ep_url, ep_type, ep_key = CHECK_ENDPOINTS[attempt % len(CHECK_ENDPOINTS)]
+        start_time = time.time()
+        try:
+            resp = requests.get(ep_url, proxies=proxies, timeout=timeout)
+            latency = round((time.time() - start_time) * 1000, 2)
+            if resp.status_code == 200:
+                if ep_type == "json":
+                    ip_detected = resp.json().get(ep_key, "N/A")
+                else:
+                    ip_detected = resp.text.strip()
+                return {
+                    "index": index,
+                    "status": "ALIVE",
+                    "country": country,
+                    "ip": ip_detected,
+                    "latency_ms": latency,
+                    "proxy_item": proxy_item,
+                }
+            elif resp.status_code == 407:
+                last_err = "Auth Failed (407)"
+                break
+            else:
+                last_err = f"HTTP {resp.status_code}"
+        except requests.exceptions.ProxyError as pe:
+            last_err = f"ProxyError: {pe}"
+        except requests.exceptions.Timeout:
+            last_err = f"Timeout ({timeout}s)"
+        except Exception as e:
+            last_err = str(type(e).__name__)
+
+        if attempt < retries - 1:
+            time.sleep(0.3)
 
     return {
         "index": index,
@@ -80,9 +101,9 @@ def test_proxy(proxy_item: Dict[str, Any], index: int, timeout: int = 6) -> Dict
         "country": country,
         "ip": None,
         "latency_ms": None,
+        "last_error": last_err or "Connection failed",
         "proxy_item": proxy_item,
     }
-
 
 def load_supabase_config() -> Dict[str, Any]:
     if CONFIG_FILE.exists():
@@ -182,14 +203,25 @@ def main():
         "-t",
         "--threads",
         type=int,
-        default=40,
-        help="Jumlah thread paralel pengecekan (default: 40)",
+        default=20,
+        help="Jumlah thread paralel pengecekan (default: 20 agar gateway residential stabil)",
     )
     parser.add_argument(
         "--timeout",
         type=int,
-        default=6,
-        help="Batas waktu timeout HTTP per proxy dalam detik (default: 6)",
+        default=12,
+        help="Batas waktu timeout HTTP per proxy dalam detik (default: 12)",
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=2,
+        help="Jumlah percobaan fallback endpoint sebelum menyatakan proxy DEAD (default: 2)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Paksa hapus meskipun rasio DEAD > 35% (safety guard bypass)",
     )
     parser.add_argument(
         "--limit",
@@ -197,7 +229,6 @@ def main():
         default=0,
         help="Batasi jumlah proxy yang diuji (0 = uji semua)",
     )
-
     args = parser.parse_args()
 
     # 1. Muat daftar proxy
@@ -242,7 +273,7 @@ def main():
     start_check = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
         futures = {
-            executor.submit(test_proxy, p, idx, args.timeout): p
+            executor.submit(test_proxy, p, idx, args.timeout, args.retries): p
             for idx, p in enumerate(proxy_list, 1)
         }
         for future in concurrent.futures.as_completed(futures):
@@ -263,9 +294,9 @@ def main():
                 dead_proxies.append(res)
                 p_item["health"] = "DEAD"
                 p_item["last_checked"] = time.time()
-                p_item["last_error"] = "Connection failed"
+                p_item["last_error"] = res.get("last_error") or "Connection failed"
                 host_port = f"{p_item.get('host')}:{p_item.get('port')}"
-                print(f"  ❌ [DEAD]  #{idx:4d} ({c:14s}) -> {host_port}")
+                print(f"  ❌ [DEAD]  #{idx:4d} ({c:14s}) -> {host_port} [{p_item['last_error']}]")
 
     elapsed = round(time.time() - start_check, 2)
     print("\n" + "=" * 65)
@@ -279,6 +310,18 @@ def main():
     alive_data = [item["proxy_item"] for item in alive_proxies]
 
     if args.delete_dead:
+        if len(dead_proxies) > len(proxy_list) * 0.35 and not args.force:
+            print("\n" + "!" * 65)
+            print("🛡️ PERINGATAN SAFETY GUARD: PENGHAPUSAN DIBATALKAN OTOMATIS!")
+            print(f"   Terdeteksi {len(dead_proxies)} dari {len(proxy_list)} proxy ({len(dead_proxies)*100//len(proxy_list)}%) dianggap DEAD.")
+            print("   Untuk proxy residential, kegagalan masal (>35%) hampir selalu disebabkan oleh:")
+            print("   1. Gateway Floppydata overload/throttling karena thread terlalu banyak.")
+            print("   2. Timeout jaringan terlalu cepat untuk residential handshake.")
+            print("   Demi melindungi kuota dan proxy Anda dari salah hapus, operasi dibatalkan.")
+            print("   Jika Anda benar-benar yakin ingin menghapus semuanya, tambahkan flag: --force")
+            print("!" * 65)
+            sys.exit(0)
+
         if is_supabase:
             dead_ids = [
                 item["proxy_item"]["id"]
@@ -296,7 +339,23 @@ def main():
                         loc_raw = json.load(f)
                     if isinstance(loc_raw, dict) and "proxies" in loc_raw:
                         loc_list = loc_raw["proxies"]
-                        loc_alive = [p for p in loc_list if p.get("id") not in set(dead_ids)]
+                        dead_id_set = set(dead_ids)
+                        dead_keys = {
+                            (d["proxy_item"].get("host"), int(d["proxy_item"].get("port")), d["proxy_item"].get("username", ""))
+                            for d in dead_proxies
+                            if d.get("proxy_item") and d["proxy_item"].get("host") and d["proxy_item"].get("port")
+                        }
+                        loc_alive = []
+                        for p in loc_list:
+                            if p.get("id") in dead_id_set:
+                                continue
+                            try:
+                                p_port = int(p.get("port")) if p.get("port") else None
+                            except (ValueError, TypeError):
+                                p_port = None
+                            if (p.get("host"), p_port, p.get("username", "")) in dead_keys:
+                                continue
+                            loc_alive.append(p)
                         loc_raw["proxies"] = loc_alive
                         loc_raw["cursor"] = loc_raw.get("cursor", 0) % max(1, len(loc_alive))
                         with open(PROXY_FILE, "w", encoding="utf-8") as f:

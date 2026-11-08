@@ -50,6 +50,16 @@ Secara default, grabber akan meminjam proxy dari pool untuk registrasi akun baru
 python3 automation/gologin_grabber.py --headless --workers 2 --direct --skip-verifier
 ```
 
+### D. Mode 1 IP 1 Proses / 1 Putaran Saja (`-r 1`)
+Secara default (`-r 2`), satu IP proxy akan digunakan untuk mendaftar 2 akun berturut-turut (~10 proxy). Jika Anda ingin **1 IP hanya dipakai untuk 1 proses/akun saja** (~5 proxy lalu langsung ganti IP):
+```bash
+# 1 worker, 1 IP untuk 1 proses pembuatan akun GoLogin:
+python3 automation/gologin_grabber.py --headless -r 1 --skip-verifier
+
+# Mode background Colab 1 IP 1 Proses:
+nohup python3 automation/gologin_grabber.py --headless --workers 1 -r 1 --unlimited --skip-verifier > grabber.log 2>&1 &
+```
+
 ---
 
 ## ⚙️ Daftar Lengkap Parameter CLI

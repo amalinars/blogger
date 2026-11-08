@@ -144,6 +144,10 @@ def main():
     parser.add_argument("--delete-dead", "--clean-dead", action="store_true", dest="delete_dead", help="Cek seluruh proxy di Supabase dan langsung hapus yang DEAD")
     parser.add_argument("--reset-idle", action="store_true", help="Kembalikan seluruh status proxy (IN_USE) menjadi IDLE di Supabase")
     parser.add_argument("--upload", type=str, help="Upload string proxy langsung (contoh: host:port:user:pass)")
+    parser.add_argument("--upload-file", type=str, help="Upload file berisi daftar proxy baris per baris")
+    parser.add_argument("-t", "--threads", type=int, default=None, help="Jumlah thread paralel untuk health checker")
+    parser.add_argument("--timeout", type=int, default=None, help="Timeout HTTP per proxy dalam detik")
+    parser.add_argument("--limit", type=int, default=None, help="Batasi jumlah proxy yang diuji (0 = uji semua)")
 
     args = parser.parse_args()
 
@@ -158,6 +162,12 @@ def main():
         cmd = [sys.executable, str(PROJECT_ROOT / "check_proxies.py"), "--supabase"]
         if args.delete_dead:
             cmd.append("--delete-dead")
+        if args.threads is not None:
+            cmd.extend(["-t", str(args.threads)])
+        if args.timeout is not None:
+            cmd.extend(["--timeout", str(args.timeout)])
+        if args.limit is not None:
+            cmd.extend(["--limit", str(args.limit)])
         subprocess.run(cmd)
     elif args.reset_idle:
         reset_all_idle()

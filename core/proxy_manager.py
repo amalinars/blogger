@@ -682,14 +682,24 @@ class ProxyManager:
             # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition Antar Node)
             if self.supabase_enabled:
                 sb_caller = f"{self.node_id}:{lease_token}" if not str(lease_token).startswith(f"{self.node_id}:") else lease_token
-                sb_proxy = self._acquire_proxy_supabase(
-                    caller_id=sb_caller,
-                    target=target,
-                    max_uses_per_day=max_uses_per_day,
-                    cooldown_seconds=cooldown_seconds,
-                    window_seconds=window_seconds,
-                )
-                if sb_proxy is not None:
+                for _attempt in range(5 if verify_alive else 1):
+                    sb_proxy = self._acquire_proxy_supabase(
+                        caller_id=sb_caller,
+                        target=target,
+                        max_uses_per_day=max_uses_per_day,
+                        cooldown_seconds=cooldown_seconds,
+                        window_seconds=window_seconds,
+                    )
+                    if sb_proxy is None:
+                        break
+                    if verify_alive:
+                        test_res = self._test_proxy_network(sb_proxy["proxy_url"])
+                        if not test_res["success"]:
+                            self.report_failure(sb_proxy, error_message=test_res["error"], is_proxy_error=True)
+                            self.release_proxy(sb_proxy, caller_id=sb_caller)
+                            continue
+                        sb_proxy["ip_detected"] = test_res.get("ip")
+                        sb_proxy["latency_ms"] = test_res.get("latency_ms")
                     return sb_proxy
                 if self.supabase_rpc_available:
                     return None
