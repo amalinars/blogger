@@ -84,12 +84,9 @@ ADBLOCK_BYPASS_SCRIPT = """
         return origDispatch.call(this, evt);
     };
 
-    Object.defineProperty(window, "__pageReady", {
-        get: () => Promise.resolve(false),
-        set: () => {},
-        configurable: false
-    });
-
+    try {
+        window.__pageReady = Promise.resolve(false);
+    } catch (e) {}
     window.adblock = false;
 })();
 """
@@ -155,54 +152,27 @@ def _is_destination_url(url: str) -> bool:
 
 
 def try_solve_turnstile(page: Any, tag: str = "") -> bool:
-    """Mencari iframe Turnstile dan mengklik checkbox jika perlu konfirmasi manusia."""
+    """Mencari iframe Cloudflare Turnstile resmi dan mengklik checkbox jika perlu konfirmasi manusia."""
     try:
-        # 1. Pastikan area captcha terlihat di viewport agar mouse click valid
-        page.evaluate("""() => {
-            const el = document.getElementById('step-captcha') || document.querySelector('.cf-turnstile');
-            if (el) el.scrollIntoView({ behavior: 'auto', block: 'center' });
-        }""")
-        time.sleep(0.3)
-
-        # 2. Coba klik via bounding box iframe di dalam container captcha
-        for ifr_sel in [
-            '#step-captcha iframe',
-            '.cf-turnstile iframe',
-            'iframe[src*="challenges.cloudflare.com"]',
-            'iframe[src*="turnstile"]',
-        ]:
-            try:
-                ifr = page.query_selector(ifr_sel)
-                if ifr:
-                    ifr.scroll_into_view_if_needed(timeout=1000)
-                    box = ifr.bounding_box()
-                    if box and box["width"] > 20 and box["height"] > 20:
-                        click_x = box["x"] + 30
-                        click_y = box["y"] + (box["height"] / 2)
-                        page.mouse.click(click_x, click_y)
-                        logger.info(f"{tag}👉 Checkbox Turnstile diklik via bounding box ({ifr_sel})")
-                        return True
-            except Exception:
-                pass
-
-        # 3. Cari di seluruh frames (termasuk about:blank yang diinject Turnstile)
         for frame in page.frames:
-            for sel in [
-                'input[type="checkbox"]',
-                '.ctp-checkbox-label',
-                '#challenge-stage input',
-                '#challenge-stage',
-                'span.mark',
-                'label',
-            ]:
-                try:
-                    loc = frame.locator(sel)
-                    if loc.count() > 0 and loc.first.is_visible():
-                        loc.first.click(timeout=1000)
-                        logger.info(f"{tag}👉 Checkbox Turnstile diklik di frame via {sel}")
-                        return True
-                except Exception:
-                    continue
+            f_url = (frame.url or "").lower()
+            # HANYA interaksi dengan frame resmi Cloudflare Turnstile, JANGAN sentuh iframe iklan
+            if "challenges.cloudflare.com" in f_url or "turnstile" in f_url:
+                for sel in [
+                    'input[type="checkbox"]',
+                    '.ctp-checkbox-label',
+                    '#challenge-stage input',
+                    '#challenge-stage',
+                    'span.mark',
+                ]:
+                    try:
+                        loc = frame.locator(sel)
+                        if loc.count() > 0 and loc.first.is_visible():
+                            loc.first.click(timeout=1000)
+                            logger.info(f"{tag}👉 Checkbox Turnstile diklik di frame via {sel}")
+                            return True
+                    except Exception:
+                        continue
     except Exception:
         pass
     return False
@@ -272,7 +242,13 @@ def run_single_attempt(
                 p_url = p.url or "about:blank"
                 popups.append(p_url)
                 logger.info(f"{tag}🪟 Tab popup terdeteksi: {p_url[:75]}")
-
+                if not seen_final_gate:
+                    try:
+                        p.close()
+                        logger.info(f"{tag}🛡️  Popup iklan langsung ditutup: {p_url[:60]}")
+                        main_page.bring_to_front()
+                    except Exception:
+                        pass
         context.on("page", on_page_opened)
 
         # 1. Buka URL shortlink awal
@@ -428,9 +404,10 @@ def run_single_attempt(
                     if turnstile_wait_start is None:
                         turnstile_wait_start = time.time()
                     elapsed_cf = time.time() - turnstile_wait_start
-                    logger.info(f"{tag}🛡️ Menunggu penyelesaian Cloudflare Turnstile ({int(elapsed_cf)}s)...")
-                    # Coba klik jika sudah > 3 detik dan tiap interval 4 detik agar tidak me-reset challenge
-                    if elapsed_cf >= 3.0 and int(elapsed_cf) % 4 == 0:
+                    if int(elapsed_cf) % 5 == 0 or elapsed_cf < 3.0:
+                        logger.info(f"{tag}🛡️ Menunggu penyelesaian Cloudflare Turnstile ({int(elapsed_cf)}s)...")
+                    # Cek hanya frame challenges.cloudflare.com resmi
+                    if elapsed_cf >= 5.0 and int(elapsed_cf) % 5 == 0:
                         try_solve_turnstile(main_page, tag=tag)
                     if proxy_data and elapsed_cf > 65.0:
                         logger.warning(f"{tag}⚠️ Turnstile tertahan > 65 detik pada proksi ini. Merotasi proksi...")
