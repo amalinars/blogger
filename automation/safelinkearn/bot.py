@@ -659,9 +659,9 @@ def safelink_worker_thread_loop(
         test_res = validate_proxy_live(proxy)
         if not test_res.get("success"):
             err_reason = test_res.get("error", "Proxy dead")
-            proxy_manager.mark_proxy_failure(proxy, error=err_reason)
+            proxy_manager.report_failure(proxy, error_message=err_reason, is_proxy_error=True)
             proxy_manager.release_proxy(proxy)
-            budget.record_session(proxy_id, False)
+            budget.record_session(proxy_id, "FAIL")
             if event_callback:
                 try:
                     event_callback("session_completed", {
@@ -687,8 +687,7 @@ def safelink_worker_thread_loop(
             is_success = bool(res.get("success"))
             if is_success:
                 proxy_manager.record_target_hit(proxy, target=target_name)
-                proxy_manager.mark_proxy_success(proxy)
-                budget.record_session(proxy_id, True)
+                budget.record_session(proxy_id, "PASS")
                 if event_callback:
                     try:
                         event_callback("session_completed", {
@@ -699,8 +698,8 @@ def safelink_worker_thread_loop(
                     except Exception:
                         pass
             else:
-                proxy_manager.mark_proxy_failure(proxy, error="Target not reached")
-                budget.record_session(proxy_id, False)
+                proxy_manager.report_failure(proxy, error_message="Target not reached", is_proxy_error=False)
+                budget.record_session(proxy_id, "FAIL")
                 if event_callback:
                     try:
                         event_callback("session_completed", {
@@ -711,8 +710,8 @@ def safelink_worker_thread_loop(
                     except Exception:
                         pass
         except Exception as e:
-            proxy_manager.mark_proxy_failure(proxy, error=str(e))
-            budget.record_session(proxy_id, False)
+            proxy_manager.report_failure(proxy, error_message=str(e), is_proxy_error=False)
+            budget.record_session(proxy_id, "FAIL")
             if event_callback:
                 try:
                     event_callback("session_completed", {
