@@ -365,6 +365,7 @@ class BotRunnerCLI:
             "run_browser_verifier": True,
             "max_sessions_per_run": 0 if self.args.unlimited else self.args.sessions,
             "target_name": self.args.target,
+            "errorlogs": getattr(self.args, "errorlogs", False),
         })
         pool_lock = threading.Lock()
 
@@ -504,6 +505,12 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=6.0,
         help="Jeda waktu pendinginan antar pemakaian IP dalam jam (default: 6.0)",
+    )
+    parser.add_argument(
+        "--errorlogs",
+        "--error-logs",
+        action="store_true",
+        help="Aktifkan logging diagnostik mendalam Turnstile (khususnya di Google Colab / VPS)",
     )
     return parser.parse_args()
 

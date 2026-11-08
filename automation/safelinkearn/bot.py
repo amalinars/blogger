@@ -151,30 +151,313 @@ def _is_destination_url(url: str) -> bool:
         return False
 
 
-def try_solve_turnstile(page: Any, tag: str = "") -> bool:
+class TurnstileDiagnostics:
+    """Modul diagnostik mendalam Cloudflare Turnstile (--errorlogs)."""
+    def __init__(self, page: Any, tag: str = "", worker_id: int = 1, enabled: bool = False, proxy_info: str = "direct"):
+        self.page = page
+        self.tag = tag
+        self.worker_id = worker_id
+        self.enabled = enabled
+        self.proxy_info = proxy_info
+        self.console_logs: List[str] = []
+        self.failed_requests: List[Dict[str, Any]] = []
+        self.page_errors: List[str] = []
+        self.cf_frames_detected: List[str] = []
+        self.click_attempts: List[str] = []
+        self.saved_artifacts: List[str] = []
+        self.start_time = time.time()
+        self.last_diagnostic_time = 0.0
+
+        if self.enabled and self.page:
+            self._setup_listeners()
+
+    def _setup_listeners(self) -> None:
+        try:
+            def on_console(msg: Any) -> None:
+                text = msg.text or ""
+                mtype = msg.type or "log"
+                lower_text = text.lower()
+                if mtype in ("error", "warning") or any(k in lower_text for k in ["turnstile", "cloudflare", "challenge", "token", "captcha", "cf-"]):
+                    entry = f"[{mtype.upper()}] {text}"
+                    self.console_logs.append(entry)
+                    if len(self.console_logs) > 80:
+                        self.console_logs.pop(0)
+                    if any(k in lower_text for k in ["turnstile", "challenge", "cf-error", "300030", "110200", "600010"]):
+                        logger.warning(f"{self.tag}🔍 [ERRORLOGS:Console] {entry[:140]}")
+
+            def on_page_error(exc: Any) -> None:
+                err = str(exc)
+                self.page_errors.append(err)
+                logger.warning(f"{self.tag}💥 [ERRORLOGS:PageError] {err[:140]}")
+
+            def on_request_failed(req: Any) -> None:
+                url = (req.url or "")
+                if any(k in url.lower() for k in ["cloudflare", "turnstile", "challenges", "sfe.ad", "safelinkearn"]):
+                    failure = req.failure or "Unknown failure"
+                    entry = {"url": url[:100], "method": req.method, "failure": str(failure)}
+                    self.failed_requests.append(entry)
+                    if len(self.failed_requests) > 40:
+                        self.failed_requests.pop(0)
+                    logger.warning(f"{self.tag}🌐 [ERRORLOGS:ReqFailed] {req.method} {url[:70]} -> {failure}")
+
+            self.page.on("console", on_console)
+            self.page.on("pageerror", on_page_error)
+            self.page.on("requestfailed", on_request_failed)
+        except Exception as e:
+            logger.debug(f"{self.tag}Gagal mengaitkan listener diagnostik: {e}")
+
+    def log_click_attempt(self, detail: str) -> None:
+        if self.enabled:
+            self.click_attempts.append(detail)
+            logger.info(f"{self.tag}🖱️ [ERRORLOGS:Click] {detail}")
+
+    def inspect_turnstile_state(self, trigger: str = "periodic") -> Dict[str, Any]:
+        """Memeriksa struktur DOM induk dan status frame Turnstile secara mendalam."""
+        if not self.enabled or not self.page:
+            return {}
+
+        now = time.time()
+        if now - self.last_diagnostic_time < 3.5:
+            return {}
+        self.last_diagnostic_time = now
+
+        info: Dict[str, Any] = {
+            "trigger": trigger,
+            "url": getattr(self.page, "url", ""),
+            "frames_total": len(self.page.frames),
+            "cf_frames": [],
+            "parent_has_container": False,
+            "parent_token_len": 0,
+            "parent_blocked_msg": None,
+        }
+
+        try:
+            parent_dom = self.page.evaluate("""() => {
+                const tok = document.querySelector("[name='cf-turnstile-response']");
+                const cont = document.querySelector(".cf-turnstile, [data-sitekey], #turnstile-container");
+                const ifr = document.querySelector("iframe[src*='challenges.cloudflare.com'], iframe[src*='turnstile']");
+                const blocked = document.querySelector(".step-blocked, .alert-danger");
+                let ifrBox = null;
+                if (ifr) {
+                    const r = ifr.getBoundingClientRect();
+                    ifrBox = {
+                        x: Math.round(r.x),
+                        y: Math.round(r.y),
+                        width: Math.round(r.width),
+                        height: Math.round(r.height),
+                        visible: (r.width > 0 && r.height > 0)
+                    };
+                }
+                return {
+                    hasContainer: !!cont,
+                    sitekey: cont ? cont.getAttribute("data-sitekey") : null,
+                    tokenLen: tok ? (tok.value || "").length : 0,
+                    iframeBox: ifrBox,
+                    blockedMsg: blocked ? blocked.innerText.trim() : null,
+                };
+            }""")
+            info.update(parent_dom)
+        except Exception as e:
+            info["parent_eval_error"] = str(e)
+
+        for idx, frame in enumerate(self.page.frames):
+            f_url = (frame.url or "").lower()
+            if "challenges.cloudflare.com" in f_url or "turnstile" in f_url:
+                frame_detail: Dict[str, Any] = {
+                    "index": idx,
+                    "url": frame.url[:90],
+                    "name": frame.name,
+                }
+                if frame.url[:90] not in self.cf_frames_detected:
+                    self.cf_frames_detected.append(frame.url[:90])
+                try:
+                    frame_dom = frame.evaluate("""() => {
+                        const bodyText = document.body ? document.body.innerText.trim() : "";
+                        const checkbox = document.querySelector('input[type="checkbox"]');
+                        const stage = document.getElementById("challenge-stage");
+                        const fail = document.querySelector("#fail-state, .error-text, #challenge-error-title, .ctp-error");
+                        const success = document.querySelector("#success-state, .ctp-success");
+                        const spinner = document.querySelector("#spinner, .ctp-spinner, #loading-stage");
+                        return {
+                            bodyText: bodyText.substring(0, 100),
+                            hasCheckbox: !!checkbox,
+                            checkboxVisible: checkbox ? checkbox.offsetParent !== null : false,
+                            hasStage: !!stage,
+                            hasFailState: !!fail,
+                            failText: fail ? fail.innerText.trim() : null,
+                            hasSuccessState: !!success,
+                            hasSpinner: !!spinner,
+                        };
+                    }""")
+                    frame_detail.update(frame_dom)
+                except Exception as ef:
+                    frame_detail["eval_error"] = str(ef)
+
+                info["cf_frames"].append(frame_detail)
+
+        logger.info(
+            f"{self.tag}🔍 [ERRORLOGS:Diagnose - {trigger}] "
+            f"Container: {info.get('hasContainer')} | Sitekey: {info.get('sitekey')} | "
+            f"TokenLen: {info.get('tokenLen')} | CF Frames: {len(info.get('cf_frames', []))}"
+        )
+        if info.get("iframeBox"):
+            ibox = info["iframeBox"]
+            logger.info(f"{self.tag}   🖼️ Turnstile Iframe Box: {ibox['width']}x{ibox['height']} (x:{ibox['x']}, y:{ibox['y']}) | Visible: {ibox['visible']}")
+        for cf in info.get("cf_frames", []):
+            txt = cf.get("bodyText", "").replace("\n", " ")
+            logger.info(f"{self.tag}   🎯 CF Frame #{cf.get('index')}: '{txt[:50]}' | Checkbox: {cf.get('hasCheckbox')} | FailState: {cf.get('hasFailState')}")
+            if cf.get("hasFailState") and cf.get("failText"):
+                logger.error(f"{self.tag}   🚨 CF TURNSTILE ERROR: '{cf.get('failText')}'")
+
+        return info
+
+    def capture_artifacts(self, page: Any, reason: str = "error") -> None:
+        """Menyimpan screenshot visual dan dump DOM saat terjadi kendala Turnstile."""
+        if not self.enabled or not page:
+            return
+        try:
+            os.makedirs("data/errorlogs", exist_ok=True)
+            ts = int(time.time())
+            scr_path = f"data/errorlogs/safelink_turnstile_{reason}_{ts}.png"
+            html_path = f"data/errorlogs/safelink_turnstile_{reason}_{ts}.html"
+
+            page.screenshot(path=scr_path, full_page=True)
+            self.saved_artifacts.append(scr_path)
+
+            html_content = page.content()
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(html_content)
+            self.saved_artifacts.append(html_path)
+
+            logger.info(f"{self.tag}📸 [ERRORLOGS] Screenshot tersimpan: {scr_path}")
+            logger.info(f"{self.tag}📄 [ERRORLOGS] HTML DOM tersimpan : {html_path}")
+        except Exception as e:
+            logger.debug(f"{self.tag}Gagal capture artifact: {e}")
+
+    def print_summary(self, tag: str = "") -> None:
+        """Mencetak laporan ringkasan penyebab utama kegagalan Turnstile."""
+        if not self.enabled:
+            return
+
+        print("\n" + "=" * 75)
+        print(f"📋 {tag}LAPORAN DIAGNOSTIK KEGAGALAN CLOUDFLARE TURNSTILE (--errorlogs)")
+        print("=" * 75)
+        print(f"• Proksi Digunakan    : {self.proxy_info}")
+        print(f"• Frame CF Terdeteksi : {len(self.cf_frames_detected)} frame ({', '.join(self.cf_frames_detected) or 'Tidak Ada'})")
+        print(f"• Upaya Klik Dilakukan: {len(self.click_attempts)} kali")
+
+        print("\n🔎 KEMUNGKINAN AKAR MASALAH DI GOOGLE COLAB:")
+        if self.proxy_info == "direct" or "direct" in str(self.proxy_info).lower():
+            print("  🚨 1. IP GOOGLE DATACENTER (COLAB):")
+            print("        Sesi dijalankan TANPA PROXY residensial (IP bawaan Google Colab AS15169).")
+            print("        Cloudflare Turnstile secara otomatis MEMBLOKIR atau memberi score bot 100% pada IP Datacenter.")
+            print("        -> SOLUSI: Selalu tambahkan flag `--proxy` agar bot menggunakan IP Residential dari Supabase.")
+        else:
+            print(f"  🌐 1. IP Residential Terpakai: {self.proxy_info}")
+            print("        Jika tetap gagal, kemungkinan IP residensial tersebut sudah masuk blacklist Cloudflare.")
+
+        if not self.cf_frames_detected:
+            print("  ⚠️  2. IFRAME TURNSTILE TIDAK DIMUAT:")
+            print("        Domain `challenges.cloudflare.com` tidak berhasil ter-render di dalam browser.")
+            print("        -> Kemungkinan koneksi timeout, terblokir DNS, atau CSP halaman membatalkan request.")
+        else:
+            print("  🧩 2. IFRAME TURNSTILE TERMUAT TETAPI TERTUTUP/GAGAL VERIFIKASI:")
+            print("        Turnstile muncul tetapi tidak menghasilkan token `cf-turnstile-response`.")
+            print("        -> Biasanya karena Turnstile mendeteksi atribut headless atau mouse event dicurigai sebagai bot.")
+
+        if self.page_errors:
+            print(f"\n💥 JavaScript Page Errors ({len(self.page_errors)}):")
+            for pe in self.page_errors[-3:]:
+                print(f"   • {pe}")
+
+        if self.console_logs:
+            print(f"\n📝 Console Messages Relevan ({len(self.console_logs)}):")
+            for cl in self.console_logs[-6:]:
+                print(f"   • {cl}")
+
+        if self.failed_requests:
+            print(f"\n🌐 Network Requests Gagal ({len(self.failed_requests)}):")
+            for fr in self.failed_requests[-4:]:
+                print(f"   • {fr.get('method')} {fr.get('url')} -> {fr.get('failure')}")
+
+        if self.saved_artifacts:
+            print(f"\n📁 Bukti Visual Screenshot & HTML Tersimpan:")
+            for art in self.saved_artifacts:
+                print(f"   • {art}")
+            print("   👉 Di Google Colab, Anda dapat menampilkan gambar langsung dengan:")
+            print(f"      from IPython.display import Image; display(Image('{self.saved_artifacts[0]}'))")
+
+        print("=" * 75 + "\n", flush=True)
+
+
+def try_solve_turnstile(page: Any, tag: str = "", diag: Optional[TurnstileDiagnostics] = None) -> bool:
     """Mencari iframe Cloudflare Turnstile resmi dan mengklik checkbox jika perlu konfirmasi manusia."""
+    found_cf_frame = False
     try:
-        for frame in page.frames:
+        for idx, frame in enumerate(page.frames):
             f_url = (frame.url or "").lower()
             # HANYA interaksi dengan frame resmi Cloudflare Turnstile, JANGAN sentuh iframe iklan
             if "challenges.cloudflare.com" in f_url or "turnstile" in f_url:
+                found_cf_frame = True
+                if diag:
+                    diag.log_click_attempt(f"Iframe Turnstile terdeteksi (Frame #{idx}: {frame.url[:70]})")
+
+                # Cek apakah ada status failure/error langsung di dalam frame
+                try:
+                    fail_el = frame.locator('#fail-state, .error-text, #challenge-error-title, .ctp-error')
+                    if fail_el.count() > 0 and fail_el.first.is_visible():
+                        err_text = fail_el.first.inner_text()
+                        logger.error(f"{tag}🚨 [Turnstile Fail-State] Frame menampilkan status error: '{err_text}'")
+                        if diag:
+                            diag.log_click_attempt(f"Turnstile FAIL-STATE: '{err_text}'")
+                except Exception:
+                    pass
+
                 for sel in [
                     'input[type="checkbox"]',
                     '.ctp-checkbox-label',
                     '#challenge-stage input',
                     '#challenge-stage',
                     'span.mark',
+                    '.ctp-checkbox-anchor',
                 ]:
                     try:
                         loc = frame.locator(sel)
                         if loc.count() > 0 and loc.first.is_visible():
-                            loc.first.click(timeout=1000)
+                            loc.first.click(timeout=1500)
                             logger.info(f"{tag}👉 Checkbox Turnstile diklik di frame via {sel}")
+                            if diag:
+                                diag.log_click_attempt(f"Checkbox diklik via locator '{sel}'")
                             return True
-                    except Exception:
+                    except Exception as e_click:
+                        if diag:
+                            diag.log_click_attempt(f"Locator '{sel}' gagal: {e_click}")
                         continue
-    except Exception:
-        pass
+
+        # Fallback: Klik berdasarkan koordinat bounding box iframe di halaman induk
+        try:
+            ifr = page.query_selector('iframe[src*="challenges.cloudflare.com"], iframe[src*="turnstile"]')
+            if ifr and ifr.is_visible():
+                box = ifr.bounding_box()
+                if box and box["width"] > 0 and box["height"] > 0:
+                    click_x = box["x"] + 28
+                    click_y = box["y"] + (box["height"] / 2)
+                    page.mouse.click(click_x, click_y)
+                    logger.info(f"{tag}👉 Fallback klik koordinat kotak Turnstile: ({int(click_x)}, {int(click_y)})")
+                    if diag:
+                        diag.log_click_attempt(f"Fallback coordinate click pada ({int(click_x)}, {int(click_y)})")
+                    return True
+        except Exception as e_coord:
+            if diag:
+                diag.log_click_attempt(f"Fallback coordinate click gagal: {e_coord}")
+
+    except Exception as e:
+        if diag:
+            diag.log_click_attempt(f"try_solve_turnstile error: {e}")
+
+    if diag and not found_cf_frame:
+        diag.log_click_attempt("Tidak ada frame challenges.cloudflare.com yang ditemukan saat pengecekan.")
+
     return False
 
 
@@ -185,6 +468,7 @@ def run_single_attempt(
     max_timeout_sec: int,
     worker_id: int = 1,
     event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    errorlogs: bool = False,
 ) -> Dict[str, Any]:
     """Menjalankan 1 sesi percobaan browser untuk menyelesaikan alur shortlink."""
     tag = f"[W{worker_id}] " if worker_id > 0 else ""
@@ -198,7 +482,7 @@ def run_single_attempt(
         humanize=True,
         allow_ads=True,
     )
-
+    camoufox_opts["disable_coop"] = True
     result: Dict[str, Any] = {
         "success": False,
         "worker_id": worker_id,
@@ -236,7 +520,8 @@ def run_single_attempt(
         context.add_init_script(ADBLOCK_BYPASS_SCRIPT)
 
         main_page = context.new_page()
-
+        proxy_desc = f"{proxy_data.get('host')}:{proxy_data.get('port')} ({proxy_data.get('country')})" if proxy_data else "direct (Google Colab / Local IP)"
+        diag = TurnstileDiagnostics(main_page, tag=tag, worker_id=worker_id, enabled=errorlogs, proxy_info=proxy_desc)
         def on_page_opened(p: Any):
             if p != main_page:
                 p_url = p.url or "about:blank"
@@ -407,12 +692,24 @@ def run_single_attempt(
                     if int(elapsed_cf) % 5 == 0 or elapsed_cf < 3.0:
                         logger.info(f"{tag}🛡️ Menunggu penyelesaian Cloudflare Turnstile ({int(elapsed_cf)}s)...")
                     # Cek hanya frame challenges.cloudflare.com resmi
-                    if elapsed_cf >= 5.0 and int(elapsed_cf) % 5 == 0:
-                        try_solve_turnstile(main_page, tag=tag)
+                    if elapsed_cf >= 4.0 and int(elapsed_cf) % 5 == 0:
+                        try_solve_turnstile(main_page, tag=tag, diag=diag)
+                    if diag and int(elapsed_cf) % 10 == 0:
+                        diag.inspect_turnstile_state(trigger=f"wait_{int(elapsed_cf)}s")
+                    if elapsed_cf > 25.0 and int(elapsed_cf) % 25 == 0 and diag:
+                        diag.capture_artifacts(main_page, reason=f"wait_{int(elapsed_cf)}s")
                     if proxy_data and elapsed_cf > 65.0:
                         logger.warning(f"{tag}⚠️ Turnstile tertahan > 65 detik pada proksi ini. Merotasi proksi...")
+                        if diag:
+                            diag.capture_artifacts(main_page, reason="proxy_turnstile_timeout_65s")
+                            diag.print_summary(tag)
                         break
-                time.sleep(1.0)
+                    elif not proxy_data and elapsed_cf > 45.0:
+                        logger.warning(f"{tag}⚠️ Turnstile tertahan > 45 detik pada Direct IP (Colab). Kemungkinan terblokir Cloudflare.")
+                        if diag:
+                            diag.capture_artifacts(main_page, reason="direct_colab_blocked_45s")
+                            diag.print_summary(tag)
+                        break
                 continue
             else:
                 turnstile_wait_start = None
@@ -467,8 +764,11 @@ def run_single_attempt(
                 time.sleep(2.5)
                 continue
 
-        logger.warning(f"{tag}⚠️ Batas waktu tunggu tercapai sebelum tujuan akhir terdeteksi.")
-        result["final_url"] = main_page.url
+        if not result["success"]:
+            logger.warning(f"{tag}⚠️ Batas waktu tunggu tercapai sebelum tujuan akhir terdeteksi.")
+            if diag:
+                diag.capture_artifacts(main_page, reason="session_incomplete")
+                diag.print_summary(tag)
     finally:
         try:
             browser_ctx_manager.__exit__(None, None, None)
@@ -487,6 +787,7 @@ def run_safelink_session(
     max_timeout_sec: int = 180,
     worker_id: int = 1,
     event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    errorlogs: bool = False,
 ) -> Dict[str, Any]:
     """
     Menjalankan alur penuh SafelinkEarn dengan retry loop otomatis untuk proksi per-worker.
@@ -501,6 +802,7 @@ def run_safelink_session(
             max_timeout_sec=max_timeout_sec,
             worker_id=worker_id,
             event_callback=event_callback,
+            errorlogs=errorlogs,
         )
 
     # Mode Proksi: Uji dan rotasi proksi hingga menemukan proksi yang benar-benar aktif
@@ -538,6 +840,7 @@ def run_safelink_session(
                 max_timeout_sec=max_timeout_sec,
                 worker_id=worker_id,
                 event_callback=event_callback,
+                errorlogs=errorlogs,
             )
             if res.get("success"):
                 if record_target_usage:
@@ -583,6 +886,7 @@ def safelink_worker_thread_loop(
     target_url = config.get("target_url") or "https://sfe.ad/pB5n5lnLGp"
     headless = bool(config.get("headless", True))
     max_timeout = int(config.get("max_timeout", 180))
+    errorlogs = bool(config.get("errorlogs", False))
     caller_prefix = f"safelink_w{worker_id}"
 
     if event_callback:
@@ -668,6 +972,7 @@ def safelink_worker_thread_loop(
                 max_timeout_sec=max_timeout,
                 worker_id=worker_id,
                 event_callback=event_callback,
+                errorlogs=errorlogs,
             )
             is_success = bool(res.get("success"))
             if is_success:
@@ -725,7 +1030,14 @@ def main():
     parser.add_argument("--headless", action="store_true", help="Jalankan di mode headless (default: non-headless)")
     parser.add_argument("--proxy", action="store_true", help="Gunakan proxy residential dari pool Supabase")
     parser.add_argument("--timeout", type=int, default=180, help="Batas waktu maksimum per sesi dalam detik (default: 180)")
-
+    parser.add_argument(
+        "--errorlogs",
+        "--error-logs",
+        "-e",
+        action="store_true",
+        dest="errorlogs",
+        help="Aktifkan logging diagnostik mendalam untuk menyelidiki kegagalan Cloudflare Turnstile (khususnya di Google Colab / VPS)",
+    )
     args = parser.parse_args()
 
     workers = max(1, args.workers)
@@ -738,7 +1050,7 @@ def main():
     print(f"🎯 Total Sesi   : {total_count}")
     print(f"🖥️  Headless Mode: {args.headless}")
     print(f"🛡️  Use Proxy    : {args.proxy}")
-    print("=" * 65 + "\n")
+    print(f"🔍  Error Logs   : {args.errorlogs}")
 
     start_all = time.time()
     results: List[Dict[str, Any]] = []
@@ -756,6 +1068,7 @@ def main():
             use_proxy=args.proxy,
             max_timeout_sec=args.timeout,
             worker_id=worker_slot,
+            errorlogs=args.errorlogs,
         )
 
     if workers == 1 and total_count == 1:
