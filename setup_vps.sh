@@ -12,8 +12,8 @@ echo -e "\033[1;36m====================================================\033[0m"
 
 # 1. Update paket sistem & install dependensi library OS (kompatibel Ubuntu 20.04/22.04/24.04+)
 echo -e "\n\033[1;33m[1/5] Mengupdate sistem dan menginstall dependensi OS...\033[0m"
-sudo apt update -y
-
+# Toleran terhadap mirror pihak ketiga (misal R-CRAN / PPA di Colab) yang sedang sync
+sudo apt-get update -y || true
 PKGS=(
     python3
     python3-pip
@@ -63,8 +63,7 @@ fi
 
 # Dependensi tambahan Firefox
 PKGS+=(libxt6 libdbus-glib-1-2)
-
-sudo apt install -y "${PKGS[@]}"
+sudo apt-get install -y --fix-missing "${PKGS[@]}" || true
 
 # 2. Deteksi environment (Google Colab vs VPS)
 IS_COLAB=false
