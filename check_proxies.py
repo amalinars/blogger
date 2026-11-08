@@ -1,72 +1,255 @@
-import json
+#!/usr/bin/env python3
+"""
+check_proxies.py
+Multi-threaded Proxy Health Checker & Auto-Cleaner CLI.
+
+Fitur:
+  - Cek kesehatan proxy secara paralel (HTTP ping ke api.ipify.org)
+  - Otomatis menghapus proxy DEAD dari file lokal (data/proxies.json)
+  - Mendukung pengecekan dan penghapusan langsung di database Supabase (--supabase)
+  - Menampilkan latency dan real IP yang terdeteksi
+
+Contoh Penggunaan:
+  # Cek proxies lokal dan tampilkan yang hidup/mati:
+  python3 check_proxies.py
+
+  # Cek proxies lokal dan LANGSUNG HAPUS yang mati:
+  python3 check_proxies.py --delete-dead
+
+  # Cek dan hapus yang mati langsung di database SUPABASE:
+  python3 check_proxies.py --supabase --delete-dead
+
+  # Cek dengan 50 thread dan timeout 5 detik:
+  python3 check_proxies.py --threads 50 --timeout 5 --delete-dead
+"""
+
+import argparse
 import concurrent.futures
-import requests
+import json
+import os
+import sys
 import time
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+import requests
 
-PROXY_FILE = "data/proxies.json"
+PROJECT_ROOT = Path(__file__).resolve().parent
+PROXY_FILE = PROJECT_ROOT / "data" / "proxies.json"
+CONFIG_FILE = PROJECT_ROOT / "data" / "supabase_config.json"
 CHECK_URL = "http://api.ipify.org?format=json"
-TIMEOUT = 7  # 7 detik timeout
 
-def test_proxy(proxy_item, index):
-    proxy_url = proxy_item.get("proxy_url")
+
+def get_proxy_url(p: Dict[str, Any]) -> str:
+    url = p.get("proxy_url")
+    if url:
+        return url
+    host = p.get("host")
+    port = p.get("port")
+    u = p.get("username")
+    pwd = p.get("password")
+    if u and pwd:
+        return f"http://{u}:{pwd}@{host}:{port}"
+    return f"http://{host}:{port}"
+
+
+def test_proxy(proxy_item: Dict[str, Any], index: int, timeout: int = 6) -> Dict[str, Any]:
+    proxy_url = get_proxy_url(proxy_item)
     country = proxy_item.get("country", "Unknown")
-    proxies = {
-        "http": proxy_url,
-        "https": proxy_url
-    }
-    
+    proxies = {"http": proxy_url, "https": proxy_url}
+
     start_time = time.time()
     try:
-        response = requests.get(CHECK_URL, proxies=proxies, timeout=TIMEOUT)
+        resp = requests.get(CHECK_URL, proxies=proxies, timeout=timeout)
         latency = round((time.time() - start_time) * 1000, 2)
-        if response.status_code == 200:
-            ip_detected = response.json().get("ip", "N/A")
+        if resp.status_code == 200:
+            ip_detected = resp.json().get("ip", "N/A")
             return {
                 "index": index,
                 "status": "ALIVE",
                 "country": country,
                 "ip": ip_detected,
                 "latency_ms": latency,
-                "proxy_item": proxy_item
+                "proxy_item": proxy_item,
             }
-    except Exception as e:
+    except Exception:
         pass
-    
+
     return {
         "index": index,
         "status": "DEAD",
         "country": country,
         "ip": None,
         "latency_ms": None,
-        "proxy_item": proxy_item
+        "proxy_item": proxy_item,
     }
 
+
+def load_supabase_config() -> Dict[str, Any]:
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {
+        "supabase_url": "https://supabase.riztama.my.id",
+        "supabase_key": "sb_publishable_TuuasLbN1zmVVbD_wmviZ2_pwLKyHYX",
+        "schema": "proxxies",
+        "table": "proxy_list",
+    }
+
+
+def fetch_all_supabase_proxies() -> List[Dict[str, Any]]:
+    cfg = load_supabase_config()
+    url = cfg["supabase_url"].rstrip("/")
+    key = cfg["supabase_key"]
+    schema = cfg.get("schema", "proxxies")
+    table = cfg.get("table", "proxy_list")
+
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Accept-Profile": schema,
+    }
+
+    all_items = []
+    page_size = 1000
+    offset = 0
+
+    while True:
+        p_headers = {**headers, "Range": f"{offset}-{offset + page_size - 1}"}
+        resp = requests.get(f"{url}/rest/v1/{table}?select=*&order=id.asc", headers=p_headers, timeout=15)
+        if resp.status_code not in (200, 206):
+            break
+        chunk = resp.json()
+        if not chunk:
+            break
+        all_items.extend(chunk)
+        if len(chunk) < page_size:
+            break
+        offset += page_size
+
+    return all_items
+
+
+def delete_supabase_proxies(ids: List[int]) -> int:
+    if not ids:
+        return 0
+    cfg = load_supabase_config()
+    url = cfg["supabase_url"].rstrip("/")
+    key = cfg["supabase_key"]
+    schema = cfg.get("schema", "proxxies")
+    table = cfg.get("table", "proxy_list")
+
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Accept-Profile": schema,
+        "Content-Profile": schema,
+    }
+
+    deleted_total = 0
+    chunk_size = 100
+    for i in range(0, len(ids), chunk_size):
+        chunk = ids[i : i + chunk_size]
+        id_filter = ",".join(str(x) for x in chunk)
+        endpoint = f"{url}/rest/v1/{table}?id=in.({id_filter})"
+        try:
+            resp = requests.delete(endpoint, headers=headers, timeout=20)
+            if resp.status_code in (200, 204):
+                deleted_total += len(chunk)
+        except Exception as e:
+            print(f"⚠️ Gagal menghapus batch Supabase: {e}")
+
+    return deleted_total
+
+
 def main():
-    import sys
-    print(f"🔍 Membaca proxy dari {PROXY_FILE}...")
-    with open(PROXY_FILE, "r") as f:
-        raw_data = json.load(f)
-        
-    if isinstance(raw_data, dict) and "proxies" in raw_data:
-        proxy_list = raw_data["proxies"]
-        cursor = raw_data.get("cursor", 0)
-        is_dict_format = True
-    else:
-        proxy_list = raw_data
+    parser = argparse.ArgumentParser(
+        description="Multi-threaded Proxy Health Checker & Auto-Cleaner CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--delete-dead",
+        "--clean",
+        action="store_true",
+        dest="delete_dead",
+        help="Hapus proxy yang berstatus DEAD langsung dari daftar",
+    )
+    parser.add_argument(
+        "--supabase",
+        action="store_true",
+        help="Targetkan pengecekan & penghapusan langsung ke database Supabase (schema proxxies)",
+    )
+    parser.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        default=40,
+        help="Jumlah thread paralel pengecekan (default: 40)",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=6,
+        help="Batas waktu timeout HTTP per proxy dalam detik (default: 6)",
+    )
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Batasi jumlah proxy yang diuji (0 = uji semua)",
+    )
+
+    args = parser.parse_args()
+
+    # 1. Muat daftar proxy
+    is_supabase = args.supabase
+    if is_supabase:
+        print("☁️ Mengambil seluruh proxy dari database Supabase (schema: proxxies)...")
+        proxy_list = fetch_all_supabase_proxies()
         cursor = 0
         is_dict_format = False
-        
+    else:
+        if not PROXY_FILE.exists():
+            print(f"❌ File {PROXY_FILE} tidak ditemukan!")
+            sys.exit(1)
+        print(f"🔍 Membaca proxy dari file lokal {PROXY_FILE}...")
+        with open(PROXY_FILE, "r", encoding="utf-8") as f:
+            raw_data = json.load(f)
+        if isinstance(raw_data, dict) and "proxies" in raw_data:
+            proxy_list = raw_data["proxies"]
+            cursor = raw_data.get("cursor", 0)
+            is_dict_format = True
+        else:
+            proxy_list = raw_data
+            cursor = 0
+            is_dict_format = False
+
+    if args.limit and args.limit > 0:
+        proxy_list = proxy_list[: args.limit]
+
     total = len(proxy_list)
-    print(f"📊 Ditemukan {total} proxy. Menjalankan fast-checker multithreaded (timeout: {TIMEOUT}s)...")
-    
+    if total == 0:
+        print("⚠️ Tidak ada proxy yang ditemukan untuk diuji.")
+        sys.exit(0)
+
+    print(
+        f"📊 Ditemukan {total} proxy ({'Supabase Database' if is_supabase else 'File Lokal'}). "
+        f"Menjalankan checker paralel ({args.threads} threads, timeout: {args.timeout}s)..."
+    )
+
     alive_proxies = []
     dead_proxies = []
-    
-    with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
-        futures = [executor.submit(test_proxy, p, idx) for idx, p in enumerate(proxy_list, 1)]
+
+    start_check = time.time()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
+        futures = {
+            executor.submit(test_proxy, p, idx, args.timeout): p
+            for idx, p in enumerate(proxy_list, 1)
+        }
         for future in concurrent.futures.as_completed(futures):
             res = future.result()
             p_item = res["proxy_item"]
+            idx = res["index"]
+            c = res["country"]
             if res["status"] == "ALIVE":
                 alive_proxies.append(res)
                 p_item["health"] = "ALIVE"
@@ -75,40 +258,74 @@ def main():
                 p_item["last_checked"] = time.time()
                 p_item["fail_count"] = 0
                 p_item["last_error"] = None
-                print(f"  ✅ [ALIVE] Proxy #{res['index']} ({res['country']}) -> IP: {res['ip']} | Latency: {res['latency_ms']}ms")
+                print(f"  ✅ [ALIVE] #{idx:4d} ({c:14s}) -> IP: {res['ip']:15s} | Latency: {res['latency_ms']} ms")
             else:
                 dead_proxies.append(res)
                 p_item["health"] = "DEAD"
                 p_item["last_checked"] = time.time()
-                p_item["last_error"] = "Tester: Connection failed"
-                
-    print("\n" + "=" * 60)
-    print(f"📈 HASIL PENGECEKAN PROXY:")
-    print(f"   - Total Proxy  : {total}")
-    print(f"   - Aktif (ALIVE): {len(alive_proxies)}")
-    print(f"   - Mati (DEAD)  : {len(dead_proxies)}")
-    print("=" * 60)
-    
+                p_item["last_error"] = "Connection failed"
+                host_port = f"{p_item.get('host')}:{p_item.get('port')}"
+                print(f"  ❌ [DEAD]  #{idx:4d} ({c:14s}) -> {host_port}")
+
+    elapsed = round(time.time() - start_check, 2)
+    print("\n" + "=" * 65)
+    print(f"📈 HASIL PENGECEKAN PROXY ({'Supabase' if is_supabase else 'Lokal'}):")
+    print(f"   - Total Diuji   : {total}")
+    print(f"   - Aktif (ALIVE) : {len(alive_proxies)} ✅")
+    print(f"   - Mati (DEAD)   : {len(dead_proxies)} ❌")
+    print(f"   - Total Durasi  : {elapsed} detik")
+    print("=" * 65)
+
     alive_data = [item["proxy_item"] for item in alive_proxies]
-    
-    if "--delete-dead" in sys.argv or "--clean" in sys.argv:
-        print("🗑️ Menghapus proxy DEAD dari database utama...")
-        if is_dict_format:
-            new_cursor = cursor % len(alive_data) if alive_data else 0
-            final_data = {"cursor": new_cursor, "proxies": alive_data}
+
+    if args.delete_dead:
+        if is_supabase:
+            dead_ids = [
+                item["proxy_item"]["id"]
+                for item in dead_proxies
+                if item["proxy_item"].get("id")
+            ]
+            print(f"🗑️ Menghapus {len(dead_ids)} proxy DEAD dari database Supabase...")
+            deleted_sb = delete_supabase_proxies(dead_ids)
+            print(f"✅ Berhasil menghapus {deleted_sb} proxy DEAD dari Supabase!")
+
+            # Sinkronkan file lokal
+            if PROXY_FILE.exists():
+                try:
+                    with open(PROXY_FILE, "r", encoding="utf-8") as f:
+                        loc_raw = json.load(f)
+                    if isinstance(loc_raw, dict) and "proxies" in loc_raw:
+                        loc_list = loc_raw["proxies"]
+                        loc_alive = [p for p in loc_list if p.get("id") not in set(dead_ids)]
+                        loc_raw["proxies"] = loc_alive
+                        loc_raw["cursor"] = loc_raw.get("cursor", 0) % max(1, len(loc_alive))
+                        with open(PROXY_FILE, "w", encoding="utf-8") as f:
+                            json.dump(loc_raw, f, indent=2)
+                        print(f"💾 File lokal {PROXY_FILE} ikut dibersihkan (Sisa: {len(loc_alive)} proxy).")
+                except Exception:
+                    pass
         else:
-            final_data = alive_data
-        with open(PROXY_FILE, "w") as f:
-            json.dump(final_data, f, indent=2)
-        print(f"✅ Database {PROXY_FILE} berhasil dibersihkan! Sisa {len(alive_data)} proxy aktif.")
+            print(f"🗑️ Menghapus {len(dead_proxies)} proxy DEAD dari {PROXY_FILE}...")
+            if is_dict_format:
+                new_cursor = cursor % len(alive_data) if alive_data else 0
+                final_data = {"cursor": new_cursor, "proxies": alive_data}
+            else:
+                final_data = alive_data
+            with open(PROXY_FILE, "w", encoding="utf-8") as f:
+                json.dump(final_data, f, indent=2)
+            print(f"✅ File {PROXY_FILE} berhasil dibersihkan! Sisa {len(alive_data)} proxy aktif.")
     else:
-        # Simpan proxy yang hidup ke file khusus sebagai backup
-        with open("data/proxies_alive.json", "w") as f:
+        # Simpan backup proxy yang masih hidup ke proxies_alive.json
+        out_alive = PROJECT_ROOT / "data" / "proxies_alive.json"
+        with open(out_alive, "w", encoding="utf-8") as f:
             json.dump(alive_data, f, indent=2)
-        print(f"💾 Proxy yang masih hidup telah disimpan ke: data/proxies_alive.json")
-        print("💡 Tip: Gunakan argument '--delete-dead' untuk langsung menghapus yang mati dari data/proxies.json:")
-        print("   python3 check_proxies.py --delete-dead")
+        print(f"💾 Proxy ALIVE disimpan ke: {out_alive}")
+        print("\n💡 Tip: Gunakan argumen '--delete-dead' untuk langsung menghapus yang mati:")
+        if is_supabase:
+            print("   python3 check_proxies.py --supabase --delete-dead")
+        else:
+            print("   python3 check_proxies.py --delete-dead")
+
 
 if __name__ == "__main__":
     main()
-

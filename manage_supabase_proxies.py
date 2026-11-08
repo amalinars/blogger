@@ -140,8 +140,9 @@ def main():
     parser.add_argument("--test", action="store_true", help="Uji koneksi ke Supabase & schema proxxies")
     parser.add_argument("--pull", action="store_true", help="Tarik proxy dari Supabase ke data/proxies.json lokal")
     parser.add_argument("--list", action="store_true", help="Tampilkan seluruh proxy di Supabase")
+    parser.add_argument("--check", action="store_true", help="Cek kesehatan seluruh proxy di Supabase")
+    parser.add_argument("--delete-dead", "--clean-dead", action="store_true", dest="delete_dead", help="Cek seluruh proxy di Supabase dan langsung hapus yang DEAD")
     parser.add_argument("--reset-idle", action="store_true", help="Kembalikan seluruh status proxy (IN_USE) menjadi IDLE di Supabase")
-    parser.add_argument("--upload-file", type=str, help="Upload file berisi daftar proxy (1 baris per proxy: host:port:user:pass)")
     parser.add_argument("--upload", type=str, help="Upload string proxy langsung (contoh: host:port:user:pass)")
 
     args = parser.parse_args()
@@ -152,6 +153,12 @@ def main():
         pull_proxies()
     elif args.list:
         list_proxies()
+    elif args.check or args.delete_dead:
+        import subprocess
+        cmd = [sys.executable, str(PROJECT_ROOT / "check_proxies.py"), "--supabase"]
+        if args.delete_dead:
+            cmd.append("--delete-dead")
+        subprocess.run(cmd)
     elif args.reset_idle:
         reset_all_idle()
     elif args.upload_file:
