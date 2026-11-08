@@ -42,7 +42,7 @@ from core.telemetry_reporter import get_telemetry_reporter
 from automation.engine import load_config
 from automation.session import SessionBudget
 from automation.monetag.flow import monetag_worker_thread_loop, run_monetag_session
-
+from automation.safelinkearn.bot import safelink_worker_thread_loop
 # ANSI Color codes untuk terminal modern
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -127,11 +127,10 @@ class BotRunnerCLI:
 
         self.workers_state: Dict[int, Dict[str, Any]] = {}
         for wid in range(1, self.args.workers + 1):
-            t_net = "💎 Monetag"
+            t_net = "🔗 SafelinkEarn" if self.args.target in ("safelink", "safelinkearn") else "💎 Monetag"
             self.workers_state[wid] = {
                 "worker_id": wid,
                 "target_net": t_net,
-                "proxy_ip": "—",
                 "country": "—",
                 "country_flag": "🌐",
                 "stepper": "⏳ Memulai",
@@ -309,10 +308,10 @@ class BotRunnerCLI:
                 # Proxy HANYA berstatus aktif jika benar-benar sedang dipegang oleh worker yang aktif!
                 is_active = bool(ip in active_ips)
                 health = p.get("health", "ALIVE")
+                t_key = "safelink" if self.args.target in ("safelink", "safelinkearn") else "monetag"
                 tu = p.get("target_usage") or {}
-                mn_hit = (tu.get("monetag") or {}).get("count", 0)
-                last_used = (tu.get("monetag") or {}).get("last_used", 0) or 0
-
+                mn_hit = (tu.get(t_key) or {}).get("count", 0)
+                last_used = (tu.get(t_key) or {}).get("last_used", 0) or 0
                 p_list.append({
                     "ip": ip,
                     "port": p.get("port", 0),
@@ -343,18 +342,22 @@ class BotRunnerCLI:
             pass
 
     def run(self) -> None:
+        is_safelink = self.args.target in ("safelink", "safelinkearn")
+        default_url = "https://sfe.ad/pB5n5lnLGp" if is_safelink else "https://article.riztama.my.id"
+        target_url = self.args.url or default_url
+
         print_banner(
             node_name=self.reporter.node_name,
             target=self.args.target,
             workers=self.args.workers,
             unlimited=self.args.unlimited,
             headless=self.args.headless,
-            url=self.args.url,
+            url=target_url,
         )
 
         base_config = load_config()
         base_config.update({
-            "target_url": self.args.url,
+            "target_url": target_url,
             "headless": self.args.headless,
             "max_uses_per_day": self.args.max_uses,
             "proxy_cooldown_hours": self.args.cooldown,
@@ -362,7 +365,6 @@ class BotRunnerCLI:
             "max_sessions_per_run": 0 if self.args.unlimited else self.args.sessions,
             "target_name": self.args.target,
         })
-
         pool_lock = threading.Lock()
 
         def _reset_pool() -> None:
@@ -371,15 +373,19 @@ class BotRunnerCLI:
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
-                reset_hits = self.proxy_manager.reset_target_usage("monetag")
+                t_key = "safelink" if is_safelink else "monetag"
+                reset_hits = self.proxy_manager.reset_target_usage(t_key)
                 self.budget.reset_proxy_counts()
                 print(f"\n{YELLOW}♻️ [Mode Tanpa Batas Lokal] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
 
         # Spawn workers
         for wid in range(1, self.args.workers + 1):
-            w_fn = monetag_worker_thread_loop
-            w_tag = "Monetag"
-
+            if is_safelink:
+                w_fn = safelink_worker_thread_loop
+                w_tag = "SafelinkEarn"
+            else:
+                w_fn = monetag_worker_thread_loop
+                w_tag = "Monetag"
             t = threading.Thread(
                 target=w_fn,
                 args=(
@@ -435,9 +441,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=["monetag"],
+        choices=["monetag", "safelinkearn", "safelink"],
         default="monetag",
-        help="Jaringan iklan target: monetag",
+        help="Jaringan target: monetag, safelinkearn",
     )
     parser.add_argument(
         "-w", "--workers",
@@ -472,8 +478,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--url",
         type=str,
-        default="https://article.riztama.my.id",
-        help="URL web target tujuan",
+        default=None,
+        help="URL web target tujuan (default: Monetag -> article.riztama.my.id, SafelinkEarn -> sfe.ad/pB5n5lnLGp)",
     )
     parser.add_argument(
         "--name",

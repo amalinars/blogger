@@ -14,12 +14,12 @@ import json
 import logging
 import os
 import sys
+import random
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 import requests
-
 # Setup root path agar module core dan automation dapat diimport
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT_DIR = os.path.dirname(os.path.dirname(CURRENT_DIR))
@@ -204,6 +204,7 @@ def run_single_attempt(
     proxy_data: Optional[Dict[str, Any]],
     max_timeout_sec: int,
     worker_id: int = 1,
+    event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """Menjalankan 1 sesi percobaan browser untuk menyelesaikan alur shortlink."""
     tag = f"[W{worker_id}] " if worker_id > 0 else ""
@@ -232,6 +233,13 @@ def run_single_attempt(
     start_time = time.time()
     popups: List[str] = []
 
+    def _emit(event_type: str, **kwargs: Any) -> None:
+        if event_callback:
+            try:
+                event_callback(event_type, {"worker_id": worker_id, **kwargs})
+            except Exception:
+                pass
+
     # Gunakan startup lock agar peluncuran antar thread tidak bentrok
     with BROWSER_LAUNCH_LOCK:
         time.sleep(0.5)
@@ -259,6 +267,8 @@ def run_single_attempt(
 
         # 1. Buka URL shortlink awal
         logger.info(f"{tag}🌐 1. Membuka URL: {target_url}...")
+        _emit("session_started")
+        _emit("stepper_update", stage="🌐 Buka Link", status=f"Membuka {target_url[:55]}")
         main_page.goto(target_url, timeout=45000, wait_until="domcontentloaded")
         time.sleep(1.5)
 
@@ -284,6 +294,7 @@ def run_single_attempt(
                     logger.info(f"{tag}🔘 Tombol gerbang: '{btn_state.get('text')}' (disabled={btn_state.get('disabled')})")
                     if btn_state.get("disabled") is False:
                         logger.info(f"{tag}👉 Mengklik tombol gerbang #go-btn...")
+                        _emit("stepper_update", stage="🚪 Gerbang Awal", status="Mengklik #go-btn...")
                         main_page.evaluate("() => document.getElementById('go-btn')?.click()")
                         time.sleep(2)
                         break
@@ -307,6 +318,7 @@ def run_single_attempt(
                     p_url = p.url or ""
                     if _is_destination_url(p_url):
                         logger.info(f"{tag}🎉🎉🎉 BERHASIL MENCAPAI TUJUAN AKHIR: {p_url}")
+                        _emit("stepper_update", stage="🎉 Selesai", status=f"Tujuan: {p_url[:55]}")
                         result["success"] = True
                         result["final_url"] = p_url
                         result["steps_completed"] = len(steps_recorded)
@@ -333,6 +345,7 @@ def run_single_attempt(
                 curr_url = main_page.url
                 if _is_destination_url(curr_url):
                     logger.info(f"{tag}🎉🎉🎉 BERHASIL MENCAPAI TUJUAN AKHIR: {curr_url}")
+                    _emit("stepper_update", stage="🎉 Selesai", status=f"Tujuan: {curr_url[:55]}")
                     result["success"] = True
                     result["final_url"] = curr_url
                     result["steps_completed"] = len(steps_recorded)
@@ -396,7 +409,7 @@ def run_single_attempt(
             if step_lbl and step_lbl not in steps_recorded:
                 steps_recorded.add(step_lbl)
                 logger.info(f"{tag}📌 {step_lbl} ({state.get('url')})")
-
+                _emit("stepper_update", stage=f"📌 {step_lbl}", status=state.get("url") or "")
             top_text = (state.get("topText") or "").strip()
             bot_text = (state.get("botText") or "").strip()
             top_dis = state.get("topDisabled")
@@ -439,6 +452,7 @@ def run_single_attempt(
             # Kasus C: Tombol atas aktif untuk diverifikasi ("Click to Verify", "Click to Continue", dsb.)
             if top_dis is False and "please wait" not in top_text.lower() and "scroll" not in top_text.lower() and top_text:
                 logger.info(f"{tag}🖱️ Mengklik tombol verifikasi atas: '{top_text}'...")
+                _emit("stepper_update", stage="🖱️ Verifikasi Atas", status=top_text)
                 main_page.evaluate("""() => {
                     const topBtn = document.querySelector('#step-top .step-btn');
                     if (topBtn) topBtn.click();
@@ -450,12 +464,14 @@ def run_single_attempt(
             if not state.get("botHidden") and "please wait" in bot_text.lower():
                 if bot_text != last_bot_wait:
                     logger.info(f"{tag}⏳ Tombol bawah: {bot_text}...")
+                    _emit("stepper_update", stage="⏳ Countdown Stepper", status=bot_text)
                     last_bot_wait = bot_text
                 continue
 
             # Kasus E: Tombol bawah aktif ("Next", "Go to the Next Step", "Click Here to Continue", "Open Link", dsb.)
             if not state.get("botHidden") and bot_dis is False and "please wait" not in bot_text.lower() and bot_text:
                 logger.info(f"{tag}🖱️ Mengklik tombol stepper bawah: '{bot_text}'...")
+                _emit("stepper_update", stage="🖱️ Klik Stepper", status=bot_text)
                 main_page.evaluate("""() => {
                     const botBtn = document.querySelector('#step-bottom .step-btn');
                     if (botBtn) {
@@ -499,6 +515,7 @@ def run_safelink_session(
             proxy_data=None,
             max_timeout_sec=max_timeout_sec,
             worker_id=worker_id,
+            event_callback=event_callback,
         )
 
     # Mode Proksi: Uji dan rotasi proksi hingga menemukan proksi yang benar-benar aktif
@@ -535,6 +552,7 @@ def run_safelink_session(
                 proxy_data=leased_proxy,
                 max_timeout_sec=max_timeout_sec,
                 worker_id=worker_id,
+                event_callback=event_callback,
             )
             if res.get("success"):
                 if record_target_usage:
@@ -561,6 +579,153 @@ def run_safelink_session(
         "elapsed_sec": 0.0,
         "proxy": "all_failed",
     }
+
+
+def safelink_worker_thread_loop(
+    worker_id: int,
+    config: Dict[str, Any],
+    proxy_manager: Any,
+    budget: Any,
+    event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    stop_event: Optional[threading.Event] = None,
+    reset_pool_callback: Optional[Callable[[], None]] = None,
+) -> None:
+    """
+    Loop worker multi-sesi untuk SafelinkEarn dengan rotasi proxy residensial.
+    Kompatibel penuh dengan CLI run_bot.py dan Supabase Telemetry dashboard.
+    """
+    tag = f"[W{worker_id}]"
+    target_url = config.get("target_url") or "https://sfe.ad/pB5n5lnLGp"
+    headless = bool(config.get("headless", True))
+    max_timeout = int(config.get("max_timeout", 180))
+    caller_prefix = f"safelink_w{worker_id}"
+
+    if event_callback:
+        try:
+            event_callback("log_message", {
+                "worker_id": worker_id,
+                "message": f"{tag} Worker SafelinkEarn siap — IP dirotasi otomatis.",
+                "style": "green",
+            })
+        except Exception:
+            pass
+
+    while not (stop_event and stop_event.is_set()):
+        if budget.is_exhausted() or not budget.has_capacity():
+            break
+        if not budget.reserve():
+            break
+
+        target_name = "safelink"
+        max_uses = int(config.get("max_uses_per_day", 2))
+        cooldown_hrs = float(config.get("proxy_cooldown_hours", 6.0))
+        caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
+
+        proxy = proxy_manager.acquire_proxy(
+            caller_id=caller_id,
+            exclusive=True,
+            verify_alive=False,
+            target=target_name,
+            max_uses_per_day=max_uses,
+            cooldown_seconds=cooldown_hrs * 3600,
+        )
+
+        if not proxy:
+            if getattr(budget, "unlimited", False) and reset_pool_callback and not getattr(proxy_manager, "supabase_enabled", False):
+                reset_pool_callback()
+                time.sleep(1.0)
+                continue
+            time.sleep(5.0)
+            continue
+
+        proxy_id = proxy.get("id") or proxy.get("proxy_url")
+        ip = proxy.get("ip_detected") or proxy.get("host", "?")
+        country = proxy.get("country", "Unknown")
+
+        if event_callback:
+            try:
+                event_callback("proxy_assigned", {
+                    "worker_id": worker_id,
+                    "proxy_id": proxy_id,
+                    "ip": ip,
+                    "country": country,
+                    "target_network": "🔗 SafelinkEarn",
+                })
+                event_callback("session_started", {"worker_id": worker_id})
+            except Exception:
+                pass
+
+        # Tes koneksi proxy live
+        test_res = validate_proxy_live(proxy)
+        if not test_res.get("success"):
+            err_reason = test_res.get("error", "Proxy dead")
+            proxy_manager.mark_proxy_failure(proxy, error=err_reason)
+            proxy_manager.release_proxy(proxy)
+            budget.record_session(proxy_id, False)
+            if event_callback:
+                try:
+                    event_callback("session_completed", {
+                        "worker_id": worker_id,
+                        "status": "FAIL",
+                        "error": err_reason,
+                    })
+                except Exception:
+                    pass
+            continue
+
+        proxy["ip_detected"] = test_res.get("ip")
+
+        try:
+            res = run_single_attempt(
+                target_url=target_url,
+                headless=headless,
+                proxy_data=proxy,
+                max_timeout_sec=max_timeout,
+                worker_id=worker_id,
+                event_callback=event_callback,
+            )
+            is_success = bool(res.get("success"))
+            if is_success:
+                proxy_manager.record_target_hit(proxy, target=target_name)
+                proxy_manager.mark_proxy_success(proxy)
+                budget.record_session(proxy_id, True)
+                if event_callback:
+                    try:
+                        event_callback("session_completed", {
+                            "worker_id": worker_id,
+                            "status": "PASS",
+                            "details": res,
+                        })
+                    except Exception:
+                        pass
+            else:
+                proxy_manager.mark_proxy_failure(proxy, error="Target not reached")
+                budget.record_session(proxy_id, False)
+                if event_callback:
+                    try:
+                        event_callback("session_completed", {
+                            "worker_id": worker_id,
+                            "status": "FAIL",
+                            "error": "Target not reached",
+                        })
+                    except Exception:
+                        pass
+        except Exception as e:
+            proxy_manager.mark_proxy_failure(proxy, error=str(e))
+            budget.record_session(proxy_id, False)
+            if event_callback:
+                try:
+                    event_callback("session_completed", {
+                        "worker_id": worker_id,
+                        "status": "FAIL",
+                        "error": str(e),
+                    })
+                except Exception:
+                    pass
+        finally:
+            proxy_manager.release_proxy(proxy)
+
+        time.sleep(random.uniform(1.0, 2.5))
 
 
 def main():
