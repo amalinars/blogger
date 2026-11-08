@@ -88,6 +88,14 @@ ADBLOCK_BYPASS_SCRIPT = """
         window.__pageReady = Promise.resolve(false);
     } catch (e) {}
     window.adblock = false;
+
+    // Bersihkan popunder overlay transparan (#dontfoid) yang mencegat interaksi Turnstile
+    setInterval(function() {
+        try {
+            const overlays = document.querySelectorAll("#dontfoid, #transparent, div[style*='z-index: 2147483647'], div[style*='z-index:2147483647']");
+            overlays.forEach(function(el) { el.remove(); });
+        } catch(e) {}
+    }, 400);
 })();
 """
 
@@ -691,8 +699,13 @@ def run_single_attempt(
                     elapsed_cf = time.time() - turnstile_wait_start
                     if int(elapsed_cf) % 5 == 0 or elapsed_cf < 3.0:
                         logger.info(f"{tag}🛡️ Menunggu penyelesaian Cloudflare Turnstile ({int(elapsed_cf)}s)...")
-                    # Cek hanya frame challenges.cloudflare.com resmi
-                    if elapsed_cf >= 4.0 and int(elapsed_cf) % 5 == 0:
+                    # Hapus overlay jika ada yang menutupi
+                    try:
+                        main_page.evaluate("() => { document.querySelectorAll('#dontfoid, #transparent, div[style*=\"z-index: 2147483647\"]').forEach(e => e.remove()); }")
+                    except Exception:
+                        pass
+                    # Cek frame challenges.cloudflare.com resmi
+                    if elapsed_cf >= 3.0 and int(elapsed_cf) % 4 == 0:
                         try_solve_turnstile(main_page, tag=tag, diag=diag)
                     if diag and int(elapsed_cf) % 10 == 0:
                         diag.inspect_turnstile_state(trigger=f"wait_{int(elapsed_cf)}s")
@@ -710,6 +723,8 @@ def run_single_attempt(
                             diag.capture_artifacts(main_page, reason="direct_colab_blocked_45s")
                             diag.print_summary(tag)
                         break
+                else:
+                    logger.info(f"{tag}✨ Token Turnstile terverifikasi! Menunggu tombol verifikasi aktif...")
                 continue
             else:
                 turnstile_wait_start = None
@@ -733,6 +748,9 @@ def run_single_attempt(
                 time.sleep(1.0)
             # Kasus C: Tombol atas aktif untuk diverifikasi ("Click to Verify", "Click to Continue", dsb.)
             if top_dis is False and "please wait" not in top_text.lower() and "scroll" not in top_text.lower() and top_text:
+                if "verify" in top_text.lower() and not state.get("hasToken"):
+                    time.sleep(1.0)
+                    continue
                 logger.info(f"{tag}🖱️ Mengklik tombol verifikasi atas: '{top_text}'...")
                 _emit("stepper_update", stage="🖱️ Verifikasi Atas", status=top_text)
                 main_page.evaluate("""() => {
