@@ -55,7 +55,7 @@ RED = "\033[31m"
 BLUE = "\033[34m"
 
 
-def print_banner(node_name: str, target: str, workers: int, unlimited: bool, headless: bool, url: str) -> None:
+def print_banner(node_name: str, target: str, workers: int, unlimited: bool, headless: bool, url: str, potato: bool = True) -> None:
     print(f"\n{BOLD}{CYAN}╔═══════════════════════════════════════════════════════════════════╗{RESET}", flush=True)
     print(f"{BOLD}{CYAN}║     🚀 BOT AD IMPRESSION RUNNER - DISTRIBUTED CLI TERMINAL         ║{RESET}", flush=True)
     print(f"{BOLD}{CYAN}╚═══════════════════════════════════════════════════════════════════╝{RESET}", flush=True)
@@ -65,6 +65,7 @@ def print_banner(node_name: str, target: str, workers: int, unlimited: bool, hea
     print(f"  {BOLD}Mode Kuota     :{RESET} {GREEN}Tanpa Batas (∞ Looping Continuous){RESET}" if unlimited else f"  {BOLD}Mode Kuota     :{RESET} Terbatas", flush=True)
     print(f"  {BOLD}Headless       :{RESET} {'🟢 Aktif (Tanpa Layar)' if headless else '🖥️ Non-Headless (Layar Terlihat)'}", flush=True)
     print(f"  {BOLD}Target URL     :{RESET} {BLUE}{url}{RESET}", flush=True)
+    print(f"  {BOLD}Potato Mode    :{RESET} {GREEN}🥔 Aktif (Ultra-Ringan: Single Process, Block Video Ad, Browser Reuse){RESET}" if potato else f"  {BOLD}Potato Mode    :{RESET} 🔴 Nonaktif", flush=True)
     print(f"  {BOLD}Live Monitor   :{RESET} {BOLD}{GREEN}https://article.riztama.my.id/monitoring{RESET}", flush=True)
     print(f"{DIM}───────────────────────────────────────────────────────────────────{RESET}\n", flush=True)
 
@@ -354,6 +355,7 @@ class BotRunnerCLI:
             unlimited=self.args.unlimited,
             headless=self.args.headless,
             url=target_url,
+            potato=getattr(self.args, "potato", True),
         )
 
         base_config = load_config()
@@ -366,6 +368,7 @@ class BotRunnerCLI:
             "max_sessions_per_run": 0 if self.args.unlimited else self.args.sessions,
             "target_name": self.args.target,
             "errorlogs": getattr(self.args, "errorlogs", False),
+            "lightweight": getattr(self.args, "potato", True),
         })
         pool_lock = threading.Lock()
 
@@ -511,6 +514,19 @@ def parse_args() -> argparse.Namespace:
         "--error-logs",
         action="store_true",
         help="Aktifkan logging diagnostik mendalam Turnstile (khususnya di Google Colab / VPS)",
+    )
+    parser.add_argument(
+        "--potato",
+        "--lite",
+        action="store_true",
+        default=True,
+        help="Mode ultra-ringan untuk laptop kentang (blokir video ad, hemat RAM/CPU, browser reuse, default: aktif)",
+    )
+    parser.add_argument(
+        "--no-potato",
+        action="store_false",
+        dest="potato",
+        help="Nonaktifkan mode ultra-ringan potato",
     )
     return parser.parse_args()
 

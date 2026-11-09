@@ -150,6 +150,38 @@ def get_random_viewport() -> Dict[str, int]:
     return random.choice(viewports)
 
 
+POTATO_FIREFOX_PREFS: Dict[str, Any] = {
+    # 1. Batasi proses anak web content ke 1 agar tidak spawn 4-8 child processes per worker
+    "dom.ipc.processCount": 1,
+    "dom.ipc.processCount.webIsolated": 1,
+    # 2. Matikan BFCache (Back-Forward Cache) agar tab navigasi lama tidak tertahan di RAM
+    "browser.sessionhistory.max_total_viewers": 0,
+    "browser.sessionhistory.max_entries": 2,
+    # 3. Matikan disk cache (mencegah I/O thrashing di HDD/SSD lambat) & batasi memory cache ke 16MB
+    "browser.cache.disk.enable": False,
+    "browser.cache.memory.enable": True,
+    "browser.cache.memory.capacity": 16384,
+    # 4. Blokir autoplay video & audio iklan yang menyedot CPU
+    "media.autoplay.default": 5,
+    "media.autoplay.blocking_policy": 2,
+    "media.volume_scale": "0.0",
+    "media.rdd-process.enabled": False,
+    "media.ffmpeg.vaapi.enabled": False,
+    # 5. Matikan loop animasi GIF/WebP iklan yang membakar CPU threads
+    "image.animation_mode": "none",
+    # 6. Matikan overhead accessibility service & telemetry
+    "accessibility.force_disabled": 1,
+    "toolkit.telemetry.enabled": False,
+    "datareporting.healthreport.uploadEnabled": False,
+    "extensions.pocket.enabled": False,
+    # 7. Batasi thread pool koneksi HTTP per browser
+    "network.http.max-connections": 48,
+    "network.http.max-connections-per-server": 6,
+    # 8. Jangan paksa hardware acceleration jika GPU lemah / software Mesa
+    "layers.acceleration.force-enabled": False,
+}
+
+
 def build_camoufox_kwargs(
     proxy_data: Optional[Dict[str, Any]] = None,
     headless: bool = True,
@@ -157,6 +189,7 @@ def build_camoufox_kwargs(
     allow_ads: bool = True,
     allow_third_party_cookies: bool = True,
     extra_prefs: Optional[Dict[str, Any]] = None,
+    lightweight: bool = False,
 ) -> Dict[str, Any]:
     """Build launch options that keep ad networks reachable and popunders permitted."""
     proxy_dict = get_proxy_credentials(proxy_data) if proxy_data else None
@@ -210,6 +243,9 @@ def build_camoufox_kwargs(
         })
     if extra_prefs:
         user_prefs.update(extra_prefs)
+    if lightweight:
+        user_prefs.update(POTATO_FIREFOX_PREFS)
+
 
     kwargs: Dict[str, Any] = {
         "headless": headless,
@@ -219,6 +255,12 @@ def build_camoufox_kwargs(
         "os": random.choice(["windows", "macos"]),
         "i_know_what_im_doing": True,
     }
+    if lightweight:
+        kwargs["env"] = {
+            "MALLOC_ARENA_MAX": "2",
+            "MOZ_DISABLE_RDD_PROCESS": "1",
+        }
+
 
     if proxy_dict:
         kwargs["proxy"] = proxy_dict
@@ -241,9 +283,12 @@ def build_camoufox_context_options(
 ) -> Dict[str, Any]:
     """Build context-level options (viewport, matched timezone, locale, geolocation) to prevent bot detection."""
     geo_profile = resolve_geo_profile(proxy_data)
+    proxy_dict = get_proxy_credentials(proxy_data) if proxy_data else None
     opts: Dict[str, Any] = {
         "viewport": get_random_viewport(),
     }
+    if proxy_dict:
+        opts["proxy"] = proxy_dict
     if geo_profile.get("timezone"):
         opts["timezone_id"] = geo_profile["timezone"]
     if geo_profile.get("locale"):

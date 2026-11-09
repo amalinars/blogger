@@ -30,8 +30,10 @@ from camoufox import DefaultAddons
 from camoufox.sync_api import Camoufox
 
 try:
-    from automation.engine import build_camoufox_kwargs, resolve_geo_profile
+    from automation.engine import build_camoufox_kwargs, resolve_geo_profile, get_proxy_credentials
 except ImportError:
+    def get_proxy_credentials(proxy_data):
+        return None
     def build_camoufox_kwargs(**kwargs):
         return {
             "headless": kwargs.get("headless", False),
@@ -73,31 +75,156 @@ INTERNAL_DOMAINS = [
     "about:blank",
 ]
 
-# Skrip bypass pendeteksi adblock bawaan halaman (compat.js / page-state-update)
+# Skrip bypass pendeteksi adblock bawaan halaman (compat.js / page-state-update) & popunder blocker
 ADBLOCK_BYPASS_SCRIPT = """
 (function() {
-    const origDispatch = EventTarget.prototype.dispatchEvent;
-    EventTarget.prototype.dispatchEvent = function(evt) {
-        if (evt && evt.type === "page-state-update") {
-            return true;
-        }
-        return origDispatch.call(this, evt);
-    };
-
+    // 1. Kunci window.__pageReady agar selalu resolve(false) dan tidak bisa ditimpa oleh compat.js
     try {
-        window.__pageReady = Promise.resolve(false);
-    } catch (e) {}
+        Object.defineProperty(window, '__pageReady', {
+            get: () => Promise.resolve(false),
+            set: () => {},
+            configurable: false
+        });
+    } catch(e) {}
     window.adblock = false;
 
-    // Bersihkan popunder overlay transparan (#dontfoid) yang mencegat interaksi Turnstile
+    // 2. Cegah pendaftaran listener page-state-update
+    try {
+        const origAEL = window.addEventListener;
+        window.addEventListener = function(type, listener, options) {
+            if (type === 'page-state-update') {
+                return;
+            }
+            return origAEL.call(this, type, listener, options);
+        };
+    } catch(e) {}
+
+    // 3. Cegah dispatchEvent page-state-update
+    try {
+        const origDispatch = EventTarget.prototype.dispatchEvent;
+        EventTarget.prototype.dispatchEvent = function(evt) {
+            if (evt && evt.type === 'page-state-update') {
+                return true;
+            }
+            return origDispatch.call(this, evt);
+        };
+    } catch(e) {}
+
+    // 4. Cegah pembukaan tab popup iklan otomatis via window.open
+    try {
+        const origOpen = window.open;
+        window.open = function(url, target, features) {
+            if (url && (url.includes('/go/') || url.includes('safelinkearn.com/go'))) {
+                return origOpen.apply(this, arguments);
+            }
+            return null;
+        };
+    } catch(e) {}
+
+    // 5. Bersihkan popunder overlay transparan (#dontfoid) & panel adblock notice (#sn-panel)
     setInterval(function() {
         try {
-            const overlays = document.querySelectorAll("#dontfoid, #transparent, div[style*='z-index: 2147483647'], div[style*='z-index:2147483647']");
+            const overlays = document.querySelectorAll(
+                "#dontfoid, #transparent, #sn-panel, div[style*='z-index: 2147483647'], div[style*='z-index:2147483647']"
+            );
             overlays.forEach(function(el) { el.remove(); });
         } catch(e) {}
-    }, 400);
+    }, 250);
 })();
 """
+
+
+def setup_safelink_route_optimization(target: Any) -> None:
+    """
+    Pasang interceptor jaringan ultra-ringan untuk memblokir media video, font, dan script iklan,
+    serta men-stub compat.js agar tidak pernah memicu status adblock terdeteksi di laptop kentang.
+    """
+    BLOCKED_AD_DOMAINS = (
+        "gliacloud.com",
+        "acscdn.com",
+        "googlesyndication.com",
+        "doubleclick.net",
+        "googleads",
+        "pubadx.one",
+        "widgets.outbrain.com",
+        "secure.quantserve.com",
+        "adnxs.com",
+        "taboola.com",
+        "criteo.com",
+        "popads.net",
+        "adsterra.com",
+        "exoclick.com",
+        "propellerads.com",
+        "hilltopads.com",
+        "monetag.com",
+    )
+
+    EMPTY_GIF = (
+        b"GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x01"
+        b"\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;"
+    )
+
+    def _route_handler(route: Any) -> None:
+        try:
+            req = route.request
+            rtype = req.resource_type
+            url = (req.url or "").lower()
+
+            # 1. HANYA teruskan frame atau script Cloudflare Turnstile & core shortlink flow
+            if (
+                "challenges.cloudflare.com" in url
+                or "turnstile" in url
+                or "flow.js" in url
+                or "flow-data" in url
+                or "sfe.ad" in url
+                or "safelinkearn.com" in url
+                or "safelinku.com" in url
+                or "/v/start" in url
+                or "/v/go" in url
+                or "/v/act" in url
+                or "/go/" in url
+            ):
+                route.continue_()
+                return
+
+            # 2. Stub compat.js probe langsung dengan 0ms & 0 bytes agar tidak memicu adblock warning
+            if "compat.js" in url:
+                stub_js = "window.__pageReady = Promise.resolve(false); window.adblock = false;"
+                route.fulfill(status=200, content_type="application/javascript", body=stub_js)
+                return
+
+            # 3. Mock ad probes jika compat.js sempat terpanggil
+            if any(k in url for k in ("adsbygoogle.js", "pubadx-ad.js", "outbrain.js", "quant.js", "lineicons.css")):
+                route.fulfill(status=200, content_type="application/javascript", body="window.adsbygoogle = [];")
+                return
+
+            if "viewthroughconversion" in url or "x_button_blue" in url:
+                route.fulfill(status=200, content_type="image/gif", body=EMPTY_GIF)
+                return
+
+            # 4. Blokir seluruh streaming video & audio (pemakan utama CPU)
+            if rtype in ("media", "audio", "video"):
+                route.abort()
+                return
+
+            # 5. Blokir webfont eksternal (menghemat bandwidth dan layout reflow CPU)
+            if rtype == "font" or "fonts.googleapis.com" in url or "fonts.gstatic.com" in url:
+                route.abort()
+                return
+
+            # 6. Blokir jaringan iklan dan popunder eksternal
+            if any(dom in url for dom in BLOCKED_AD_DOMAINS):
+                route.abort()
+                return
+
+            route.continue_()
+        except Exception:
+            try:
+                route.continue_()
+            except Exception:
+                pass
+
+    target.route("**/*", _route_handler)
 
 
 def validate_proxy_live(proxy_data: Dict[str, Any], timeout: int = 7) -> Dict[str, Any]:
@@ -477,20 +604,32 @@ def run_single_attempt(
     worker_id: int = 1,
     event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     errorlogs: bool = False,
+    browser: Optional[Any] = None,
+    lightweight: bool = True,
 ) -> Dict[str, Any]:
     """Menjalankan 1 sesi percobaan browser untuk menyelesaikan alur shortlink."""
     tag = f"[W{worker_id}] " if worker_id > 0 else ""
     geo_profile = resolve_geo_profile(proxy_data) if proxy_data else {}
     locale = geo_profile.get("locale") or "id-ID"
     timezone_id = geo_profile.get("timezone") or "Asia/Jakarta"
+    proxy_dict = get_proxy_credentials(proxy_data) if proxy_data else None
 
-    camoufox_opts = build_camoufox_kwargs(
-        proxy_data=proxy_data,
-        headless=headless,
-        humanize=True,
-        allow_ads=True,
-    )
-    camoufox_opts["disable_coop"] = True
+    owns_browser = False
+    browser_ctx_manager = None
+    if browser is None:
+        owns_browser = True
+        camoufox_opts = build_camoufox_kwargs(
+            proxy_data=proxy_data,
+            headless=headless,
+            humanize=True,
+            allow_ads=True,
+            lightweight=lightweight,
+        )
+        camoufox_opts["disable_coop"] = True
+        with BROWSER_LAUNCH_LOCK:
+            time.sleep(0.5)
+            browser_ctx_manager = Camoufox(**camoufox_opts)
+            browser = browser_ctx_manager.__enter__()
     result: Dict[str, Any] = {
         "success": False,
         "worker_id": worker_id,
@@ -512,20 +651,21 @@ def run_single_attempt(
             except Exception:
                 pass
 
-    # Gunakan startup lock agar peluncuran antar thread tidak bentrok
-    with BROWSER_LAUNCH_LOCK:
-        time.sleep(0.5)
-        browser_ctx_manager = Camoufox(**camoufox_opts)
-        browser = browser_ctx_manager.__enter__()
-
+    context = None
     try:
         context_opts: Dict[str, Any] = {
             "viewport": {"width": 1366, "height": 768},
             "locale": locale,
             "timezone_id": timezone_id,
         }
+        if proxy_dict:
+            context_opts["proxy"] = proxy_dict
+
         context = browser.new_context(**context_opts)
         context.add_init_script(ADBLOCK_BYPASS_SCRIPT)
+        if lightweight:
+            setup_safelink_route_optimization(context)
+
 
         main_page = context.new_page()
         proxy_desc = f"{proxy_data.get('host')}:{proxy_data.get('port')} ({proxy_data.get('country')})" if proxy_data else "direct (Google Colab / Local IP)"
@@ -788,10 +928,16 @@ def run_single_attempt(
                 diag.capture_artifacts(main_page, reason="session_incomplete")
                 diag.print_summary(tag)
     finally:
-        try:
-            browser_ctx_manager.__exit__(None, None, None)
-        except Exception:
-            pass
+        if context:
+            try:
+                context.close()
+            except Exception:
+                pass
+        if owns_browser and browser_ctx_manager:
+            try:
+                browser_ctx_manager.__exit__(None, None, None)
+            except Exception:
+                pass
 
     result["elapsed_sec"] = round(time.time() - start_time, 2)
     return result
@@ -806,6 +952,8 @@ def run_safelink_session(
     worker_id: int = 1,
     event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     errorlogs: bool = False,
+    browser: Optional[Any] = None,
+    lightweight: bool = True,
 ) -> Dict[str, Any]:
     """
     Menjalankan alur penuh SafelinkEarn dengan retry loop otomatis untuk proksi per-worker.
@@ -821,6 +969,8 @@ def run_safelink_session(
             worker_id=worker_id,
             event_callback=event_callback,
             errorlogs=errorlogs,
+            browser=browser,
+            lightweight=lightweight,
         )
 
     # Mode Proksi: Uji dan rotasi proksi hingga menemukan proksi yang benar-benar aktif
@@ -899,6 +1049,7 @@ def safelink_worker_thread_loop(
     """
     Loop worker multi-sesi untuk SafelinkEarn dengan rotasi proxy residensial.
     Kompatibel penuh dengan CLI run_bot.py dan Supabase Telemetry dashboard.
+    Mendukung mode ultra-ringan (potato mode) dengan browser reuse per-worker.
     """
     tag = f"[W{worker_id}]"
     target_url = config.get("target_url") or "https://sfe.ad/pB5n5lnLGp"
@@ -906,134 +1057,181 @@ def safelink_worker_thread_loop(
     max_timeout = int(config.get("max_timeout", 180))
     errorlogs = bool(config.get("errorlogs", False))
     caller_prefix = f"safelink_w{worker_id}"
+    lightweight = bool(config.get("lightweight", True))
+
+    browser_ctx_manager = None
+    browser = None
+    sessions_on_browser = 0
+    max_browser_sessions = int(config.get("max_browser_sessions", 8))
 
     if event_callback:
         try:
+            mode_str = "🥔 Potato/Lite" if lightweight else "standar"
             event_callback("log_message", {
                 "worker_id": worker_id,
-                "message": f"{tag} Worker SafelinkEarn siap — IP dirotasi otomatis.",
+                "message": f"{tag} Worker SafelinkEarn siap (mode {mode_str}) — IP dirotasi otomatis.",
                 "style": "green",
             })
         except Exception:
             pass
 
-    while not (stop_event and stop_event.is_set()):
-        if budget.is_exhausted() or not budget.has_capacity():
-            break
-        if not budget.reserve():
-            break
+    try:
+        while not (stop_event and stop_event.is_set()):
+            if budget.is_exhausted() or not budget.has_capacity():
+                break
+            if not budget.reserve():
+                break
 
-        target_name = "safelink"
-        max_uses = int(config.get("max_uses_per_day", 2))
-        cooldown_hrs = float(config.get("proxy_cooldown_hours", 6.0))
-        caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
+            target_name = "safelink"
+            max_uses = int(config.get("max_uses_per_day", 2))
+            cooldown_hrs = float(config.get("proxy_cooldown_hours", 6.0))
+            caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
 
-        proxy = proxy_manager.acquire_proxy(
-            caller_id=caller_id,
-            exclusive=True,
-            verify_alive=False,
-            target=target_name,
-            max_uses_per_day=max_uses,
-            cooldown_seconds=cooldown_hrs * 3600,
-        )
+            proxy = proxy_manager.acquire_proxy(
+                caller_id=caller_id,
+                exclusive=True,
+                verify_alive=False,
+                target=target_name,
+                max_uses_per_day=max_uses,
+                cooldown_seconds=cooldown_hrs * 3600,
+            )
 
-        if not proxy:
-            if getattr(budget, "unlimited", False) and reset_pool_callback and not getattr(proxy_manager, "supabase_enabled", False):
-                reset_pool_callback()
-                time.sleep(1.0)
+            if not proxy:
+                if getattr(budget, "unlimited", False) and reset_pool_callback and not getattr(proxy_manager, "supabase_enabled", False):
+                    reset_pool_callback()
+                    time.sleep(1.0)
+                    continue
+                time.sleep(5.0)
                 continue
-            time.sleep(5.0)
-            continue
 
-        proxy_id = proxy.get("id") or proxy.get("proxy_url")
-        ip = proxy.get("ip_detected") or proxy.get("host", "?")
-        country = proxy.get("country", "Unknown")
+            proxy_id = proxy.get("id") or proxy.get("proxy_url")
+            ip = proxy.get("ip_detected") or proxy.get("host", "?")
+            country = proxy.get("country", "Unknown")
 
-        if event_callback:
-            try:
-                event_callback("proxy_assigned", {
-                    "worker_id": worker_id,
-                    "proxy_id": proxy_id,
-                    "ip": ip,
-                    "country": country,
-                    "target_network": "🔗 SafelinkEarn",
-                })
-                event_callback("session_started", {"worker_id": worker_id})
-            except Exception:
-                pass
-
-        # Tes koneksi proxy live
-        test_res = validate_proxy_live(proxy)
-        if not test_res.get("success"):
-            err_reason = test_res.get("error", "Proxy dead")
-            proxy_manager.report_failure(proxy, error_message=err_reason, is_proxy_error=True)
-            proxy_manager.release_proxy(proxy)
-            budget.record_session(proxy_id, "FAIL")
             if event_callback:
                 try:
-                    event_callback("session_completed", {
+                    event_callback("proxy_assigned", {
                         "worker_id": worker_id,
-                        "status": "FAIL",
-                        "error": err_reason,
+                        "proxy_id": proxy_id,
+                        "ip": ip,
+                        "country": country,
+                        "target_network": "🔗 SafelinkEarn",
                     })
+                    event_callback("session_started", {"worker_id": worker_id})
                 except Exception:
                     pass
-            continue
 
-        proxy["ip_detected"] = test_res.get("ip")
-
-        try:
-            res = run_single_attempt(
-                target_url=target_url,
-                headless=headless,
-                proxy_data=proxy,
-                max_timeout_sec=max_timeout,
-                worker_id=worker_id,
-                event_callback=event_callback,
-                errorlogs=errorlogs,
-            )
-            is_success = bool(res.get("success"))
-            if is_success:
-                proxy_manager.record_target_hit(proxy, target=target_name)
-                budget.record_session(proxy_id, "PASS")
-                if event_callback:
-                    try:
-                        event_callback("session_completed", {
-                            "worker_id": worker_id,
-                            "status": "PASS",
-                            "details": res,
-                        })
-                    except Exception:
-                        pass
-            else:
-                proxy_manager.report_failure(proxy, error_message="Target not reached", is_proxy_error=False)
+            # Tes koneksi proxy live
+            test_res = validate_proxy_live(proxy)
+            if not test_res.get("success"):
+                err_reason = test_res.get("error", "Proxy dead")
+                proxy_manager.report_failure(proxy, error_message=err_reason, is_proxy_error=True)
+                proxy_manager.release_proxy(proxy)
                 budget.record_session(proxy_id, "FAIL")
                 if event_callback:
                     try:
                         event_callback("session_completed", {
                             "worker_id": worker_id,
                             "status": "FAIL",
-                            "error": "Target not reached",
+                            "error": err_reason,
                         })
                     except Exception:
                         pass
-        except Exception as e:
-            proxy_manager.report_failure(proxy, error_message=str(e), is_proxy_error=False)
-            budget.record_session(proxy_id, "FAIL")
-            if event_callback:
-                try:
-                    event_callback("session_completed", {
-                        "worker_id": worker_id,
-                        "status": "FAIL",
-                        "error": str(e),
-                    })
-                except Exception:
-                    pass
-        finally:
-            proxy_manager.release_proxy(proxy)
+                continue
 
-        time.sleep(random.uniform(1.0, 2.5))
+            proxy["ip_detected"] = test_res.get("ip")
 
+            if lightweight:
+                if browser is None or sessions_on_browser >= max_browser_sessions:
+                    if browser_ctx_manager:
+                        try:
+                            browser_ctx_manager.__exit__(None, None, None)
+                        except Exception:
+                            pass
+                        browser = None
+                        browser_ctx_manager = None
+
+                    with BROWSER_LAUNCH_LOCK:
+                        time.sleep(0.5)
+                        worker_camoufox_opts = build_camoufox_kwargs(
+                            proxy_data=None,
+                            headless=headless,
+                            humanize=True,
+                            allow_ads=True,
+                            lightweight=True,
+                        )
+                        worker_camoufox_opts["disable_coop"] = True
+                        browser_ctx_manager = Camoufox(**worker_camoufox_opts)
+                        browser = browser_ctx_manager.__enter__()
+                        sessions_on_browser = 0
+
+            try:
+                res = run_single_attempt(
+                    target_url=target_url,
+                    headless=headless,
+                    proxy_data=proxy,
+                    max_timeout_sec=max_timeout,
+                    worker_id=worker_id,
+                    event_callback=event_callback,
+                    errorlogs=errorlogs,
+                    browser=browser if lightweight else None,
+                    lightweight=lightweight,
+                )
+                sessions_on_browser += 1
+                is_success = bool(res.get("success"))
+                if is_success:
+                    proxy_manager.record_target_hit(proxy, target=target_name)
+                    budget.record_session(proxy_id, "PASS")
+                    if event_callback:
+                        try:
+                            event_callback("session_completed", {
+                                "worker_id": worker_id,
+                                "status": "PASS",
+                                "details": res,
+                            })
+                        except Exception:
+                            pass
+                else:
+                    proxy_manager.report_failure(proxy, error_message="Target not reached", is_proxy_error=False)
+                    budget.record_session(proxy_id, "FAIL")
+                    if event_callback:
+                        try:
+                            event_callback("session_completed", {
+                                "worker_id": worker_id,
+                                "status": "FAIL",
+                                "error": "Target not reached",
+                            })
+                        except Exception:
+                            pass
+            except Exception as e:
+                if lightweight and browser_ctx_manager:
+                    try:
+                        browser_ctx_manager.__exit__(None, None, None)
+                    except Exception:
+                        pass
+                    browser = None
+                    browser_ctx_manager = None
+                proxy_manager.report_failure(proxy, error_message=str(e), is_proxy_error=False)
+                budget.record_session(proxy_id, "FAIL")
+                if event_callback:
+                    try:
+                        event_callback("session_completed", {
+                            "worker_id": worker_id,
+                            "status": "FAIL",
+                            "error": str(e),
+                        })
+                    except Exception:
+                        pass
+            finally:
+                proxy_manager.release_proxy(proxy)
+
+            time.sleep(random.uniform(1.0, 2.5))
+    finally:
+        if browser_ctx_manager:
+            try:
+                browser_ctx_manager.__exit__(None, None, None)
+            except Exception:
+                pass
 
 def main():
     parser = argparse.ArgumentParser(description="SafelinkEarn / SafeLinkU Shortlink Concurrent Automation Bot")
@@ -1056,6 +1254,19 @@ def main():
         dest="errorlogs",
         help="Aktifkan logging diagnostik mendalam untuk menyelidiki kegagalan Cloudflare Turnstile (khususnya di Google Colab / VPS)",
     )
+    parser.add_argument(
+        "--potato",
+        "--lite",
+        action="store_true",
+        default=True,
+        help="Mode ultra-ringan untuk laptop kentang (blokir video ad, hemat RAM/CPU, default: aktif)",
+    )
+    parser.add_argument(
+        "--no-potato",
+        action="store_false",
+        dest="potato",
+        help="Nonaktifkan mode ultra-ringan",
+    )
     args = parser.parse_args()
 
     workers = max(1, args.workers)
@@ -1068,8 +1279,8 @@ def main():
     print(f"🎯 Total Sesi   : {total_count}")
     print(f"🖥️  Headless Mode: {args.headless}")
     print(f"🛡️  Use Proxy    : {args.proxy}")
+    print(f"🥔  Potato Mode : {args.potato}")
     print(f"🔍  Error Logs   : {args.errorlogs}")
-
     start_all = time.time()
     results: List[Dict[str, Any]] = []
 
@@ -1087,6 +1298,7 @@ def main():
             max_timeout_sec=args.timeout,
             worker_id=worker_slot,
             errorlogs=args.errorlogs,
+            lightweight=args.potato,
         )
 
     if workers == 1 and total_count == 1:
