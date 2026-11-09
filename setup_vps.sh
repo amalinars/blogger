@@ -95,7 +95,6 @@ import sys, time
 
 print("🔍 Memeriksa status browser Camoufox & dependensi anti-detect...")
 from camoufox.pkgman import camoufox_path, CamoufoxFetcher
-from camoufox.addons import DefaultAddons, maybe_download_addons
 from camoufox.fpgen_model import ensure_fpgen_model
 from camoufox.geolocation import (
     ALLOW_GEOIP,
@@ -106,6 +105,13 @@ from camoufox.geolocation import (
     get_mmdb_path,
     needs_update,
 )
+
+# Kompatibilitas addon (pada camoufox 0.5.9+ addon sudah terbundle otomatis di package)
+maybe_download_addons = None
+try:
+    from camoufox.addons import maybe_download_addons
+except ImportError:
+    pass
 
 # 1. Download / verifikasi binary browser dengan retry (toleran timeout/504 GitHub)
 is_installed = False
@@ -134,13 +140,16 @@ if not is_installed:
                 sys.exit(1)
 
 # 2. Addon bawaan & model fpgen
-try:
-    print("  🧩 Memverifikasi addon browser (uBlock Origin, dll)...")
-    maybe_download_addons(list(DefaultAddons))
-    print("  ✓ Addon browser siap.")
-except Exception as e:
-    print(f"  ℹ️ Pemberitahuan addon: {e}")
-
+if maybe_download_addons is not None:
+    try:
+        from camoufox.addons import DefaultAddons
+        print("  🧩 Memverifikasi addon browser (uBlock Origin, dll)...")
+        maybe_download_addons(list(DefaultAddons))
+        print("  ✓ Addon browser siap.")
+    except Exception as e:
+        print(f"  ℹ️ Pemberitahuan addon: {e}")
+else:
+    print("  ✓ Addon browser bawaan (uBlock Origin) sudah terintegrasi dalam paket.")
 try:
     print("  🧬 Memverifikasi model fingerprint generator (fpgen)...")
     ensure_fpgen_model()
@@ -157,28 +166,25 @@ if ALLOW_GEOIP:
     
     if not has_db or needs_update(cfg):
         print("  🌍 Menyiapkan database GeoIP anti-detect...")
-        geoip_ok = False
-        
-        # Coba GeoIP AIO terlebih dahulu
+        # Utamakan MaxMind GeoLite2 yang stabil dan terhindar dari GitHub 504
         try:
-            print("  ⬇️ Mencoba mengunduh database GeoIP AIO...")
-            download_mmdb()
+            print("  ⬇️ Mengunduh database GeoIP (MaxMind GeoLite2)...")
+            g_cfg = _get_geoip_config_by_name("MaxMind GeoLite2")
+            save_geoip_config(g_cfg, explicit=True)
+            download_mmdb("MaxMind GeoLite2")
             geoip_ok = True
-            print("  ✓ Database GeoIP AIO berhasil dipasang.")
-        except Exception as e_aio:
-            print(f"  ⚠️ GeoIP AIO gagal diunduh ({e_aio}).")
-            print("  🔄 Mengalihkan ke database alternatif MaxMind GeoLite2...")
+            print("  ✓ Database GeoIP berhasil dipasang dan diaktifkan.")
+        except Exception as e_gl2:
+            print(f"  ⚠️ GeoLite2 gagal ({e_gl2}), mencoba alternatif GeoIP AIO...")
             try:
-                g_cfg = _get_geoip_config_by_name("MaxMind GeoLite2")
-                save_geoip_config(g_cfg, explicit=True)
-                download_mmdb("MaxMind GeoLite2")
+                download_mmdb()
                 geoip_ok = True
-                print("  ✓ Database MaxMind GeoLite2 berhasil dipasang dan diaktifkan.")
-            except Exception as e_geo:
-                print(f"  ⚠️ Fallback GeoLite2 juga gagal: {e_geo}")
+                print("  ✓ Database GeoIP AIO berhasil dipasang.")
+            except Exception as e_aio:
+                print(f"  ⚠️ GeoIP AIO juga gagal: {e_aio}")
                 
         if not geoip_ok:
-            print("  ⚠️ Pemberitahuan: Database GeoIP dilewati karena server GitHub sedang timeout/504.")
+            print("  ⚠️ Pemberitahuan: Database GeoIP dilewati karena server unduhan sedang tidak merespons.")
             print("  ℹ️ Bot tetap dapat berjalan normal memakai fallback koordinat bawaan.")
     else:
         print("  ✓ Database GeoIP sudah tersedia.")
