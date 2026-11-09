@@ -265,13 +265,19 @@ def build_camoufox_kwargs(
     if proxy_dict:
         kwargs["proxy"] = proxy_dict
         try:
-            from camoufox.geolocation import geoip_allowed
+            from camoufox.geolocation import geoip_allowed, load_geoip_config, get_mmdb_path
             geoip_allowed()
-            kwargs["geoip"] = geoip_setting
+            cfg = load_geoip_config()
+            ipv4 = get_mmdb_path('ipv4', cfg)
+            combined = get_mmdb_path('combined', cfg) if 'combined' in cfg.get('urls', {}) else None
+            if (ipv4 and ipv4.exists()) or (combined and combined.exists()):
+                kwargs["geoip"] = geoip_setting
+            else:
+                kwargs["geoip"] = False
+                kwargs["i_know_what_im_doing"] = True
         except Exception:
             kwargs["geoip"] = False
             kwargs["i_know_what_im_doing"] = True
-
     if allow_ads:
         kwargs["exclude_addons"] = [DefaultAddons.UBO]
 

@@ -261,7 +261,18 @@ def grab_gologin_proxies(headless=False, password=DEFAULT_PASSWORD, proxy_item=N
         }
         detected_ip = proxy_item.get("ip_detected") or proxy_item.get("ip")
         if detected_ip and re.match(r"^\d+\.\d+\.\d+\.\d+$", str(detected_ip)):
-            camoufox_opts["geoip"] = str(detected_ip)
+            try:
+                from camoufox.geolocation import geoip_allowed, load_geoip_config, get_mmdb_path
+                geoip_allowed()
+                cfg = load_geoip_config()
+                ipv4 = get_mmdb_path('ipv4', cfg)
+                combined = get_mmdb_path('combined', cfg) if 'combined' in cfg.get('urls', {}) else None
+                if (ipv4 and ipv4.exists()) or (combined and combined.exists()):
+                    camoufox_opts["geoip"] = str(detected_ip)
+                else:
+                    camoufox_opts["geoip"] = False
+            except Exception:
+                camoufox_opts["geoip"] = False
         else:
             camoufox_opts["geoip"] = False
         host = proxy_item.get("host", "")

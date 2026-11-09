@@ -88,9 +88,112 @@ else
     pip install -r requirements.txt
 fi
 
-# 4. Download binary browser Camoufox
-echo -e "\n\033[1;33m[4/5] Mengunduh binary browser anti-detect Camoufox...\033[0m"
-camoufox fetch
+# 4. Download binary browser Camoufox & komponen anti-detect
+echo -e "\n\033[1;33m[4/5] Mengunduh dan memverifikasi browser anti-detect Camoufox...\033[0m"
+python3 << 'EOF'
+import sys, time
+
+print("🔍 Memeriksa status browser Camoufox & dependensi anti-detect...")
+from camoufox.pkgman import camoufox_path, CamoufoxFetcher
+from camoufox.addons import DefaultAddons, maybe_download_addons
+from camoufox.fpgen_model import ensure_fpgen_model
+from camoufox.geolocation import (
+    ALLOW_GEOIP,
+    download_mmdb,
+    load_geoip_config,
+    save_geoip_config,
+    _get_geoip_config_by_name,
+    get_mmdb_path,
+    needs_update,
+)
+
+# 1. Download / verifikasi binary browser dengan retry (toleran timeout/504 GitHub)
+is_installed = False
+try:
+    p = camoufox_path(download_if_missing=False)
+    print(f"  ✓ Binary browser Camoufox sudah terpasang: {p}")
+    is_installed = True
+except Exception:
+    pass
+
+if not is_installed:
+    max_retries = 5
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"  ⬇️ Mengunduh binary browser Camoufox (percobaan {attempt}/{max_retries})...")
+            CamoufoxFetcher().install()
+            is_installed = True
+            print("  ✓ Browser Camoufox berhasil dipasang.")
+            break
+        except Exception as e:
+            print(f"  ⚠️ Percobaan {attempt} gagal ({e}).")
+            if attempt < max_retries:
+                time.sleep(5 * attempt)
+            else:
+                print("  ❌ Gagal mengunduh browser Camoufox setelah beberapa percobaan.")
+                sys.exit(1)
+
+# 2. Addon bawaan & model fpgen
+try:
+    print("  🧩 Memverifikasi addon browser (uBlock Origin, dll)...")
+    maybe_download_addons(list(DefaultAddons))
+    print("  ✓ Addon browser siap.")
+except Exception as e:
+    print(f"  ℹ️ Pemberitahuan addon: {e}")
+
+try:
+    print("  🧬 Memverifikasi model fingerprint generator (fpgen)...")
+    ensure_fpgen_model()
+    print("  ✓ Model fpgen siap.")
+except Exception as e:
+    print(f"  ℹ️ Pemberitahuan fpgen: {e}")
+
+# 3. Database GeoIP (dengan fallback otomatis ke MaxMind GeoLite2 jika daijro 504 / timeout)
+if ALLOW_GEOIP:
+    cfg = load_geoip_config()
+    ipv4 = get_mmdb_path('ipv4', cfg)
+    combined = get_mmdb_path('combined', cfg) if 'combined' in cfg.get('urls', {}) else None
+    has_db = (ipv4 and ipv4.exists()) or (combined and combined.exists())
+    
+    if not has_db or needs_update(cfg):
+        print("  🌍 Menyiapkan database GeoIP anti-detect...")
+        geoip_ok = False
+        
+        # Coba GeoIP AIO terlebih dahulu
+        try:
+            print("  ⬇️ Mencoba mengunduh database GeoIP AIO...")
+            download_mmdb()
+            geoip_ok = True
+            print("  ✓ Database GeoIP AIO berhasil dipasang.")
+        except Exception as e_aio:
+            print(f"  ⚠️ GeoIP AIO gagal diunduh ({e_aio}).")
+            print("  🔄 Mengalihkan ke database alternatif MaxMind GeoLite2...")
+            try:
+                g_cfg = _get_geoip_config_by_name("MaxMind GeoLite2")
+                save_geoip_config(g_cfg, explicit=True)
+                download_mmdb("MaxMind GeoLite2")
+                geoip_ok = True
+                print("  ✓ Database MaxMind GeoLite2 berhasil dipasang dan diaktifkan.")
+            except Exception as e_geo:
+                print(f"  ⚠️ Fallback GeoLite2 juga gagal: {e_geo}")
+                
+        if not geoip_ok:
+            print("  ⚠️ Pemberitahuan: Database GeoIP dilewati karena server GitHub sedang timeout/504.")
+            print("  ℹ️ Bot tetap dapat berjalan normal memakai fallback koordinat bawaan.")
+    else:
+        print("  ✓ Database GeoIP sudah tersedia.")
+
+# 4. Smoke test verifikasi peluncuran browser
+try:
+    print("  🧪 Melakukan smoke test peluncuran Camoufox headless...")
+    from camoufox.sync_api import Camoufox
+    with Camoufox(headless=True) as browser:
+        page = browser.new_page()
+        page.goto("https://example.com", timeout=25000)
+        print(f"  ✅ Verifikasi berhasil! Browser aktif & responsif (Title: '{page.title()}').")
+except Exception as e_smoke:
+    print(f"  ⚠️ Peringatan smoke test: {e_smoke} (Akan diverifikasi kembali saat bot dijalankan)")
+EOF
 # 5. Beri izin eksekusi script
 echo -e "\n\033[1;33m[5/5] Menyiapkan izin eksekusi file script...\033[0m"
 chmod +x run_bot.py 2>/dev/null || true

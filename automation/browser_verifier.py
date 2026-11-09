@@ -599,8 +599,18 @@ if __name__ == "__main__":
     }
     if proxy_cfg:
         camoufox_opts["proxy"] = proxy_cfg
-        camoufox_opts["geoip"] = True
-
+        try:
+            from camoufox.geolocation import geoip_allowed, load_geoip_config, get_mmdb_path
+            geoip_allowed()
+            cfg = load_geoip_config()
+            ipv4 = get_mmdb_path('ipv4', cfg)
+            combined = get_mmdb_path('combined', cfg) if 'combined' in cfg.get('urls', {}) else None
+            if (ipv4 and ipv4.exists()) or (combined and combined.exists()):
+                camoufox_opts["geoip"] = True
+            else:
+                camoufox_opts["geoip"] = False
+        except Exception:
+            camoufox_opts["geoip"] = False
     if not args.json:
         print("🚀 Membuka browser untuk validasi setting yang diberikan...")
 
