@@ -52,6 +52,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+venv/
+.venv/
+env/
 # Runtime data, sessions, state & stats
 *state*.json
 *stats*.json
