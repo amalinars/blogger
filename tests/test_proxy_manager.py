@@ -384,6 +384,37 @@ def test_acquire_proxy_with_verify_alive(temp_proxy_file):
         assert alloc["health"] == HEALTH_ALIVE
 
 
+def test_shutdown_error_does_not_change_health(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file)
+    alloc = pm.acquire_proxy(caller_id="stop_test")
+    assert alloc is not None
+    before_health = alloc["health"]
+
+    res = pm.report_failure(
+        alloc,
+        error_message="Page.wait_for_timeout: Target page, context or browser has been closed",
+    )
+
+    assert res["status"] == "IGNORED_SHUTDOWN"
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    assert refreshed["health"] == before_health
+    assert refreshed["health_gologin"] == HEALTH_ALIVE
+
+
+def test_gologin_channel_isolated_from_automation_health(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file)
+    # target="gologin" otomatis memakai channel gologin
+    alloc = pm.acquire_proxy(caller_id="gologin_worker", target="gologin")
+    assert alloc is not None
+    assert alloc["channel"] == "gologin"
+
+    pm.report_failure(alloc, error_message="Halaman target error", is_proxy_error=False)
+
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    assert refreshed["health"] == HEALTH_ALIVE
+    assert refreshed["health_gologin"] == HEALTH_COOLDOWN
+
+
 def test_validate_all_and_test_and_delete_dead(temp_proxy_file):
     pm = ProxyManager(filepath=temp_proxy_file)
 

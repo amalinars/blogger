@@ -16,6 +16,7 @@ from core.proxy_manager import (
     acquire_proxy,
     release_proxy,
     report_failure,
+    record_target_hit,
 )
 
 try:
@@ -635,7 +636,12 @@ def run_gologin_harvest_job(
                     _log(f"⚠️ [W{worker_id}] Proxy index {proxy_index} tidak ditemukan di Proxy Management.", "yellow")
                     break
             else:
-                selected_proxy = acquire_proxy(caller_id=caller_id, target="gologin", verify_alive=True)
+                selected_proxy = acquire_proxy(
+                    caller_id=caller_id,
+                    target="gologin",
+                    verify_alive=True,
+                    channel="gologin",
+                )
                 if selected_proxy:
                     is_acquired = True
                     src = "Supabase" if selected_proxy.get("source") == "supabase_rpc" else "Lokal"
@@ -653,6 +659,8 @@ def run_gologin_harvest_job(
                     rounds=rounds,
                     skip_verifier=skip_verifier,
                 )
+                if is_acquired and selected_proxy and not stop_event.is_set():
+                    record_target_hit(selected_proxy, target="gologin", channel="gologin")
                 with stats_lock:
                     state["total_added"] += len(new_proxies)
                     total_now = state["total_added"]
@@ -661,13 +669,33 @@ def run_gologin_harvest_job(
                 if on_progress:
                     on_progress(total_now, 0 if is_unlimited else state["target"])
             except Exception as e:
-                _log(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", "red")
-                if is_acquired and selected_proxy:
-                    is_proxy_err = any(k.lower() in str(e).lower() for k in ["proxy", "timeout", "connection", "reset"])
-                    report_failure(selected_proxy, error_message=str(e), is_proxy_error=is_proxy_err)
+                err_text = str(e)
+                is_shutdown = stop_event.is_set() or any(
+                    hint in err_text.lower()
+                    for hint in (
+                        "target page, context or browser has been closed",
+                        "targetclosed",
+                        "browser has been closed",
+                        "page has been closed",
+                        "operation was canceled",
+                        "operation cancelled",
+                    )
+                )
+                if is_shutdown:
+                    _log(f"⏹️ [W{worker_id}] Sesi dihentikan — health proxy tidak diubah.", "yellow")
+                else:
+                    _log(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", "red")
+                    if is_acquired and selected_proxy:
+                        is_proxy_err = any(k.lower() in err_text.lower() for k in ["proxy", "timeout", "connection", "reset"])
+                        report_failure(
+                            selected_proxy,
+                            error_message=err_text,
+                            is_proxy_error=is_proxy_err,
+                            channel="gologin",
+                        )
             finally:
                 if is_acquired and selected_proxy:
-                    release_proxy(selected_proxy, caller_id=caller_id)
+                    release_proxy(selected_proxy, caller_id=caller_id, channel="gologin")
                     _log(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.", "dim")
 
             if proxy_index is not None:

@@ -33,6 +33,30 @@ HEALTH_COOLDOWN = "COOLDOWN"
 USAGE_IDLE = "IDLE"
 USAGE_IN_USE = "IN_USE"
 
+# Channel/consumer yang memakai pool proxy yang sama.
+# Automation memakai kolom default; GoLogin memakai kolom berakhiran _gologin
+# agar lease, usage, health, dan target cooldown tidak saling mengunci.
+CHANNEL_AUTOMATION = "automation"
+CHANNEL_GOLOGIN = "gologin"
+
+# Error yang muncul karena browser/page sengaja ditutup (Ctrl+C, stop script).
+# Ini BUKAN kegagalan proxy, jadi health tidak boleh diubah.
+SHUTDOWN_ERROR_HINTS = (
+    "target page, context or browser has been closed",
+    "targetclosederror",
+    "targetclosed",
+    "target closed",
+    "browser has been closed",
+    "browserclosed",
+    "context or browser has been closed",
+    "page has been closed",
+    "page closed",
+    "browser closed",
+    "operation was canceled",
+    "operation cancelled",
+    "cancellederror",
+)
+
 UNREACHABLE_ERRORS = (
     "ConnectionRefused",
     "connection refused",
@@ -105,6 +129,7 @@ class ProxyManager:
         self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", str(raw_node))
         self.supabase_enabled = False
         self.supabase_rpc_available = False
+        self._gologin_rpc_warned = False
         if should_use_supabase:
             sb_cfg_file = os.path.join(PROJECT_ROOT, "data", "supabase_config.json")
             if not os.path.exists(sb_cfg_file):
@@ -126,6 +151,38 @@ class ProxyManager:
             self.reset_usage_to_idle()
         if reset_cursor:
             self.reset_cursor(0)
+
+    @staticmethod
+    def _is_shutdown_error(error_message: Optional[str]) -> bool:
+        """True jika error berasal dari browser/context yang ditutup saat stop, bukan proxy mati."""
+        msg = str(error_message or "").strip().lower()
+        if not msg:
+            return False
+        return any(hint in msg for hint in SHUTDOWN_ERROR_HINTS)
+
+    @staticmethod
+    def _resolve_channel(identifier: Any, channel: str) -> str:
+        """Pastikan proxy hasil acquire gologin tetap tercatat ke kolom gologin meski caller lupa pass channel."""
+        if isinstance(identifier, dict) and identifier.get("channel") == CHANNEL_GOLOGIN and channel == CHANNEL_AUTOMATION:
+            return CHANNEL_GOLOGIN
+        return channel or CHANNEL_AUTOMATION
+
+    @staticmethod
+    def _channel_keys(channel: Optional[str] = None) -> Dict[str, str]:
+        """Nama field state proxy sesuai channel (automation vs GoLogin)."""
+        suffix = "_gologin" if (channel or CHANNEL_AUTOMATION) == CHANNEL_GOLOGIN else ""
+        return {
+            "health": f"health{suffix}",
+            "usage": f"usage{suffix}",
+            "leased_by": f"leased_by{suffix}",
+            "lease_time": f"lease_time{suffix}",
+            "target_usage": f"target_usage{suffix}",
+            "fail_count": f"fail_count{suffix}",
+            "last_error": f"last_error{suffix}",
+            "last_checked": f"last_checked{suffix}",
+            "ip_detected": f"ip_detected{suffix}",
+            "latency_ms": f"latency_ms{suffix}",
+        }
 
     def _supabase_rpc(self, fn_name: str, payload: Dict[str, Any], timeout: float = 8.0) -> Tuple[Any, int]:
         """Memanggil PostgreSQL Stored Procedure (RPC) di Supabase dengan aman."""
@@ -155,10 +212,14 @@ class ProxyManager:
         cooldown_seconds: float = 6 * 3600,
         lease_seconds: int = 600,
         window_seconds: float = 24 * 3600,
+        channel: str = CHANNEL_AUTOMATION,
     ) -> Optional[Dict[str, Any]]:
         """
         Mengambil 1 proxy dari Supabase dengan PostgreSQL atomic lock (FOR UPDATE SKIP LOCKED).
         Menjamin 100% bebas race condition meskipun dijalankan di puluhan VPS / Colab sekaligus.
+
+        channel="gologin" memakai RPC & kolom *_gologin sehingga tidak bertabrakan
+        dengan lease/usage/health milik automation.
         """
         payload = {
             "p_caller_id": caller_id,
@@ -168,7 +229,21 @@ class ProxyManager:
             "p_lease_seconds": int(lease_seconds),
             "p_window_seconds": int(window_seconds),
         }
-        res, status = self._supabase_rpc("acquire_proxy", payload)
+        is_gologin = channel == CHANNEL_GOLOGIN
+        fn_name = "acquire_proxy_gologin" if is_gologin else "acquire_proxy"
+        res, status = self._supabase_rpc(fn_name, payload)
+        used_channel = channel
+        if is_gologin and status == 404:
+            # Migrasi SQL GoLogin belum dijalankan: fallback ke RPC lama agar tidak mati total.
+            if not self._gologin_rpc_warned:
+                self._gologin_rpc_warned = True
+                print(
+                    "⚠️ RPC GoLogin belum ada di Supabase. Jalankan setup_supabase_gologin.sql "
+                    "agar usage/health GoLogin terpisah dari automation.",
+                    flush=True,
+                )
+            res, status = self._supabase_rpc("acquire_proxy", payload)
+            used_channel = CHANNEL_AUTOMATION
         if status in (200, 201):
             self.supabase_rpc_available = True
             if isinstance(res, list) and len(res) > 0:
@@ -178,6 +253,7 @@ class ProxyManager:
                 user = row.get("username", "")
                 pwd = row.get("password", "")
                 proxy_url = f"http://{user}:{pwd}@{host}:{port}" if user and pwd else f"http://{host}:{port}"
+                keys = self._channel_keys(used_channel)
                 return {
                     "id": row.get("id"),
                     "supabase_id": row.get("id"),
@@ -188,11 +264,12 @@ class ProxyManager:
                     "proxy_url": proxy_url,
                     "country": row.get("country", "US"),
                     "connection_type": row.get("connection_type", "residential"),
-                    "health": row.get("health", "ALIVE"),
+                    "health": row.get(keys["health"], row.get("health", "ALIVE")),
                     "usage": "IN_USE",
                     "leased_by": caller_id,
                     "lease_token": caller_id,
-                    "target_usage": row.get("target_usage") or {},
+                    "target_usage": row.get(keys["target_usage"], row.get("target_usage")) or {},
+                    "channel": channel,
                     "source": "supabase_rpc",
                 }
             return None  # RPC sukses tapi tidak ada kandidat proxy tersedia saat ini
@@ -274,6 +351,19 @@ class ProxyManager:
         # Modular target usage flags (misal: adsterra, youtube)
         if "target_usage" not in item or not isinstance(item["target_usage"], dict):
             item["target_usage"] = {}
+
+        # State terpisah untuk channel GoLogin
+        item.setdefault("health_gologin", item["health"])
+        item.setdefault("usage_gologin", USAGE_IDLE)
+        item.setdefault("leased_by_gologin", None)
+        item.setdefault("lease_time_gologin", None)
+        item.setdefault("fail_count_gologin", 0)
+        item.setdefault("last_error_gologin", None)
+        item.setdefault("last_checked_gologin", None)
+        item.setdefault("ip_detected_gologin", None)
+        item.setdefault("latency_ms_gologin", None)
+        if "target_usage_gologin" not in item or not isinstance(item["target_usage_gologin"], dict):
+            item["target_usage_gologin"] = {}
 
         # Hapus key lama status jika bentrok
         if "status" in item and item["status"] in ("idle", "in_use", "active", "alive", "dead"):
@@ -664,6 +754,7 @@ class ProxyManager:
         cooldown_seconds: float = 6 * 3600,
         window_seconds: float = 24 * 3600,
         auto_record: bool = False,
+        channel: str = CHANNEL_AUTOMATION,
     ) -> Optional[Dict[str, Any]]:
         """
         Mengambil proxy sehat berikutnya dengan rotasi berkelanjutan (cursor persisten).
@@ -675,9 +766,14 @@ class ProxyManager:
         - Jika verify_alive=True: status ALIVE di-recheck langsung (tidak langsung dipercaya).
         - Menandai proxy menjadi IN_USE dan memperbarui cursor rotasi secara persisten.
         - Tidak menyebabkan infinite loop jika tidak ada proxy tersedia.
+        - channel="gologin" memakai state terpisah agar tidak mengunci/menghabiskan kuota automation.
         """
         with self._lock:
+            # Safety: target "gologin" selalu berarti channel GoLogin.
+            if channel == CHANNEL_AUTOMATION and target == CHANNEL_GOLOGIN:
+                channel = CHANNEL_GOLOGIN
             lease_token = caller_id or f"lease_{uuid.uuid4().hex[:8]}"
+            keys = self._channel_keys(channel)
 
             # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition Antar Node)
             if self.supabase_enabled:
@@ -689,14 +785,15 @@ class ProxyManager:
                         max_uses_per_day=max_uses_per_day,
                         cooldown_seconds=cooldown_seconds,
                         window_seconds=window_seconds,
+                        channel=channel,
                     )
                     if sb_proxy is None:
                         break
                     if verify_alive:
                         test_res = self._test_proxy_network(sb_proxy["proxy_url"])
                         if not test_res["success"]:
-                            self.report_failure(sb_proxy, error_message=test_res["error"], is_proxy_error=True)
-                            self.release_proxy(sb_proxy, caller_id=sb_caller)
+                            self.report_failure(sb_proxy, error_message=test_res["error"], is_proxy_error=True, channel=channel)
+                            self.release_proxy(sb_proxy, caller_id=sb_caller, channel=channel)
                             continue
                         sb_proxy["ip_detected"] = test_res.get("ip")
                         sb_proxy["latency_ms"] = test_res.get("latency_ms")
@@ -723,19 +820,19 @@ class ProxyManager:
                     candidate = proxies[idx]
 
                     # 1. Lewati jika sedang digunakan (jika exclusive)
-                    if exclusive and candidate.get("usage") == USAGE_IN_USE:
+                    if exclusive and candidate.get(keys["usage"]) == USAGE_IN_USE:
                         continue
 
                     # 2. Lewati jika DEAD
-                    if candidate.get("health") == HEALTH_DEAD:
+                    if candidate.get(keys["health"]) == HEALTH_DEAD:
                         continue
 
                     # 3. Cek modular target usage jika target ditentukan
                     if target:
-                        t_usage = candidate.setdefault("target_usage", {})
+                        t_usage = candidate.setdefault(keys["target_usage"], {})
                         if not isinstance(t_usage, dict):
                             t_usage = {}
-                            candidate["target_usage"] = t_usage
+                            candidate[keys["target_usage"]] = t_usage
                         t_data = t_usage.get(target)
                         if t_data and isinstance(t_data, dict):
                             count = int(t_data.get("count", 0) or 0)
@@ -764,65 +861,65 @@ class ProxyManager:
                             count = 0
 
                     # 4. Jika COOLDOWN kesehatan jaringan, cek apakah sudah selesai cooldownnya
-                    if candidate.get("health") == HEALTH_COOLDOWN:
-                        last_chk = candidate.get("last_checked", 0) or 0
+                    if candidate.get(keys["health"]) == HEALTH_COOLDOWN:
+                        last_chk = candidate.get(keys["last_checked"], 0) or 0
                         if (time.time() - last_chk) < 60:  # 60 detik masa pendinginan
                             continue
                         # Selesai cooldown, kembalikan ke ALIVE untuk dicoba
-                        candidate["health"] = HEALTH_ALIVE
+                        candidate[keys["health"]] = HEALTH_ALIVE
 
                     # 5. Jika UNKNOWN, harus divalidasi terlebih dahulu
-                    if candidate.get("health") == HEALTH_UNKNOWN:
+                    if candidate.get(keys["health"]) == HEALTH_UNKNOWN:
                         # Validasi
                         proxy_url = candidate.get("proxy_url")
                         if not proxy_url:
-                            candidate["health"] = HEALTH_DEAD
+                            candidate[keys["health"]] = HEALTH_DEAD
                             continue
 
                         # Lepas lock sementara untuk network call
                         test_res = self._test_proxy_network(proxy_url)
-                        candidate["last_checked"] = time.time()
+                        candidate[keys["last_checked"]] = time.time()
                         if test_res["success"]:
-                            candidate["health"] = HEALTH_ALIVE
-                            candidate["ip_detected"] = test_res["ip"]
-                            candidate["latency_ms"] = test_res["latency_ms"]
-                            candidate["fail_count"] = 0
-                            candidate["last_error"] = None
+                            candidate[keys["health"]] = HEALTH_ALIVE
+                            candidate[keys["ip_detected"]] = test_res["ip"]
+                            candidate[keys["latency_ms"]] = test_res["latency_ms"]
+                            candidate[keys["fail_count"]] = 0
+                            candidate[keys["last_error"]] = None
                         else:
-                            candidate["health"] = HEALTH_DEAD
-                            candidate["last_error"] = test_res["error"]
+                            candidate[keys["health"]] = HEALTH_DEAD
+                            candidate[keys["last_error"]] = test_res["error"]
                             # Lanjutkan rotasi mencari yang lain
                             continue
 
                     # 6. Jika ALIVE dan memenuhi syarat, alokasikan!
-                    if candidate.get("health") == HEALTH_ALIVE:
+                    if candidate.get(keys["health"]) == HEALTH_ALIVE:
                         # Jika verify_alive=True, re-verifikasi koneksi proxy di jaringan langsung!
                         if verify_alive:
                             proxy_url = candidate.get("proxy_url")
                             if not proxy_url:
-                                candidate["health"] = HEALTH_DEAD
+                                candidate[keys["health"]] = HEALTH_DEAD
                                 continue
 
                             test_res = self._test_proxy_network(proxy_url)
-                            candidate["last_checked"] = time.time()
+                            candidate[keys["last_checked"]] = time.time()
                             if test_res["success"]:
-                                candidate["health"] = HEALTH_ALIVE
-                                candidate["ip_detected"] = test_res["ip"]
-                                candidate["latency_ms"] = test_res["latency_ms"]
-                                candidate["fail_count"] = 0
-                                candidate["last_error"] = None
+                                candidate[keys["health"]] = HEALTH_ALIVE
+                                candidate[keys["ip_detected"]] = test_res["ip"]
+                                candidate[keys["latency_ms"]] = test_res["latency_ms"]
+                                candidate[keys["fail_count"]] = 0
+                                candidate[keys["last_error"]] = None
                             else:
-                                candidate["health"] = HEALTH_DEAD
-                                candidate["last_error"] = test_res["error"]
+                                candidate[keys["health"]] = HEALTH_DEAD
+                                candidate[keys["last_error"]] = test_res["error"]
                                 # Proxy mati terkonfirmasi, lewati dan cari kandidat berikutnya
                                 continue
 
                         target_info = None
                         if target:
-                            t_usage = candidate.setdefault("target_usage", {})
+                            t_usage = candidate.setdefault(keys["target_usage"], {})
                             if not isinstance(t_usage, dict):
                                 t_usage = {}
-                                candidate["target_usage"] = t_usage
+                                candidate[keys["target_usage"]] = t_usage
                             t_data = t_usage.setdefault(target, {"count": 0, "last_used": None, "history": []})
                             now = time.time()
                             last = float(t_data.get("last_used") or 0)
@@ -847,9 +944,9 @@ class ProxyManager:
                             }
 
                         if exclusive:
-                            candidate["usage"] = USAGE_IN_USE
-                            candidate["leased_by"] = lease_token
-                            candidate["lease_time"] = time.time()
+                            candidate[keys["usage"]] = USAGE_IN_USE
+                            candidate[keys["leased_by"]] = lease_token
+                            candidate[keys["lease_time"]] = time.time()
 
                         # Simpan cursor berikutnya (setelah kandidat ini)
                         data["cursor"] = (idx + 1) % total
@@ -857,6 +954,7 @@ class ProxyManager:
 
                         allocated = dict(candidate)
                         allocated["lease_token"] = lease_token
+                        allocated["channel"] = channel
                         if target_info:
                             allocated["target_info"] = target_info
                         return allocated
@@ -867,20 +965,25 @@ class ProxyManager:
             self._save_raw(data)
             return None
 
-    def reset_usage_to_idle(self, caller_id: Optional[str] = None) -> int:
+    def reset_usage_to_idle(self, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION) -> int:
         """
         Membersihkan status IN_USE menjadi IDLE hanya untuk proxy yang disewa oleh node ini.
         Proxy milik VPS/Colab lain TIDAK AKAN DIGANGGU.
         Gunakan caller_id='__all__' hanya untuk maintenance reset global seluruh proxy.
         """
+        keys = self._channel_keys(channel)
+        usage_col = "usage_gologin" if channel == CHANNEL_GOLOGIN else "usage"
+        leased_col = "leased_by_gologin" if channel == CHANNEL_GOLOGIN else "leased_by"
+        lease_exp_col = "lease_expires_at_gologin" if channel == CHANNEL_GOLOGIN else "lease_expires_at"
+
         # 1. Bersihkan di Supabase via REST PATCH ter-filter
         if self.supabase_enabled:
             endpoint = f"{self.supabase_url}/rest/v1/{self.supabase_table}"
             if caller_id == "__all__":
-                endpoint += "?usage=eq.IN_USE"
+                endpoint += f"?{usage_col}=eq.IN_USE"
             else:
                 target_caller = caller_id or self.node_id
-                endpoint += f"?leased_by=ilike.{target_caller}*"
+                endpoint += f"?{leased_col}=ilike.{target_caller}*"
 
             headers = {
                 "apikey": self.supabase_key,
@@ -890,9 +993,9 @@ class ProxyManager:
                 "Content-Type": "application/json",
             }
             patch_data = {
-                "usage": "IDLE",
-                "leased_by": None,
-                "lease_expires_at": None,
+                usage_col: "IDLE",
+                leased_col: None,
+                lease_exp_col: None,
             }
             try:
                 requests.patch(endpoint, headers=headers, json=patch_data, timeout=6)
@@ -904,7 +1007,7 @@ class ProxyManager:
             data = self._load_raw()
             cleaned = 0
             for p in data.get("proxies", []):
-                p_leased = str(p.get("leased_by") or "")
+                p_leased = str(p.get(keys["leased_by"]) or "")
                 if caller_id == "__all__":
                     matches_caller = True
                 elif caller_id:
@@ -913,10 +1016,10 @@ class ProxyManager:
                     matches_caller = (not p_leased) or p_leased.startswith(self.node_id)
                 else:
                     matches_caller = True
-                if matches_caller and (p.get("usage") == USAGE_IN_USE or p.get("leased_by") is not None):
-                    p["usage"] = USAGE_IDLE
-                    p["leased_by"] = None
-                    p["lease_time"] = None
+                if matches_caller and (p.get(keys["usage"]) == USAGE_IN_USE or p.get(keys["leased_by"]) is not None):
+                    p[keys["usage"]] = USAGE_IDLE
+                    p[keys["leased_by"]] = None
+                    p[keys["lease_time"]] = None
                     cleaned += 1
             if cleaned > 0:
                 self._save_raw(data)
@@ -935,12 +1038,16 @@ class ProxyManager:
             self._save_raw(data)
             return valid_cursor
 
-    def release_proxy(self, identifier: str, caller_id: Optional[str] = None) -> bool:
+    def release_proxy(self, identifier: str, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION) -> bool:
         """
         Melepaskan alokasi proxy agar kembali IDLE.
         - Jika proxy DEAD, tetap DEAD (tidak otomatis jadi ALIVE).
         - Pemanggilan release aman dan tidak membatalkan alokasi milik caller lain.
+        - channel="gologin" hanya melepas lease GoLogin, tidak menyentuh lease automation.
         """
+        channel = self._resolve_channel(identifier, channel)
+        keys = self._channel_keys(channel)
+        is_gologin = channel == CHANNEL_GOLOGIN
         supabase_ok = False
         # Supabase Distributed Release
         if self.supabase_enabled:
@@ -951,7 +1058,10 @@ class ProxyManager:
                 sb_id = identifier
             if sb_id and isinstance(sb_id, int):
                 sb_caller = f"{self.node_id}:{caller_id}" if caller_id and not str(caller_id).startswith(f"{self.node_id}:") else caller_id
-                _, status = self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
+                fn_name = "release_proxy_gologin" if is_gologin else "release_proxy"
+                _, status = self._supabase_rpc(fn_name, {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
+                if is_gologin and status == 404:
+                    _, status = self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
                 if status in (200, 201, 204):
                     supabase_ok = True
         if isinstance(identifier, dict):
@@ -962,16 +1072,16 @@ class ProxyManager:
 
             for p in proxies:
                 matches_id = (p.get("id") == identifier or p.get("proxy_url") == identifier)
-                matches_token = (p.get("leased_by") == identifier)
+                matches_token = (p.get(keys["leased_by"]) == identifier)
 
                 if matches_id or matches_token:
-                    leased_by = p.get("leased_by")
+                    leased_by = p.get(keys["leased_by"])
                     if caller_id and leased_by and leased_by not in (caller_id, f"{self.node_id}:{caller_id}"):
                         return False  # Dimiliki oleh caller lain
 
-                    p["usage"] = USAGE_IDLE
-                    p["leased_by"] = None
-                    p["lease_time"] = None
+                    p[keys["usage"]] = USAGE_IDLE
+                    p[keys["leased_by"]] = None
+                    p[keys["lease_time"]] = None
                     self._save_raw(data)
                     return True
 
@@ -986,12 +1096,17 @@ class ProxyManager:
         identifier: str,
         target: str,
         window_seconds: float = 24 * 3600,
+        channel: str = CHANNEL_AUTOMATION,
     ) -> bool:
         """
         Mencatat pemakaian proxy untuk target tertentu (misal: 'adsterra', 'youtube').
         Menambah count, memperbarui last_used, dan menyimpan riwayat epoch.
         Otomatis me-reset count jika pemakaian terakhir sudah melebihi window 24 jam.
+        channel="gologin" menulis ke target_usage_gologin & health_gologin.
         """
+        channel = self._resolve_channel(identifier, channel)
+        keys = self._channel_keys(channel)
+        is_gologin = channel == CHANNEL_GOLOGIN
         # Supabase Distributed Target Hit Record
         if self.supabase_enabled:
             sb_id = None
@@ -1000,22 +1115,26 @@ class ProxyManager:
             elif isinstance(identifier, int):
                 sb_id = identifier
             if sb_id and isinstance(sb_id, int):
-                self._supabase_rpc("record_target_hit", {
+                payload = {
                     "p_proxy_id": sb_id,
                     "p_target": target,
                     "p_window_seconds": int(window_seconds),
-                })
+                }
+                fn_name = "record_target_hit_gologin" if is_gologin else "record_target_hit"
+                _, status = self._supabase_rpc(fn_name, payload)
+                if is_gologin and status == 404:
+                    self._supabase_rpc("record_target_hit", payload)
         with self._lock:
             data = self._load_raw()
             proxies = data.get("proxies", [])
             for p in proxies:
                 matches_id = (p.get("id") == identifier or p.get("proxy_url") == identifier)
-                matches_token = (p.get("leased_by") == identifier)
+                matches_token = (p.get(keys["leased_by"]) == identifier)
                 if matches_id or matches_token:
-                    t_usage = p.setdefault("target_usage", {})
+                    t_usage = p.setdefault(keys["target_usage"], {})
                     if not isinstance(t_usage, dict):
                         t_usage = {}
-                        p["target_usage"] = t_usage
+                        p[keys["target_usage"]] = t_usage
                     t_data = t_usage.setdefault(target, {"count": 0, "last_used": None, "history": []})
                     now = time.time()
                     last = float(t_data.get("last_used") or 0)
@@ -1030,9 +1149,9 @@ class ProxyManager:
                     if len(hist) > 50:
                         t_data["history"] = hist[-50:]
                     # Reset kegagalan dan kembalikan ke ALIVE jika berhasil koneksi
-                    p["fail_count"] = 0
-                    if p.get("health") != HEALTH_DEAD:
-                        p["health"] = HEALTH_ALIVE
+                    p[keys["fail_count"]] = 0
+                    if p.get(keys["health"]) != HEALTH_DEAD:
+                        p[keys["health"]] = HEALTH_ALIVE
                     self._save_raw(data)
                     return True
             return False
@@ -1113,9 +1232,10 @@ class ProxyManager:
         proxy_or_id: Union[str, Dict[str, Any]],
         target: str = "monetag",
         window_seconds: float = 24 * 3600,
+        channel: str = CHANNEL_AUTOMATION,
     ) -> bool:
         """Alias praktis untuk record_target_usage yang menerima dict proxy atau ID string."""
-        return self.record_target_usage(identifier=proxy_or_id, target=target, window_seconds=window_seconds)
+        return self.record_target_usage(identifier=proxy_or_id, target=target, window_seconds=window_seconds, channel=channel)
 
     def get_proxy_info(self, proxy: Dict[str, Any]) -> Dict[str, Any]:
         """Mengekstrak informasi dasar IP, negara, dan id dari dictionary proxy."""
@@ -1201,7 +1321,7 @@ class ProxyManager:
     # 4. PENANGANAN KEGAGALAN SAAT DIGUNAKAN
     # =========================================================================
 
-    def report_failure(self, identifier: Union[str, Dict[str, Any]], error_message: Optional[str] = None, is_proxy_error: bool = False) -> Dict[str, Any]:
+    def report_failure(self, identifier: Union[str, Dict[str, Any]], error_message: Optional[str] = None, is_proxy_error: bool = False, channel: str = CHANNEL_AUTOMATION) -> Dict[str, Any]:
         """
         Melaporkan kegagalan penggunaan proxy saat mengakses web target.
         Aturan:
@@ -1212,7 +1332,14 @@ class ProxyManager:
            -> Jika belum mencapai 3x: status diberi COOLDOWN untuk dicoba kembali.
         3. Error fatal level driver/proxy test (test_proxy_network gagal):
            -> Langsung ditandai DEAD.
+        channel="gologin" hanya mengubah health_gologin/fail_count_gologin, bukan automation.
+        Error karena browser/page ditutup (stop script) diabaikan total: health TIDAK berubah.
         """
+        channel = self._resolve_channel(identifier, channel)
+        if self._is_shutdown_error(error_message):
+            return {"status": "IGNORED_SHUTDOWN"}
+        keys = self._channel_keys(channel)
+        is_gologin = channel == CHANNEL_GOLOGIN
         # Supabase Distributed Failure / Cooldown Report
         if self.supabase_enabled:
             sb_id = None
@@ -1221,14 +1348,18 @@ class ProxyManager:
             elif isinstance(identifier, int):
                 sb_id = identifier
             if sb_id and isinstance(sb_id, int):
-                self._supabase_rpc("report_failure", {
+                payload = {
                     "p_proxy_id": sb_id,
                     "p_error": str(error_message or "Error")[:200],
                     "p_is_fatal": is_proxy_error,
-                })
+                }
+                fn_name = "report_failure_gologin" if is_gologin else "report_failure"
+                _, status = self._supabase_rpc(fn_name, payload)
+                if is_gologin and status == 404:
+                    self._supabase_rpc("report_failure", payload)
 
         if isinstance(identifier, dict):
-            identifier = identifier.get("id") or identifier.get("proxy_url") or identifier.get("leased_by") or ""
+            identifier = identifier.get("id") or identifier.get("proxy_url") or identifier.get(keys["leased_by"]) or ""
         proxy_id = None
         proxy_url = None
         fail_count = 0
@@ -1237,7 +1368,7 @@ class ProxyManager:
             data = self._load_raw()
             proxy = None
             for p in data["proxies"]:
-                if p.get("id") == identifier or p.get("proxy_url") == identifier or p.get("leased_by") == identifier:
+                if p.get("id") == identifier or p.get("proxy_url") == identifier or p.get(keys["leased_by"]) == identifier:
                     proxy = p
                     break
 
@@ -1245,10 +1376,10 @@ class ProxyManager:
                 return {"status": "NOT_FOUND"}
 
             err_str = str(error_message or "")
-            proxy["last_error"] = err_str
-            proxy["last_checked"] = time.time()
-            proxy["fail_count"] = int(proxy.get("fail_count", 0) or 0) + 1
-            fail_count = proxy["fail_count"]
+            proxy[keys["last_error"]] = err_str
+            proxy[keys["last_checked"]] = time.time()
+            proxy[keys["fail_count"]] = int(proxy.get(keys["fail_count"], 0) or 0) + 1
+            fail_count = proxy[keys["fail_count"]]
             proxy_id = proxy.get("id")
             proxy_url = proxy.get("proxy_url")
 
@@ -1261,15 +1392,15 @@ class ProxyManager:
 
             # 1. Jika murni Timeout (lambat/stalled load halaman): Berikan COOLDOWN
             if is_timeout and not is_unreachable:
-                proxy["health"] = HEALTH_COOLDOWN
+                proxy[keys["health"]] = HEALTH_COOLDOWN
                 self._save_raw(data)
                 return dict(proxy)
 
             # 2. Jika koneksi tidak terjangkau / fatal network error:
             # Jika sudah 3 kali mencoba -> Dianggap MATI TOTAL (DEAD)
             if fail_count >= MAX_FAIL_THRESHOLD:
-                proxy["health"] = HEALTH_DEAD
-                proxy["last_error"] = f"DEAD (Koneksi tidak terjangkau {fail_count}x): {err_str[:120]}"
+                proxy[keys["health"]] = HEALTH_DEAD
+                proxy[keys["last_error"]] = f"DEAD (Koneksi tidak terjangkau {fail_count}x): {err_str[:120]}"
                 self._save_raw(data)
                 return dict(proxy)
 
@@ -1277,13 +1408,13 @@ class ProxyManager:
             if is_unreachable and proxy_url:
                 test_res = self._test_proxy_network(proxy_url)
                 if not test_res["success"]:
-                    proxy["health"] = HEALTH_DEAD
-                    proxy["last_error"] = f"Dead confirmed: {test_res['error']}"
+                    proxy[keys["health"]] = HEALTH_DEAD
+                    proxy[keys["last_error"]] = f"Dead confirmed: {test_res['error']}"
                 else:
-                    proxy["health"] = HEALTH_COOLDOWN
-                    proxy["latency_ms"] = test_res.get("latency_ms")
+                    proxy[keys["health"]] = HEALTH_COOLDOWN
+                    proxy[keys["latency_ms"]] = test_res.get("latency_ms")
             else:
-                proxy["health"] = HEALTH_COOLDOWN
+                proxy[keys["health"]] = HEALTH_COOLDOWN
 
             self._save_raw(data)
             return dict(proxy)
@@ -1386,6 +1517,9 @@ class ProxyManager:
                         "health": health,
                         "usage": USAGE_IDLE,
                         "target_usage": {},
+                        "health_gologin": str(row.get("health_gologin", health)).upper(),
+                        "usage_gologin": USAGE_IDLE,
+                        "target_usage_gologin": {},
                     }
                     normalized = self._normalize_proxy(item, len(proxies))
 
@@ -1397,6 +1531,8 @@ class ProxyManager:
                         proxies[existing_idx]["proxy_url"] = proxy_url
                         proxies[existing_idx]["country"] = country
                         proxies[existing_idx]["connection_type"] = conn_type
+                        proxies[existing_idx]["health"] = health
+                        proxies[existing_idx]["health_gologin"] = str(row.get("health_gologin", health)).upper()
                     else:
                         proxies.append(normalized)
                         existing_map[key_id] = len(proxies) - 1
@@ -1516,6 +1652,7 @@ def acquire_proxy(
     cooldown_seconds: float = 6 * 3600,
     window_seconds: float = 24 * 3600,
     auto_record: bool = False,
+    channel: str = CHANNEL_AUTOMATION,
 ) -> Optional[Dict[str, Any]]:
     """Mengambil proxy sehat berikutnya dengan continuous rotation dan target usage check."""
     return get_manager().acquire_proxy(
@@ -1527,12 +1664,18 @@ def acquire_proxy(
         cooldown_seconds=cooldown_seconds,
         window_seconds=window_seconds,
         auto_record=auto_record,
+        channel=channel,
     )
 
 
-def record_target_usage(identifier: str, target: str, window_seconds: float = 24 * 3600) -> bool:
+def record_target_usage(identifier: str, target: str, window_seconds: float = 24 * 3600, channel: str = CHANNEL_AUTOMATION) -> bool:
     """Mencatat pemakaian proxy untuk target tertentu."""
-    return get_manager().record_target_usage(identifier=identifier, target=target, window_seconds=window_seconds)
+    return get_manager().record_target_usage(identifier=identifier, target=target, window_seconds=window_seconds, channel=channel)
+
+
+def record_target_hit(identifier: str, target: str = "monetag", window_seconds: float = 24 * 3600, channel: str = CHANNEL_AUTOMATION) -> bool:
+    """Alias record_target_usage yang menerima dict proxy atau ID."""
+    return get_manager().record_target_hit(proxy_or_id=identifier, target=target, window_seconds=window_seconds, channel=channel)
 
 
 def get_target_usage(
@@ -1572,14 +1715,14 @@ def get_target_stats(
     )
 
 
-def release_proxy(identifier: str, caller_id: Optional[str] = None) -> bool:
+def release_proxy(identifier: str, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION) -> bool:
     """Melepaskan proxy setelah selesai digunakan."""
-    return get_manager().release_proxy(identifier=identifier, caller_id=caller_id)
+    return get_manager().release_proxy(identifier=identifier, caller_id=caller_id, channel=channel)
 
 
-def report_failure(identifier: str, error_message: Optional[str] = None, is_proxy_error: bool = False) -> Dict[str, Any]:
+def report_failure(identifier: str, error_message: Optional[str] = None, is_proxy_error: bool = False, channel: str = CHANNEL_AUTOMATION) -> Dict[str, Any]:
     """Melaporkan error saat menggunakan proxy."""
-    return get_manager().report_failure(identifier=identifier, error_message=error_message, is_proxy_error=is_proxy_error)
+    return get_manager().report_failure(identifier=identifier, error_message=error_message, is_proxy_error=is_proxy_error, channel=channel)
 
 
 def validate_proxy(identifier: str, force: bool = False) -> Dict[str, Any]:
@@ -1654,9 +1797,9 @@ def get_stats() -> Dict[str, Any]:
     return get_manager().get_stats()
 
 
-def reset_usage_to_idle() -> int:
+def reset_usage_to_idle(channel: str = CHANNEL_AUTOMATION) -> int:
     """Membersihkan seluruh status IN_USE menjadi IDLE."""
-    return get_manager().reset_usage_to_idle()
+    return get_manager().reset_usage_to_idle(channel=channel)
 
 
 def reset_cursor(to_index: int = 0) -> int:
