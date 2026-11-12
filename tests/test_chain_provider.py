@@ -154,3 +154,64 @@ def test_provider_raises_when_both_sources_empty(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError, match="hop_proxy_list"):
         ChainProxyProvider(scrape_file=str(path))
+
+
+def test_provider_defaults_keep_gologin_channel(tmp_path):
+    from core.proxy_manager import CHANNEL_GOLOGIN
+
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.1:3129\n", encoding="utf-8")
+    provider = ChainProxyProvider(scrape_file=str(path))
+
+    assert provider.target == "gologin"
+    assert provider.channel == CHANNEL_GOLOGIN
+    assert provider.strict_channel is True
+
+
+def test_provider_accepts_monetag_target_and_automation_channel(tmp_path):
+    from core.proxy_manager import CHANNEL_AUTOMATION
+
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.1:3129\n", encoding="utf-8")
+    provider = ChainProxyProvider(
+        scrape_file=str(path),
+        target="monetag",
+        channel=CHANNEL_AUTOMATION,
+        strict_channel=False,
+        target_max_uses_per_day=5,
+        target_cooldown_seconds=3600,
+    )
+
+    assert provider.target == "monetag"
+    assert provider.channel == CHANNEL_AUTOMATION
+    assert provider.strict_channel is False
+    assert provider.target_max_uses_per_day == 5
+    assert provider.target_cooldown_seconds == 3600
+
+
+def test_provider_rejects_non_floppydata_residential(tmp_path):
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.1:3129\n", encoding="utf-8")
+
+    class FakePM:
+        def __init__(self):
+            self.released = []
+
+        def acquire_proxy(self, **kwargs):
+            return {"id": 1, "host": "geo.other.com", "port": 10080, "leased_by": "lease-1"}
+
+        def release_proxy(self, proxy, caller_id=None, **kwargs):
+            self.released.append((proxy.get("id"), caller_id))
+
+    pm = FakePM()
+    provider = ChainProxyProvider(
+        scrape_file=str(path),
+        target="monetag",
+        channel="automation",
+        strict_channel=False,
+        residential_host_contains="floppydata",
+        proxy_manager=pm,
+    )
+
+    assert provider.next_proxy() is None
+    assert pm.released == [(1, "lease-1")]

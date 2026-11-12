@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Provider chain GoLogin: hop 3xK acak -> residential FloppyData Supabase.
+"""Provider chain: hop 3xK acak -> residential FloppyData Supabase.
 
-Alur per sesi:
+Dipakai GoLogin (channel `gologin`) dan Monetag (channel automation, target
+`monetag`). Alur per sesi:
   1. Acak hop dari Supabase `proxxies.hop_proxy_list` (fallback file lokal).
-  2. Acquire 1 residential ALIVE dari channel gologin Supabase.
+  2. Acquire 1 residential ALIVE dari pool Supabase sesuai target/channel.
   3. Probe hop, lalu probe chain penuh untuk memastikan exit IP = FloppyData.
   4. Start local bridge `127.0.0.1:<port>` yang dipakai browser.
   5. Setelah sesi: update state, release lease, stop bridge.
@@ -15,6 +16,7 @@ import json
 import os
 import random
 import sys
+import threading
 import time
 import uuid
 from typing import Any, Dict, List, Optional
@@ -25,14 +27,7 @@ from proxy_chain_tester import ChainError, fetch_through_chain
 
 from automation.proxy_bridge import ChainProxyServer
 from core.hop_registry import list_hops as list_hops_from_supabase
-from core.proxy_manager import (
-    acquire_proxy,
-    record_probe,
-    record_target_hit,
-    release_proxy,
-    report_cooldown,
-    report_dead,
-)
+from core.proxy_manager import CHANNEL_GOLOGIN, get_manager
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_SCRAPE_FILE = os.path.join(PROJECT_ROOT, "data", "proxies_scrape.txt")
@@ -99,7 +94,7 @@ def parse_hop_file(path: str) -> List[Dict[str, Any]]:
 
 
 class ChainProxyProvider:
-    """Sumber proxy chain untuk `run_gologin_harvest_job`."""
+    """Sumber proxy chain untuk GoLogin maupun Monetag."""
 
     def __init__(
         self,
@@ -111,6 +106,15 @@ class ChainProxyProvider:
         hop_blacklist_seconds: float = 300.0,
         probe_targets: Optional[List[str]] = None,
         verbose: bool = False,
+        target: str = "gologin",
+        channel: str = CHANNEL_GOLOGIN,
+        strict_channel: bool = True,
+        target_max_uses_per_day: int = 2,
+        target_cooldown_seconds: float = 6 * 3600,
+        target_window_seconds: float = 24 * 3600,
+        residential_host_contains: Optional[str] = None,
+        proxy_manager: Optional[Any] = None,
+        log_func: Optional[Any] = None,
     ):
         self.scrape_file = scrape_file
         self.hop_tries = max(1, int(hop_tries))
@@ -121,6 +125,17 @@ class ChainProxyProvider:
         self.probe_targets = list(probe_targets or DEFAULT_PROBE_TARGETS)
         self.verbose = verbose
 
+        self.target = target or "gologin"
+        self.channel = channel or CHANNEL_GOLOGIN
+        self.strict_channel = bool(strict_channel)
+        self.target_max_uses_per_day = max(1, int(target_max_uses_per_day))
+        self.target_cooldown_seconds = max(0.0, float(target_cooldown_seconds))
+        self.target_window_seconds = max(0.0, float(target_window_seconds))
+        self.residential_host_contains = (residential_host_contains or "").lower()
+        self._pm = proxy_manager
+        self._log_func = log_func or print
+        self._log_prefix = threading.local()
+
         self.hops = self._load_hops(scrape_file)
         self._rng = random.SystemRandom()
         self._hop_blacklist: Dict[str, float] = {}
@@ -130,34 +145,51 @@ class ChainProxyProvider:
                 f"maupun file {scrape_file}"
             )
 
-    @staticmethod
-    def _load_hops(scrape_file: str) -> List[Dict[str, Any]]:
+    @property
+    def pm(self):
+        if self._pm is None:
+            self._pm = get_manager()
+        return self._pm
+
+    def _log(self, message: str) -> None:
+        prefix = getattr(self._log_prefix, "value", "")
+        self._log_func(f"{prefix}{message}")
+
+    def _load_hops(self, scrape_file: str) -> List[Dict[str, Any]]:
         """Ambil hop dari Supabase dulu; fallback ke file lokal."""
         try:
             hops = list_hops_from_supabase()
         except Exception as exc:
-            print(f"! Gagal memuat hop dari Supabase: {_short(exc)}")
+            self._log(f"! Gagal memuat hop dari Supabase: {_short(exc)}")
             hops = []
         if hops:
-            print(f"   hop: {len(hops)} dari Supabase (hop_proxy_list)")
+            self._log(f"   hop: {len(hops)} dari Supabase (hop_proxy_list)")
             return hops
 
         hops = parse_hop_file(scrape_file) if os.path.isfile(scrape_file) else []
         if hops:
-            print(f"   hop: {len(hops)} dari file {scrape_file}")
+            self._log(f"   hop: {len(hops)} dari file {scrape_file}")
         return hops
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def next_proxy(self) -> Optional[Dict[str, Any]]:
-        caller_id = f"chain_{uuid.uuid4().hex[:10]}"
-        residential = acquire_proxy(
+    def next_proxy(
+        self,
+        caller_id: Optional[str] = None,
+        log_prefix: str = "",
+    ) -> Optional[Dict[str, Any]]:
+        self._log_prefix.value = log_prefix or ""
+        caller_id = caller_id or f"chain_{uuid.uuid4().hex[:10]}"
+        residential = self.pm.acquire_proxy(
             caller_id=caller_id,
-            target="gologin",
+            target=self.target,
             verify_alive=False,
-            channel="gologin",
-            strict_channel=True,
+            max_uses_per_day=self.target_max_uses_per_day,
+            cooldown_seconds=self.target_cooldown_seconds,
+            window_seconds=self.target_window_seconds,
+            channel=self.channel,
+            strict_channel=self.strict_channel,
         )
         if not residential:
             return None
@@ -167,6 +199,15 @@ class ChainProxyProvider:
             or residential.get("lease_token")
             or caller_id
         )
+        residential_host = str(residential.get("host") or "").lower()
+        if self.residential_host_contains and self.residential_host_contains not in residential_host:
+            self._log(
+                f"! Residential {residential.get('host')} bukan "
+                f"{self.residential_host_contains}; lease dilepas."
+            )
+            self._release(residential, release_caller)
+            return None
+
         res_chain = self._chain_item(residential, residential.get("supabase_id") or 0)
 
         selected_hops = self._pick_hops(self.hop_tries)
@@ -216,6 +257,11 @@ class ChainProxyProvider:
                     f"hop {hop['host']} transparent (exit IP sama dengan hop)"
                 )
                 continue
+            if chain_probe.get("hosting") is True:
+                target_errors.append(
+                    f"exit {exit_ip} terdeteksi hosting/datacenter, bukan residential"
+                )
+                continue
 
             country = (
                 chain_probe.get("country")
@@ -234,21 +280,23 @@ class ChainProxyProvider:
                 continue
 
             try:
-                record_probe(
+                self.pm.record_probe(
                     residential,
                     ip_detected=exit_ip,
                     latency_ms=chain_probe.get("latency_ms"),
-                    channel="gologin",
-                    strict_channel=True,
+                    channel=self.channel,
+                    strict_channel=self.strict_channel,
                 )
             except Exception as exc:
-                print(f"! Gagal update probe Supabase: {_short(exc)}")
+                self._log(f"! Gagal update probe Supabase: {_short(exc)}")
 
-            print(
+            exit_isp = chain_probe.get("isp") or chain_probe.get("org") or "?"
+            exit_asn = chain_probe.get("asn") or "?"
+            self._log(
                 f"   chain: hop={hop['host']}:{hop['port']} "
                 f"-> residential={residential.get('host')}:{residential.get('port')} "
                 f"(id={residential.get('supabase_id')}, {country or country_code or '?'}) "
-                f"-> exit={exit_ip} | {chain_probe.get('latency_ms')}ms"
+                f"-> exit={exit_ip} [{exit_isp} | {exit_asn}] | {chain_probe.get('latency_ms')}ms"
             )
 
             return {
@@ -266,10 +314,15 @@ class ChainProxyProvider:
                 "ip_detected": exit_ip,
                 "expected_asn": chain_probe.get("asn") or "",
                 "expected_isp": chain_probe.get("isp") or "",
+                "expected_org": chain_probe.get("org") or "",
+                "exit_hosting": chain_probe.get("hosting"),
+                "exit_proxy_flag": chain_probe.get("proxy"),
+                "residential_endpoint": f"{residential.get('host')}:{residential.get('port')}",
                 "allow_ip_rotation": True,
                 "latency_ms": chain_probe.get("latency_ms"),
                 "source": "chain",
-                "channel": "gologin",
+                "channel": self.channel,
+                "target": self.target,
                 "verify_country": bool(country or country_code),
                 "hop_ip": hop["host"],
                 "hop_port": hop["port"],
@@ -285,32 +338,17 @@ class ChainProxyProvider:
         # Semua hop gagal: putuskan apakah residential memang mati atau cuma hop.
         if fatal_dead or dead_votes >= self.dead_confirm_hops:
             reason = "Residential tidak bisa connect: " + "; ".join(reasons[-3:])
-            try:
-                report_dead(
-                    residential,
-                    reason=reason,
-                    is_fatal=fatal_dead,
-                    force_dead=(not fatal_dead and dead_votes >= self.dead_confirm_hops),
-                    cooldown_seconds=self.cooldown_seconds,
-                    channel="gologin",
-                    strict_channel=True,
-                )
-            except Exception as exc:
-                print(f"! Gagal menandai DEAD: {_short(exc)}")
+            self._mark_dead(
+                residential,
+                reason,
+                is_fatal=fatal_dead,
+                force_dead=(not fatal_dead and dead_votes >= self.dead_confirm_hops),
+            )
         elif target_errors:
             reason = f"Probe target gagal lewat chain: {target_errors[-1]}"
-            try:
-                report_cooldown(
-                    residential,
-                    reason=reason,
-                    cooldown_seconds=self.cooldown_seconds,
-                    channel="gologin",
-                    strict_channel=True,
-                )
-            except Exception as exc:
-                print(f"! Gagal menandai COOLDOWN: {_short(exc)}")
+            self._cooldown(residential, reason)
         else:
-            print(
+            self._log(
                 "   Semua hop 3xK gagal; residential tidak dihukum (bukan bukti IP mati)."
             )
 
@@ -323,8 +361,10 @@ class ChainProxyProvider:
         success: bool,
         error: Optional[BaseException] = None,
         error_kind: str = "other",
+        log_prefix: str = "",
     ) -> None:
         """Selalu stop bridge, update state sesuai jenis error, lalu release lease."""
+        self._log_prefix.value = log_prefix or ""
         if not proxy:
             return
 
@@ -343,18 +383,19 @@ class ChainProxyProvider:
         try:
             if success:
                 try:
-                    record_target_hit(
+                    self.pm.record_target_hit(
                         residential,
-                        target="gologin",
-                        channel="gologin",
-                        strict_channel=True,
+                        target=self.target,
+                        window_seconds=self.target_window_seconds,
+                        channel=self.channel,
+                        strict_channel=self.strict_channel,
                     )
                 except Exception as exc:
-                    print(f"! Gagal record target hit: {_short(exc)}")
+                    self._log(f"! Gagal record target hit: {_short(exc)}")
             elif error_kind == "shutdown":
-                print("   Sesi dihentikan; health proxy tidak diubah.")
+                self._log("   Sesi dihentikan; health proxy tidak diubah.")
             elif error_kind == "test":
-                print("   Chain test selesai; health proxy tidak diubah.")
+                self._log("   Chain test selesai; health proxy tidak diubah.")
             elif error_kind == "cloudflare":
                 self._cooldown(
                     residential,
@@ -375,26 +416,64 @@ class ChainProxyProvider:
     # ------------------------------------------------------------------
     def _cooldown(self, residential: Dict[str, Any], reason: str) -> None:
         try:
-            report_cooldown(
-                residential,
-                reason=reason,
-                cooldown_seconds=self.cooldown_seconds,
-                channel="gologin",
-                strict_channel=True,
-            )
+            if self.channel == CHANNEL_GOLOGIN:
+                self.pm.report_cooldown(
+                    residential,
+                    reason=reason,
+                    cooldown_seconds=self.cooldown_seconds,
+                    channel=self.channel,
+                    strict_channel=self.strict_channel,
+                )
+            else:
+                self.pm.report_failure(
+                    residential,
+                    error_message=reason,
+                    is_proxy_error=False,
+                    channel=self.channel,
+                    strict_channel=self.strict_channel,
+                )
         except Exception as exc:
-            print(f"! Gagal menandai COOLDOWN: {_short(exc)}")
+            self._log(f"! Gagal menandai COOLDOWN: {_short(exc)}")
+
+    def _mark_dead(
+        self,
+        residential: Dict[str, Any],
+        reason: str,
+        is_fatal: bool = False,
+        force_dead: bool = False,
+    ) -> None:
+        try:
+            if self.channel == CHANNEL_GOLOGIN:
+                self.pm.report_dead(
+                    residential,
+                    reason=reason,
+                    is_fatal=is_fatal,
+                    force_dead=force_dead,
+                    cooldown_seconds=self.cooldown_seconds,
+                    channel=self.channel,
+                    strict_channel=self.strict_channel,
+                )
+            else:
+                self.pm.report_failure(
+                    residential,
+                    error_message=reason,
+                    is_proxy_error=True,
+                    channel=self.channel,
+                    strict_channel=self.strict_channel,
+                )
+        except Exception as exc:
+            self._log(f"! Gagal menandai DEAD: {_short(exc)}")
 
     def _release(self, residential: Dict[str, Any], caller_id: Optional[str]) -> None:
         try:
-            release_proxy(
+            self.pm.release_proxy(
                 residential,
                 caller_id=caller_id,
-                channel="gologin",
-                strict_channel=True,
+                channel=self.channel,
+                strict_channel=self.strict_channel,
             )
         except Exception as exc:
-            print(f"! Gagal release lease: {_short(exc)}")
+            self._log(f"! Gagal release lease: {_short(exc)}")
 
     def _handle_runtime_failure(
         self,
@@ -414,26 +493,20 @@ class ChainProxyProvider:
         except ChainError as exc:
             if exc.stage == "hop_tcp":
                 self._blacklist_hop(hop)
-                print(
+                self._log(
                     f"   Hop {hop.get('host')} mati saat sesi; residential tidak dihukum."
                 )
                 return
             if exc.stage == "proxy_connect":
                 fatal = exc.status in FATAL_PROXY_STATUS
-                try:
-                    report_dead(
-                        residential,
-                        reason=(
-                            f"Sesi gagal ({error_kind}): {_short(error)}; "
-                            f"chain probe gagal: {_short(exc)}"
-                        ),
-                        is_fatal=fatal,
-                        cooldown_seconds=self.cooldown_seconds,
-                        channel="gologin",
-                        strict_channel=True,
-                    )
-                except Exception as report_exc:
-                    print(f"! Gagal menandai DEAD: {_short(report_exc)}")
+                self._mark_dead(
+                    residential,
+                    (
+                        f"Sesi gagal ({error_kind}): {_short(error)}; "
+                        f"chain probe gagal: {_short(exc)}"
+                    ),
+                    is_fatal=fatal,
+                )
                 return
             if exc.stage == "target":
                 self._cooldown(

@@ -39,6 +39,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.proxy_manager import ProxyManager
 from core.telemetry_reporter import get_telemetry_reporter
+from automation.chain_provider import ChainProxyProvider
 from automation.engine import load_config
 from automation.session import SessionBudget
 from automation.monetag.flow import monetag_worker_thread_loop, run_monetag_session
@@ -53,6 +54,9 @@ YELLOW = "\033[33m"
 MAGENTA = "\033[35m"
 RED = "\033[31m"
 BLUE = "\033[34m"
+
+# Warna konsisten per worker agar log multi-worker mudah dipisahkan.
+WORKER_COLORS = (CYAN, MAGENTA, GREEN, BLUE, YELLOW)
 
 
 def print_banner(node_name: str, target: str, workers: int, unlimited: bool, headless: bool, url: str, potato: bool = True) -> None:
@@ -147,6 +151,36 @@ class BotRunnerCLI:
 
         self.started_at = time.time()
         self.threads: List[threading.Thread] = []
+        self._console_lock = threading.Lock()
+
+    @staticmethod
+    def _worker_color(worker_id: Any) -> str:
+        try:
+            index = (int(worker_id) - 1) % len(WORKER_COLORS)
+        except (TypeError, ValueError):
+            index = 0
+        return WORKER_COLORS[index]
+
+    def _console(self, worker_id: Any, message: str) -> None:
+        """Cetak satu baris log worker dengan warna & prefix tetap yang rapi."""
+        ts = datetime.now().strftime("%H:%M:%S")
+        try:
+            tag = f"W{int(worker_id):>2}"
+        except (TypeError, ValueError):
+            tag = "W?"
+        color = self._worker_color(worker_id)
+        with self._console_lock:
+            print(f"[{ts}] {color}[{tag}]{RESET} {message}", flush=True)
+
+    def _chain_log(self, message: str) -> None:
+        """Rapikan log ChainProxyProvider: ikut warna worker bila ada prefix [Wn]."""
+        text = str(message)
+        match = re.match(r"^\[W\s*(\d+)\]\s*(.*)$", text)
+        if match:
+            self._console(int(match.group(1)), match.group(2))
+            return
+        with self._console_lock:
+            print(text, flush=True)
 
     def _on_worker_event(self, etype: str, data: Dict[str, Any]) -> None:
         wid = data.get("worker_id", 1)
@@ -157,12 +191,12 @@ class BotRunnerCLI:
         logs = w.setdefault("logs", [])
 
         if etype == "log_message":
-            msg = data.get("message", "")
+            msg = re.sub(r"^\[W\d+\]\s*", "", data.get("message", ""))
             if msg:
                 logs.append(f"[{ts}] {msg}")
                 w["logs"] = logs[-15:]
                 w["activity"] = msg[:75]
-                print(f"[{ts}] {CYAN}[W{wid}]{RESET} {msg}", flush=True)
+                self._console(wid, msg)
 
         elif etype == "stepper_update":
             stage = data.get("stage", "")
@@ -172,7 +206,7 @@ class BotRunnerCLI:
             logs.append(f"[{ts}] {stage} - {status}")
             w["logs"] = logs[-15:]
             if stage or status:
-                print(f"[{ts}] {CYAN}[W{wid}]{RESET} ⏳ {stage} — {status}", flush=True)
+                self._console(wid, f"⏳ {stage} — {status}")
 
         elif etype == "proxy_assigned":
             c_name = data.get("country", "Unknown")
@@ -187,7 +221,7 @@ class BotRunnerCLI:
             w["activity"] = f"IP terpilih: {w['proxy_ip']} ({c_flag} {c_name})"
             logs.append(f"[{ts}] 🛡️ IP Dialokasikan: {w['proxy_ip']} ({c_flag} {c_name})")
             w["logs"] = logs[-15:]
-            print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🛡️ IP Dialokasikan: {BOLD}{w['proxy_ip']}{RESET} ({c_flag} {c_name}) - {w['target_net']}", flush=True)
+            self._console(wid, f"🛡️ IP Dialokasikan: {BOLD}{w['proxy_ip']}{RESET} ({c_flag} {c_name}) - {w['target_net']}")
 
         elif etype == "verifier_report":
             w["out_ip"] = data.get("detected_ip") or w["proxy_ip"]
@@ -204,14 +238,14 @@ class BotRunnerCLI:
             logs.append(f"[{ts}] 🔍 Hasil Audit Stealth: {score}/100 | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}")
             w["logs"] = logs[-15:]
             score_col = GREEN if score >= 80 else (YELLOW if score >= 60 else RED)
-            print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🔍 Audit Anti-Detect: {score_col}{score}/100{RESET} | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}", flush=True)
+            self._console(wid, f"🔍 Audit Anti-Detect: {score_col}{score}/100{RESET} | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}")
 
         elif etype == "session_started":
             w["stepper"] = "🌐 Buka Web"
             w["activity"] = "Membuka halaman web target..."
             logs.append(f"[{ts}] 🌐 Membuka target: {self.args.url}")
             w["logs"] = logs[-15:]
-            print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🌐 Membuka halaman target: {self.args.url}", flush=True)
+            self._console(wid, f"🌐 Membuka halaman target: {self.args.url}")
 
         elif etype == "step_waiting":
             step = data.get("index", 1)
@@ -254,7 +288,7 @@ class BotRunnerCLI:
             w["activity"] = f"Verifikasi & interaksi iklan: {ad_type}..."
             logs.append(f"[{ts}] 🎯 Memverifikasi viewability iklan: {ad_type}")
             w["logs"] = logs[-15:]
-            print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🎯 Interaksi iklan: {ad_type}", flush=True)
+            self._console(wid, f"🎯 Interaksi iklan: {ad_type}")
 
         elif etype == "flow_completed":
             w["stepper"] = "🏁 Impresi Selesai"
@@ -273,7 +307,7 @@ class BotRunnerCLI:
             w["logs"] = logs[-15:]
 
             status_col = GREEN if raw == "PASS" else (YELLOW if raw == "WARN" else RED)
-            print(f"[{ts}] {CYAN}[W{wid}]{RESET} 🏁 Sesi Selesai: {status_col}{label}{RESET} (Total Sukses: {w['sessions_done']})", flush=True)
+            self._console(wid, f"🏁 Sesi Selesai: {status_col}{label}{RESET} (Total Sukses: {w['sessions_done']})")
 
             # Catat ke JSON lokal & broadcast
             self.reporter.record_session_result(
@@ -358,6 +392,39 @@ class BotRunnerCLI:
             potato=getattr(self.args, "potato", True),
         )
 
+        chain_provider = None
+        if not is_safelink and not getattr(self.args, "no_chain", False):
+            try:
+                chain_provider = ChainProxyProvider(
+                    hop_tries=getattr(self.args, "hop_tries", 3),
+                    timeout=getattr(self.args, "chain_timeout", 15.0),
+                    dead_confirm_hops=getattr(self.args, "dead_confirm_hops", 2),
+                    verbose=bool(getattr(self.args, "chain_verbose", False)),
+                    target="monetag",
+                    channel="automation",
+                    strict_channel=False,
+                    target_max_uses_per_day=self.args.max_uses,
+                    target_cooldown_seconds=self.args.cooldown * 3600,
+                    target_window_seconds=24 * 3600,
+                    residential_host_contains="floppydata",
+                    proxy_manager=self.proxy_manager,
+                    log_func=self._chain_log,
+                )
+                print(
+                    f"{GREEN}🔗 Chain mode aktif: hop 3xK -> residential FloppyData "
+                    f"(target=monetag, {len(chain_provider.hops)} hop).{RESET}",
+                    flush=True,
+                )
+            except Exception as exc:
+                print(f"{RED}❌ Chain tidak bisa dimulai: {exc}{RESET}", flush=True)
+                print(
+                    f"{YELLOW}   Perbaiki Supabase/hop, atau jalankan dengan --no-chain.{RESET}",
+                    flush=True,
+                )
+                raise SystemExit(1)
+        elif not is_safelink:
+            print(f"{YELLOW}⚠️ Chain dimatikan (--no-chain); memakai residential langsung.{RESET}", flush=True)
+
         base_config = load_config()
         base_config.update({
             "target_url": target_url,
@@ -365,11 +432,28 @@ class BotRunnerCLI:
             "max_uses_per_day": self.args.max_uses,
             "proxy_cooldown_hours": self.args.cooldown,
             "run_browser_verifier": True,
+            "use_chain": chain_provider is not None,
             "max_sessions_per_run": 0 if self.args.unlimited else self.args.sessions,
             "target_name": self.args.target,
             "errorlogs": getattr(self.args, "errorlogs", False),
             "lightweight": getattr(self.args, "potato", True),
         })
+
+        if chain_provider is not None and getattr(self.args, "chain_test", False):
+            print(f"{CYAN}🧪 Menjalankan chain test (hop -> residential -> exit IP)...{RESET}", flush=True)
+            test_proxy = chain_provider.next_proxy(caller_id=f"chain_test_{int(time.time())}")
+            if not test_proxy:
+                print(f"{RED}❌ Chain test gagal: tidak ada kombinasi hop/residential yang lolos.{RESET}", flush=True)
+                raise SystemExit(1)
+            print(
+                f"{GREEN}✅ Chain test OK: hop {test_proxy.get('hop_ip')}:{test_proxy.get('hop_port')} "
+                f"-> exit {test_proxy.get('expected_ip')} ({test_proxy.get('country') or '?'}) "
+                f"| {test_proxy.get('latency_ms')}ms{RESET}",
+                flush=True,
+            )
+            chain_provider.finish_session(test_proxy, False, error_kind="test")
+            return
+
         pool_lock = threading.Lock()
 
         def _reset_pool() -> None:
@@ -391,6 +475,11 @@ class BotRunnerCLI:
             else:
                 w_fn = monetag_worker_thread_loop
                 w_tag = "Monetag"
+            worker_kwargs: Dict[str, Any] = {
+                "reset_pool_callback": _reset_pool if self.budget.unlimited else None,
+            }
+            if not is_safelink:
+                worker_kwargs["chain_provider"] = chain_provider
             t = threading.Thread(
                 target=w_fn,
                 args=(
@@ -401,14 +490,13 @@ class BotRunnerCLI:
                     self._on_worker_event,
                     self.stop_event,
                 ),
-                kwargs={"reset_pool_callback": _reset_pool if self.budget.unlimited else None},
+                kwargs=worker_kwargs,
                 daemon=True,
                 name=f"{w_tag}-Worker-{wid}",
             )
             t.start()
             self.threads.append(t)
-            ts_now = datetime.now().strftime("%H:%M:%S")
-            print(f"[{ts_now}] {CYAN}[W{wid}]{RESET} 🚀 Worker {w_tag} diaktifkan, mulai mencari & mengalokasikan proxy...", flush=True)
+            self._console(wid, f"🚀 Worker {w_tag} diaktifkan, mulai mencari & mengalokasikan proxy...")
             if wid < self.args.workers:
                 time.sleep(3.0)
 
@@ -508,6 +596,39 @@ def parse_args() -> argparse.Namespace:
         type=float,
         default=6.0,
         help="Jeda waktu pendinginan antar pemakaian IP dalam jam (default: 6.0)",
+    )
+    parser.add_argument(
+        "--no-chain",
+        action="store_true",
+        help="Nonaktifkan chain hop 3xK; pakai residential FloppyData langsung (fallback)",
+    )
+    parser.add_argument(
+        "--chain-test",
+        action="store_true",
+        help="Tes satu kombinasi hop + residential lalu keluar tanpa menjalankan sesi",
+    )
+    parser.add_argument(
+        "--hop-tries",
+        type=int,
+        default=3,
+        help="Jumlah hop acak yang dicoba per sesi chain",
+    )
+    parser.add_argument(
+        "--chain-timeout",
+        type=float,
+        default=15.0,
+        help="Timeout probe TCP/HTTP chain dalam detik",
+    )
+    parser.add_argument(
+        "--dead-confirm-hops",
+        type=int,
+        default=2,
+        help="Jumlah hop gagal sebelum residential dianggap DEAD",
+    )
+    parser.add_argument(
+        "--chain-verbose",
+        action="store_true",
+        help="Tampilkan log detail probe chain",
     )
     parser.add_argument(
         "--errorlogs",

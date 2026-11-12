@@ -211,15 +211,15 @@ Sistem mengenali berbagai format proxy secara otomatis saat upload atau append:
 
 1. **IP:Port:User:Pass**
    ```text
-   geo.floppydata.com:10080:SP6xbNYIboaYTmTF:fsX1BsHD94F1pNcj
+   geo.floppydata.com:10080:<USERNAME>:<PASSWORD>
    ```
 2. **User:Pass@Host:Port**
    ```text
-   SP6xbNYIboaYTmTF:fsX1BsHD94F1pNcj@geo.floppydata.com:10080
+   <USERNAME>:<PASSWORD>@geo.floppydata.com:10080
    ```
 3. **URL Lengkap**
    ```text
-   http://SP6xbNYIboaYTmTF:fsX1BsHD94F1pNcj@geo.floppydata.com:10080
+   http://<USERNAME>:<PASSWORD>@geo.floppydata.com:10080
    ```
 4. **IP:Port Tanpa Autentikasi**
    ```text
