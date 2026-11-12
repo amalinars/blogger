@@ -241,3 +241,45 @@ Sistem mengenali berbagai format proxy secara otomatis saat upload atau append:
 3. **Timeout Pengujian**:
    - Standar residential proxy berkisar antara **5 - 7 detik** (`--timeout 6`).
    - Timeout di bawah 3 detik tidak disarankan untuk proxy residential karena waktu handshake SSL biasanya sedikit lebih lambat dari datacenter IP.
+
+---
+
+## 7. Hop Proxy Registry (Chain GoLogin)
+
+Hop 3xK untuk chain GoLogin dibaca dari tabel Supabase
+`proxxies.hop_proxy_list`. File `data/proxies_scrape.txt` **opsional** dan
+boleh dihapus; file hanya dipakai sebagai fallback jika ada.
+
+### Setup
+1. Jalankan `setup_supabase_hops.sql` di Supabase SQL Editor.
+2. Isi kredensial hop di `.env` (lokal, jangan di-commit):
+   ```text
+   X3K_USER=...
+   X3K_PASS=...
+   ```
+3. Seed dari file hop lokal:
+   ```bash
+   python seed_hops_to_supabase.py
+   # cek dulu tanpa menulis:
+   python seed_hops_to_supabase.py --dry-run
+   ```
+   File boleh berisi kredensial asli atau placeholder
+   `<user>:<pass>@host:port`; placeholder diisi dari `.env`.
+
+### Alur pembacaan
+`ChainProxyProvider` memuat hop dengan urutan:
+1. RPC `proxxies.list_active_hops()` (hanya `enabled = TRUE`).
+2. Fallback `parse_hop_file(data/proxies_scrape.txt)` **hanya jika file ada**.
+
+Blacklist hop hasil probe tetap in-memory per proses (tidak ditulis ke DB).
+Mode chain dipakai oleh CLI maupun GUI (kecuali opsi `--direct`).
+
+### Menonaktifkan / menambah hop
+```sql
+UPDATE proxxies.hop_proxy_list SET enabled = FALSE WHERE host = '1.2.3.4';
+```
+Tambahkan lewat `seed_hops_to_supabase.py` (file) atau RPC
+`proxxies.upsert_hop_proxies(jsonb)`.
+
+> Catatan keamanan: akses RPC memakai kredensial Supabase yang sama dengan
+> `proxy_list`. Siapa pun yang memiliki key tersebut dapat membaca isi tabel hop.

@@ -2,7 +2,7 @@
 """Provider chain GoLogin: hop 3xK acak -> residential FloppyData Supabase.
 
 Alur per sesi:
-  1. Acak hop dari `data/proxies_scrape.txt` (bukan urut baris).
+  1. Acak hop dari Supabase `proxxies.hop_proxy_list` (fallback file lokal).
   2. Acquire 1 residential ALIVE dari channel gologin Supabase.
   3. Probe hop, lalu probe chain penuh untuk memastikan exit IP = FloppyData.
   4. Start local bridge `127.0.0.1:<port>` yang dipakai browser.
@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from proxy_chain_tester import ChainError, fetch_through_chain
 
 from automation.proxy_bridge import ChainProxyServer
+from core.hop_registry import list_hops as list_hops_from_supabase
 from core.proxy_manager import (
     acquire_proxy,
     record_probe,
@@ -120,11 +121,31 @@ class ChainProxyProvider:
         self.probe_targets = list(probe_targets or DEFAULT_PROBE_TARGETS)
         self.verbose = verbose
 
-        self.hops = parse_hop_file(scrape_file)
+        self.hops = self._load_hops(scrape_file)
         self._rng = random.SystemRandom()
         self._hop_blacklist: Dict[str, float] = {}
         if not self.hops:
-            raise ValueError(f"Tidak ada hop valid di {scrape_file}")
+            raise ValueError(
+                "Tidak ada hop valid di tabel Supabase hop_proxy_list "
+                f"maupun file {scrape_file}"
+            )
+
+    @staticmethod
+    def _load_hops(scrape_file: str) -> List[Dict[str, Any]]:
+        """Ambil hop dari Supabase dulu; fallback ke file lokal."""
+        try:
+            hops = list_hops_from_supabase()
+        except Exception as exc:
+            print(f"! Gagal memuat hop dari Supabase: {_short(exc)}")
+            hops = []
+        if hops:
+            print(f"   hop: {len(hops)} dari Supabase (hop_proxy_list)")
+            return hops
+
+        hops = parse_hop_file(scrape_file) if os.path.isfile(scrape_file) else []
+        if hops:
+            print(f"   hop: {len(hops)} dari file {scrape_file}")
+        return hops
 
     # ------------------------------------------------------------------
     # Public API

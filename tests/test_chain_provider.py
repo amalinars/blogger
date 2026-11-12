@@ -1,11 +1,21 @@
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from automation.chain_provider import ChainProxyProvider, parse_hop_file
 from automation.proxy_bridge import _split_host_port
 from proxy_chain_tester import ChainError
+
+
+@pytest.fixture(autouse=True)
+def _no_supabase(monkeypatch):
+    """Default: Supabase kosong supaya test memakai file fallback."""
+    monkeypatch.setattr(
+        "automation.chain_provider.list_hops_from_supabase", lambda: []
+    )
 
 
 def test_parse_hop_file_supports_scheme_and_bare_credentials(tmp_path):
@@ -94,3 +104,53 @@ def test_probe_parses_asn_isp_and_org(monkeypatch, tmp_path):
     assert result["isp"] == "Sky UK Limited"
     assert result["org"] == "Sky Broadband"
     assert result["country_code"] == "GB"
+
+
+def test_provider_prefers_supabase_hops(monkeypatch, tmp_path):
+    db_hops = [
+        {
+            "id": "hop#1",
+            "idx": 1,
+            "host": "10.9.9.9",
+            "port": 3129,
+            "username": "u",
+            "password": "p",
+            "proxy_scheme": "http",
+            "source": "supabase",
+        }
+    ]
+    monkeypatch.setattr(
+        "automation.chain_provider.list_hops_from_supabase", lambda: db_hops
+    )
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.1:3129\n", encoding="utf-8")
+
+    provider = ChainProxyProvider(scrape_file=str(path))
+
+    assert provider.hops == db_hops
+
+
+def test_provider_falls_back_to_file_when_supabase_fails(monkeypatch, tmp_path):
+    def boom():
+        raise RuntimeError("db down")
+
+    monkeypatch.setattr("automation.chain_provider.list_hops_from_supabase", boom)
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.1:3129\n", encoding="utf-8")
+
+    provider = ChainProxyProvider(scrape_file=str(path))
+
+    assert len(provider.hops) == 1
+    assert provider.hops[0]["host"] == "10.0.0.1"
+    assert provider.hops[0]["source"] == "scrape"
+
+
+def test_provider_raises_when_both_sources_empty(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "automation.chain_provider.list_hops_from_supabase", lambda: []
+    )
+    path = tmp_path / "hops.txt"
+    path.write_text("", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="hop_proxy_list"):
+        ChainProxyProvider(scrape_file=str(path))

@@ -378,6 +378,7 @@ class HarvesterThread(QThread):
         self.stop_event = threading.Event()
 
     def run(self) -> None:
+        from automation.chain_provider import ChainProxyProvider
         from automation.gologin_grabber import run_gologin_harvest_job
 
         def _log(msg: str, style: str = "white") -> None:
@@ -385,6 +386,19 @@ class HarvesterThread(QThread):
 
         def _prog(added: int, target: int) -> None:
             self.progress_signal.emit(added, target)
+
+        chain_provider = None
+        if not self.direct:
+            try:
+                chain_provider = ChainProxyProvider()
+                _log(
+                    "🔗 Mode chain: hop 3xK Supabase -> residential FloppyData",
+                    "cyan",
+                )
+            except Exception as e:
+                _log(f"⚠️ Gagal memuat hop proxy dari Supabase: {e}", "red")
+                self.finished_signal.emit(0)
+                return
 
         try:
             total = run_gologin_harvest_job(
@@ -394,6 +408,8 @@ class HarvesterThread(QThread):
                 headless=self.headless,
                 direct=self.direct,
                 skip_verifier=self.skip_verifier,
+                proxy_file=None,
+                chain_provider=chain_provider,
                 stop_event=self.stop_event,
                 on_log=_log,
                 on_progress=_prog,

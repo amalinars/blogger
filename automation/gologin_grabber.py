@@ -1178,7 +1178,7 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--target", "--target-proxies", dest="target_proxies", type=int, default=100, help="Target total proxy baru yang dikumpulkan sebelum berhenti (default: 100)")
     parser.add_argument("-u", "--unlimited", action="store_true", help="Jalankan secara terus-menerus tanpa batas (unlimited continuous looping)")
     parser.add_argument("--proxy-index", type=int, default=None, help="Gunakan proxy index tertentu saja dari Proxy Management")
-    parser.add_argument("--proxy-file", default=None, help="Override file hop 3xK (default: data/proxies_scrape.txt)")
+    parser.add_argument("--proxy-file", default=None, help="Override file hop 3xK (default: DB hop_proxy_list, fallback data/proxies_scrape.txt)")
     parser.add_argument("--use-pool", action="store_true", help="Paksa pakai pool Proxy Management saja (tanpa chain)")
     parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
     parser.add_argument("--skip-verifier", action="store_true", help="Lewati preflight audit (tidak disarankan di mode chain)")
