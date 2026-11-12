@@ -182,6 +182,7 @@ class ProxyManager:
             "last_checked": f"last_checked{suffix}",
             "ip_detected": f"ip_detected{suffix}",
             "latency_ms": f"latency_ms{suffix}",
+            "cooldown_until": f"cooldown_until{suffix}",
         }
 
     def _supabase_rpc(self, fn_name: str, payload: Dict[str, Any], timeout: float = 8.0) -> Tuple[Any, int]:
@@ -234,16 +235,15 @@ class ProxyManager:
         res, status = self._supabase_rpc(fn_name, payload)
         used_channel = channel
         if is_gologin and status == 404:
-            # Migrasi SQL GoLogin belum dijalankan: fallback ke RPC lama agar tidak mati total.
+            # Jangan pernah fallback ke kolom automation: state GoLogin bisa tercampur.
             if not self._gologin_rpc_warned:
                 self._gologin_rpc_warned = True
                 print(
-                    "⚠️ RPC GoLogin belum ada di Supabase. Jalankan setup_supabase_gologin.sql "
-                    "agar usage/health GoLogin terpisah dari automation.",
+                    "RPC GoLogin belum ada di Supabase. Jalankan setup_supabase_gologin.sql "
+                    "dan setup_supabase_chain_gologin.sql. Operasi gologin dibatalkan.",
                     flush=True,
                 )
-            res, status = self._supabase_rpc("acquire_proxy", payload)
-            used_channel = CHANNEL_AUTOMATION
+            return None
         if status in (200, 201):
             self.supabase_rpc_available = True
             if isinstance(res, list) and len(res) > 0:
@@ -269,7 +269,8 @@ class ProxyManager:
                     "leased_by": caller_id,
                     "lease_token": caller_id,
                     "target_usage": row.get(keys["target_usage"], row.get("target_usage")) or {},
-                    "channel": channel,
+                    "channel": used_channel,
+                    "supabase_channel": used_channel,
                     "source": "supabase_rpc",
                 }
             return None  # RPC sukses tapi tidak ada kandidat proxy tersedia saat ini
@@ -362,6 +363,7 @@ class ProxyManager:
         item.setdefault("last_checked_gologin", None)
         item.setdefault("ip_detected_gologin", None)
         item.setdefault("latency_ms_gologin", None)
+        item.setdefault("cooldown_until_gologin", None)
         if "target_usage_gologin" not in item or not isinstance(item["target_usage_gologin"], dict):
             item["target_usage_gologin"] = {}
 
@@ -755,6 +757,7 @@ class ProxyManager:
         window_seconds: float = 24 * 3600,
         auto_record: bool = False,
         channel: str = CHANNEL_AUTOMATION,
+        strict_channel: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """
         Mengambil proxy sehat berikutnya dengan rotasi berkelanjutan (cursor persisten).
@@ -1038,7 +1041,7 @@ class ProxyManager:
             self._save_raw(data)
             return valid_cursor
 
-    def release_proxy(self, identifier: str, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION) -> bool:
+    def release_proxy(self, identifier: str, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION, strict_channel: bool = False) -> bool:
         """
         Melepaskan alokasi proxy agar kembali IDLE.
         - Jika proxy DEAD, tetap DEAD (tidak otomatis jadi ALIVE).
@@ -1061,7 +1064,11 @@ class ProxyManager:
                 fn_name = "release_proxy_gologin" if is_gologin else "release_proxy"
                 _, status = self._supabase_rpc(fn_name, {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
                 if is_gologin and status == 404:
-                    _, status = self._supabase_rpc("release_proxy", {"p_proxy_id": sb_id, "p_caller_id": sb_caller})
+                    print(
+                        "RPC release_proxy_gologin tidak ada; lease GoLogin tidak dilepas "
+                        "ke kolom automation.",
+                        flush=True,
+                    )
                 if status in (200, 201, 204):
                     supabase_ok = True
         if isinstance(identifier, dict):
@@ -1097,6 +1104,7 @@ class ProxyManager:
         target: str,
         window_seconds: float = 24 * 3600,
         channel: str = CHANNEL_AUTOMATION,
+        strict_channel: bool = False,
     ) -> bool:
         """
         Mencatat pemakaian proxy untuk target tertentu (misal: 'adsterra', 'youtube').
@@ -1123,13 +1131,26 @@ class ProxyManager:
                 fn_name = "record_target_hit_gologin" if is_gologin else "record_target_hit"
                 _, status = self._supabase_rpc(fn_name, payload)
                 if is_gologin and status == 404:
-                    self._supabase_rpc("record_target_hit", payload)
+                    print(
+                        "RPC record_target_hit_gologin tidak ada; hit GoLogin tidak "
+                        "dicatat ke kolom automation.",
+                        flush=True,
+                    )
+        identifier_key = identifier
+        if isinstance(identifier, dict):
+            identifier_key = (
+                identifier.get("id")
+                or identifier.get("proxy_url")
+                or identifier.get(keys["leased_by"])
+                or ""
+            )
+
         with self._lock:
             data = self._load_raw()
             proxies = data.get("proxies", [])
             for p in proxies:
-                matches_id = (p.get("id") == identifier or p.get("proxy_url") == identifier)
-                matches_token = (p.get(keys["leased_by"]) == identifier)
+                matches_id = (p.get("id") == identifier_key or p.get("proxy_url") == identifier_key)
+                matches_token = (p.get(keys["leased_by"]) == identifier_key)
                 if matches_id or matches_token:
                     t_usage = p.setdefault(keys["target_usage"], {})
                     if not isinstance(t_usage, dict):
@@ -1233,9 +1254,16 @@ class ProxyManager:
         target: str = "monetag",
         window_seconds: float = 24 * 3600,
         channel: str = CHANNEL_AUTOMATION,
+        strict_channel: bool = False,
     ) -> bool:
         """Alias praktis untuk record_target_usage yang menerima dict proxy atau ID string."""
-        return self.record_target_usage(identifier=proxy_or_id, target=target, window_seconds=window_seconds, channel=channel)
+        return self.record_target_usage(
+            identifier=proxy_or_id,
+            target=target,
+            window_seconds=window_seconds,
+            channel=channel,
+            strict_channel=strict_channel,
+        )
 
     def get_proxy_info(self, proxy: Dict[str, Any]) -> Dict[str, Any]:
         """Mengekstrak informasi dasar IP, negara, dan id dari dictionary proxy."""
@@ -1321,7 +1349,7 @@ class ProxyManager:
     # 4. PENANGANAN KEGAGALAN SAAT DIGUNAKAN
     # =========================================================================
 
-    def report_failure(self, identifier: Union[str, Dict[str, Any]], error_message: Optional[str] = None, is_proxy_error: bool = False, channel: str = CHANNEL_AUTOMATION) -> Dict[str, Any]:
+    def report_failure(self, identifier: Union[str, Dict[str, Any]], error_message: Optional[str] = None, is_proxy_error: bool = False, channel: str = CHANNEL_AUTOMATION, strict_channel: bool = False) -> Dict[str, Any]:
         """
         Melaporkan kegagalan penggunaan proxy saat mengakses web target.
         Aturan:
@@ -1356,7 +1384,11 @@ class ProxyManager:
                 fn_name = "report_failure_gologin" if is_gologin else "report_failure"
                 _, status = self._supabase_rpc(fn_name, payload)
                 if is_gologin and status == 404:
-                    self._supabase_rpc("report_failure", payload)
+                    print(
+                        "RPC report_failure_gologin tidak ada; kegagalan GoLogin tidak "
+                        "dicatat ke kolom automation.",
+                        flush=True,
+                    )
 
         if isinstance(identifier, dict):
             identifier = identifier.get("id") or identifier.get("proxy_url") or identifier.get(keys["leased_by"]) or ""
@@ -1425,6 +1457,207 @@ class ProxyManager:
                 if p.get("id") == proxy_id:
                     return dict(p)
             return {"status": "NOT_FOUND"}
+
+    def record_probe(
+        self,
+        identifier: Union[str, Dict[str, Any]],
+        ip_detected: Optional[str] = None,
+        latency_ms: Optional[float] = None,
+        channel: str = CHANNEL_GOLOGIN,
+        strict_channel: bool = False,
+    ) -> bool:
+        """Simpan hasil probe chain (exit IP + latency) ke kolom channel yang benar."""
+        channel = self._resolve_channel(identifier, channel)
+        keys = self._channel_keys(channel)
+        is_gologin = channel == CHANNEL_GOLOGIN
+        supabase_ok = False
+
+        if self.supabase_enabled and is_gologin:
+            sb_id = None
+            if isinstance(identifier, dict):
+                sb_id = identifier.get("supabase_id") or identifier.get("id")
+            elif isinstance(identifier, int):
+                sb_id = identifier
+            if sb_id and isinstance(sb_id, int):
+                payload = {
+                    "p_proxy_id": sb_id,
+                    "p_ip": ip_detected,
+                    "p_latency_ms": latency_ms,
+                }
+                _, status = self._supabase_rpc("record_probe_gologin", payload)
+                if status in (200, 201, 204):
+                    supabase_ok = True
+                elif status == 404:
+                    print(
+                        "RPC record_probe_gologin tidak ada. Jalankan "
+                        "setup_supabase_chain_gologin.sql.",
+                        flush=True,
+                    )
+
+        identifier_key = identifier
+        if isinstance(identifier, dict):
+            identifier_key = (
+                identifier.get("id")
+                or identifier.get("proxy_url")
+                or identifier.get(keys["leased_by"])
+                or ""
+            )
+
+        with self._lock:
+            data = self._load_raw()
+            for proxy in data.get("proxies", []):
+                if (
+                    proxy.get("id") == identifier_key
+                    or proxy.get("proxy_url") == identifier_key
+                    or proxy.get(keys["leased_by"]) == identifier_key
+                ):
+                    if ip_detected is not None:
+                        proxy[keys["ip_detected"]] = ip_detected
+                    if latency_ms is not None:
+                        proxy[keys["latency_ms"]] = latency_ms
+                    proxy[keys["last_checked"]] = time.time()
+                    proxy[keys["cooldown_until"]] = None
+                    if proxy.get(keys["health"]) != HEALTH_DEAD:
+                        proxy[keys["health"]] = HEALTH_ALIVE
+                        proxy[keys["fail_count"]] = 0
+                        proxy[keys["last_error"]] = None
+                    self._save_raw(data)
+                    return True
+        return supabase_ok
+
+    def report_cooldown(
+        self,
+        identifier: Union[str, Dict[str, Any]],
+        reason: str,
+        cooldown_seconds: float = 900,
+        channel: str = CHANNEL_GOLOGIN,
+        strict_channel: bool = False,
+    ) -> bool:
+        """Tandai COOLDOWN dengan alasan jelas tanpa menambah fail_count."""
+        channel = self._resolve_channel(identifier, channel)
+        keys = self._channel_keys(channel)
+        is_gologin = channel == CHANNEL_GOLOGIN
+        supabase_ok = False
+
+        if self.supabase_enabled and is_gologin:
+            sb_id = None
+            if isinstance(identifier, dict):
+                sb_id = identifier.get("supabase_id") or identifier.get("id")
+            elif isinstance(identifier, int):
+                sb_id = identifier
+            if sb_id and isinstance(sb_id, int):
+                payload = {
+                    "p_proxy_id": sb_id,
+                    "p_reason": str(reason or "Cooldown")[:500],
+                    "p_cooldown_seconds": int(cooldown_seconds),
+                }
+                _, status = self._supabase_rpc("mark_cooldown_gologin", payload)
+                if status in (200, 201, 204):
+                    supabase_ok = True
+                elif status == 404:
+                    print(
+                        "RPC mark_cooldown_gologin tidak ada. Jalankan "
+                        "setup_supabase_chain_gologin.sql.",
+                        flush=True,
+                    )
+
+        identifier_key = identifier
+        if isinstance(identifier, dict):
+            identifier_key = (
+                identifier.get("id")
+                or identifier.get("proxy_url")
+                or identifier.get(keys["leased_by"])
+                or ""
+            )
+
+        with self._lock:
+            data = self._load_raw()
+            for proxy in data.get("proxies", []):
+                if (
+                    proxy.get("id") == identifier_key
+                    or proxy.get("proxy_url") == identifier_key
+                    or proxy.get(keys["leased_by"]) == identifier_key
+                ):
+                    if proxy.get(keys["health"]) != HEALTH_DEAD:
+                        proxy[keys["health"]] = HEALTH_COOLDOWN
+                    proxy[keys["last_error"]] = str(reason or "Cooldown")[:500]
+                    proxy[keys["last_checked"]] = time.time()
+                    proxy[keys["cooldown_until"]] = time.time() + float(cooldown_seconds)
+                    self._save_raw(data)
+                    return True
+        return supabase_ok
+
+    def report_dead(
+        self,
+        identifier: Union[str, Dict[str, Any]],
+        reason: str,
+        is_fatal: bool = False,
+        force_dead: bool = False,
+        cooldown_seconds: float = 900,
+        channel: str = CHANNEL_GOLOGIN,
+        strict_channel: bool = False,
+    ) -> bool:
+        """Hitung kegagalan hanya saat proxy benar-benar tidak bisa connect."""
+        channel = self._resolve_channel(identifier, channel)
+        keys = self._channel_keys(channel)
+        is_gologin = channel == CHANNEL_GOLOGIN
+        supabase_ok = False
+
+        if self.supabase_enabled and is_gologin:
+            sb_id = None
+            if isinstance(identifier, dict):
+                sb_id = identifier.get("supabase_id") or identifier.get("id")
+            elif isinstance(identifier, int):
+                sb_id = identifier
+            if sb_id and isinstance(sb_id, int):
+                payload = {
+                    "p_proxy_id": sb_id,
+                    "p_reason": str(reason or "Unreachable")[:500],
+                    "p_fatal": bool(is_fatal or force_dead),
+                    "p_cooldown_seconds": int(cooldown_seconds),
+                }
+                _, status = self._supabase_rpc("mark_dead_gologin", payload)
+                if status in (200, 201, 204):
+                    supabase_ok = True
+                elif status == 404:
+                    print(
+                        "RPC mark_dead_gologin tidak ada. Jalankan "
+                        "setup_supabase_chain_gologin.sql.",
+                        flush=True,
+                    )
+
+        identifier_key = identifier
+        if isinstance(identifier, dict):
+            identifier_key = (
+                identifier.get("id")
+                or identifier.get("proxy_url")
+                or identifier.get(keys["leased_by"])
+                or ""
+            )
+
+        with self._lock:
+            data = self._load_raw()
+            for proxy in data.get("proxies", []):
+                if (
+                    proxy.get("id") == identifier_key
+                    or proxy.get("proxy_url") == identifier_key
+                    or proxy.get(keys["leased_by"]) == identifier_key
+                ):
+                    fail_count = int(proxy.get(keys["fail_count"], 0) or 0) + 1
+                    proxy[keys["fail_count"]] = fail_count
+                    if is_fatal or force_dead or fail_count >= MAX_FAIL_THRESHOLD:
+                        proxy[keys["health"]] = HEALTH_DEAD
+                        proxy[keys["cooldown_until"]] = None
+                        suffix = " [DEAD]"
+                    else:
+                        proxy[keys["health"]] = HEALTH_COOLDOWN
+                        proxy[keys["cooldown_until"]] = time.time() + float(cooldown_seconds)
+                        suffix = f" [gagal {fail_count}/{MAX_FAIL_THRESHOLD}]"
+                    proxy[keys["last_error"]] = f"{reason or 'Unreachable'}{suffix}"[:500]
+                    proxy[keys["last_checked"]] = time.time()
+                    self._save_raw(data)
+                    return True
+        return supabase_ok
 
     def sync_from_supabase(self, config_file: Optional[str] = None) -> int:
         """Mengambil data proxy dari database Supabase (REST API) dan menyimpannya ke proxies.json."""
@@ -1653,6 +1886,7 @@ def acquire_proxy(
     window_seconds: float = 24 * 3600,
     auto_record: bool = False,
     channel: str = CHANNEL_AUTOMATION,
+    strict_channel: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """Mengambil proxy sehat berikutnya dengan continuous rotation dan target usage check."""
     return get_manager().acquire_proxy(
@@ -1665,17 +1899,18 @@ def acquire_proxy(
         window_seconds=window_seconds,
         auto_record=auto_record,
         channel=channel,
+        strict_channel=strict_channel,
     )
 
 
-def record_target_usage(identifier: str, target: str, window_seconds: float = 24 * 3600, channel: str = CHANNEL_AUTOMATION) -> bool:
+def record_target_usage(identifier: str, target: str, window_seconds: float = 24 * 3600, channel: str = CHANNEL_AUTOMATION, strict_channel: bool = False) -> bool:
     """Mencatat pemakaian proxy untuk target tertentu."""
-    return get_manager().record_target_usage(identifier=identifier, target=target, window_seconds=window_seconds, channel=channel)
+    return get_manager().record_target_usage(identifier=identifier, target=target, window_seconds=window_seconds, channel=channel, strict_channel=strict_channel)
 
 
-def record_target_hit(identifier: str, target: str = "monetag", window_seconds: float = 24 * 3600, channel: str = CHANNEL_AUTOMATION) -> bool:
+def record_target_hit(identifier: str, target: str = "monetag", window_seconds: float = 24 * 3600, channel: str = CHANNEL_AUTOMATION, strict_channel: bool = False) -> bool:
     """Alias record_target_usage yang menerima dict proxy atau ID."""
-    return get_manager().record_target_hit(proxy_or_id=identifier, target=target, window_seconds=window_seconds, channel=channel)
+    return get_manager().record_target_hit(proxy_or_id=identifier, target=target, window_seconds=window_seconds, channel=channel, strict_channel=strict_channel)
 
 
 def get_target_usage(
@@ -1715,14 +1950,69 @@ def get_target_stats(
     )
 
 
-def release_proxy(identifier: str, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION) -> bool:
+def release_proxy(identifier: str, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION, strict_channel: bool = False) -> bool:
     """Melepaskan proxy setelah selesai digunakan."""
-    return get_manager().release_proxy(identifier=identifier, caller_id=caller_id, channel=channel)
+    return get_manager().release_proxy(identifier=identifier, caller_id=caller_id, channel=channel, strict_channel=strict_channel)
 
 
-def report_failure(identifier: str, error_message: Optional[str] = None, is_proxy_error: bool = False, channel: str = CHANNEL_AUTOMATION) -> Dict[str, Any]:
+def report_failure(identifier: str, error_message: Optional[str] = None, is_proxy_error: bool = False, channel: str = CHANNEL_AUTOMATION, strict_channel: bool = False) -> Dict[str, Any]:
     """Melaporkan error saat menggunakan proxy."""
-    return get_manager().report_failure(identifier=identifier, error_message=error_message, is_proxy_error=is_proxy_error, channel=channel)
+    return get_manager().report_failure(identifier=identifier, error_message=error_message, is_proxy_error=is_proxy_error, channel=channel, strict_channel=strict_channel)
+
+
+def record_probe(
+    identifier: str,
+    ip_detected: Optional[str] = None,
+    latency_ms: Optional[float] = None,
+    channel: str = CHANNEL_GOLOGIN,
+    strict_channel: bool = False,
+) -> bool:
+    """Menyimpan exit IP + latency hasil probe chain."""
+    return get_manager().record_probe(
+        identifier=identifier,
+        ip_detected=ip_detected,
+        latency_ms=latency_ms,
+        channel=channel,
+        strict_channel=strict_channel,
+    )
+
+
+def report_cooldown(
+    identifier: str,
+    reason: str,
+    cooldown_seconds: float = 900,
+    channel: str = CHANNEL_GOLOGIN,
+    strict_channel: bool = False,
+) -> bool:
+    """Menandai COOLDOWN dengan alasan jelas tanpa menambah fail_count."""
+    return get_manager().report_cooldown(
+        identifier=identifier,
+        reason=reason,
+        cooldown_seconds=cooldown_seconds,
+        channel=channel,
+        strict_channel=strict_channel,
+    )
+
+
+def report_dead(
+    identifier: str,
+    reason: str,
+    is_fatal: bool = False,
+    force_dead: bool = False,
+    cooldown_seconds: float = 900,
+    channel: str = CHANNEL_GOLOGIN,
+    strict_channel: bool = False,
+) -> bool:
+    """Menghitung kegagalan hanya saat proxy benar-benar tidak bisa connect."""
+    return get_manager().report_dead(
+        identifier=identifier,
+        reason=reason,
+        is_fatal=is_fatal,
+        force_dead=force_dead,
+        cooldown_seconds=cooldown_seconds,
+        channel=channel,
+        strict_channel=strict_channel,
+    )
 
 
 def validate_proxy(identifier: str, force: bool = False) -> Dict[str, Any]:

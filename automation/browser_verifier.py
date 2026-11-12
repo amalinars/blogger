@@ -9,9 +9,92 @@ lalu memvalidasi apakah browser yang sedang aktif benar-benar aman, bebas bocor 
 dan sesuai dengan ekspektasi modul pemanggil.
 """
 
+import ipaddress
 import json
+import re
+import time
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List
+
+import requests
+
+_LOCAL_EGRESS_TTL = 600.0
+_LOCAL_EGRESS_CACHE: Dict[str, Any] = {"ips": set(), "ts": 0.0}
+
+_ISP_STOPWORDS = {
+    "ltd", "limited", "inc", "llc", "corp", "plc", "broadband", "communications",
+    "communication", "telecom", "telekom", "network", "networks", "uk", "us",
+    "the", "and", "for", "services", "service", "internet", "company", "group",
+}
+
+
+def _normalize_asn(value: Any) -> str:
+    """Ambil nomor ASN dari string seperti 'AS5607 Sky UK Limited'."""
+    if not value:
+        return ""
+    match = re.search(r"AS\s*(\d+)", str(value), re.IGNORECASE)
+    return f"AS{match.group(1)}" if match else ""
+
+
+def _is_private_or_local_ip(ip: Optional[str]) -> bool:
+    """True bila IP privat/loopback/link-local/tidak bisa jadi exit publik."""
+    if not ip:
+        return False
+    try:
+        addr = ipaddress.ip_address(str(ip).strip())
+    except ValueError:
+        return False
+    return (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_reserved
+        or addr.is_multicast
+        or addr.is_unspecified
+    )
+
+
+def _isp_matches(expected: Optional[str], detected: Optional[str]) -> bool:
+    """Cocokkan ISP secara longgar berbasis token signifikan."""
+    if not expected or not detected:
+        return False
+    exp_tokens = [
+        tok for tok in re.findall(r"[a-z]+", str(expected).lower())
+        if len(tok) >= 3 and tok not in _ISP_STOPWORDS
+    ]
+    det_tokens = set(re.findall(r"[a-z]+", str(detected).lower()))
+    return any(tok in det_tokens for tok in exp_tokens)
+
+
+def _get_local_egress_ips() -> set:
+    """IP publik mesin ini (koneksi langsung, bypass proxy) untuk deteksi leak nyata."""
+    now = time.time()
+    if _LOCAL_EGRESS_CACHE["ips"] and (now - _LOCAL_EGRESS_CACHE["ts"]) < _LOCAL_EGRESS_TTL:
+        return _LOCAL_EGRESS_CACHE["ips"]
+
+    ips = set()
+    endpoints = [
+        "https://api.ipify.org?format=json",
+        "http://ip-api.com/json/?fields=status,query",
+    ]
+    for url in endpoints:
+        try:
+            resp = requests.get(
+                url, timeout=4, proxies={"http": None, "https": None}
+            )
+            if resp.ok:
+                data = resp.json()
+                ip = data.get("ip") or data.get("query")
+                if ip:
+                    ips.add(str(ip))
+        except Exception:
+            continue
+
+    if ips:
+        _LOCAL_EGRESS_CACHE["ips"] = ips
+        _LOCAL_EGRESS_CACHE["ts"] = now
+    return ips
+
 
 @dataclass
 class VerificationReport:
@@ -63,6 +146,7 @@ class VerificationReport:
         print("\n🌐 ACTUAL BROWSER STATE:")
         print(f"   - Detected IP        : {actual.get('ip', 'Unknown')}")
         print(f"   - Country / ISP      : {actual.get('country', 'Unknown')} | {actual.get('isp', 'Unknown')}")
+        print(f"   - ASN / Org          : {actual.get('asn', 'N/A') or 'N/A'} | {actual.get('org', 'N/A') or 'N/A'}")
         print(f"   - WebRTC Leak        : {'❌ BOCOR!' if actual.get('webrtc_leak') else '✅ AMAN (Tidak Bocor)'}")
         print(f"   - Webdriver Flag     : {'❌ TRUE (Terdeteksi Bot)' if actual.get('webdriver') else '✅ FALSE / Hidden'}")
         print(f"   - Platform / OS      : {actual.get('platform', 'N/A')} ({actual.get('detected_os', 'N/A')})")
@@ -101,7 +185,10 @@ class BrowserVerifier:
         expected_os: Optional[str] = None,
         expected_country: Optional[str] = None,
         check_ads: bool = True,
-        benchmark: Optional[str] = None
+        benchmark: Optional[str] = None,
+        expected_asn: Optional[str] = None,
+        expected_isp: Optional[str] = None,
+        allow_ip_rotation: bool = False,
     ) -> VerificationReport:
         issues = []
         warnings = []
@@ -115,23 +202,78 @@ class BrowserVerifier:
         detected_ip = ip_data.get("query")
         detected_country = ip_data.get("country", "Unknown")
         isp = ip_data.get("isp", "Unknown")
+        detected_asn = ip_data.get("as") or ip_data.get("asn") or ""
+        detected_org = ip_data.get("org") or ""
         webrtc_leak = ip_data.get("webrtc_leak", False)
         webrtc_ips = ip_data.get("webrtc_ips", [])
 
-        # Validasi Expected IP (jika modul pemanggil mengharuskan IP tertentu / IP Proxy)
-        if expected_ip:
-            if not detected_ip:
-                issues.append(f"Tidak dapat mendeteksi IP publik browser (Ekspektasi: {expected_ip}).")
-                match_results["ip_matched"] = False
-                score -= 40
-            elif detected_ip != expected_ip:
-                issues.append(f"IP Mismatch / Proxy Leak! Terdeteksi: {detected_ip}, padahal modul meminta: {expected_ip}")
-                match_results["ip_matched"] = False
-                score -= 40
-            else:
-                match_results["ip_matched"] = True
-        else:
+        # Validasi IP keluar proxy.
+        # - Proxy statis: harus exact sama dengan expected_ip.
+        # - Residential rotasi (allow_ip_rotation): cukup satu pool (ASN/ISP sama)
+        #   dan pastikan bukan IP asli mesin / IP privat (leak nyata).
+        has_ip_expectation = bool(expected_ip or expected_asn or expected_isp)
+        if not has_ip_expectation:
             match_results["ip_matched"] = None  # Direct / unspecified
+        elif not detected_ip:
+            issues.append(
+                f"Tidak dapat mendeteksi IP publik browser "
+                f"(Ekspektasi: {expected_ip or expected_asn or expected_isp})."
+            )
+            match_results["ip_matched"] = False
+            score -= 40
+        elif allow_ip_rotation:
+            match_results["ip_rotation_allowed"] = True
+            normalized_expected_asn = _normalize_asn(expected_asn)
+            normalized_detected_asn = _normalize_asn(detected_asn)
+            asn_match = bool(
+                normalized_expected_asn
+                and normalized_expected_asn == normalized_detected_asn
+            )
+            isp_match = _isp_matches(expected_isp, isp) or _isp_matches(
+                expected_isp, detected_org
+            )
+            same_ip = bool(expected_ip) and detected_ip == expected_ip
+            local_ips = _get_local_egress_ips()
+            local_leak = (
+                detected_ip in local_ips
+                or _is_private_or_local_ip(detected_ip)
+            )
+            detected_meta_available = bool(normalized_detected_asn) or (
+                bool(isp) and str(isp).strip().lower() != "unknown"
+            )
+
+            if local_leak:
+                issues.append(
+                    f"Proxy Leak / IP asli mesin bocor! Terdeteksi: {detected_ip}, "
+                    f"padahal seharusnya keluar dari pool proxy "
+                    f"({expected_ip or expected_asn or expected_isp})."
+                )
+                match_results["ip_matched"] = False
+                score -= 40
+            elif same_ip or asn_match or isp_match:
+                match_results["ip_matched"] = True
+            elif not detected_meta_available or not (expected_asn or expected_isp):
+                warnings.append(
+                    f"Rotasi IP tidak bisa dipastikan pool-nya "
+                    f"(metadata ASN/ISP tidak tersedia). Terdeteksi: {detected_ip}."
+                )
+                match_results["ip_matched"] = None
+            else:
+                issues.append(
+                    f"Rotasi IP di luar pool ekspektasi! Terdeteksi: {detected_ip} "
+                    f"({detected_asn or isp or 'ASN/ISP tidak diketahui'}), "
+                    f"ekspektasi: {expected_asn or expected_isp}."
+                )
+                match_results["ip_matched"] = False
+                score -= 40
+        elif expected_ip and detected_ip != expected_ip:
+            issues.append(f"IP Mismatch / Proxy Leak! Terdeteksi: {detected_ip}, padahal modul meminta: {expected_ip}")
+            match_results["ip_matched"] = False
+            score -= 40
+        elif expected_ip:
+            match_results["ip_matched"] = True
+        else:
+            match_results["ip_matched"] = None
 
         # Validasi Expected Country
         if expected_country:
@@ -245,6 +387,8 @@ class BrowserVerifier:
             "ip": detected_ip,
             "country": detected_country,
             "isp": isp,
+            "asn": detected_asn,
+            "org": detected_org,
             "webrtc_leak": webrtc_leak,
             "webrtc_ips": webrtc_ips,
             "webdriver": webdriver,
@@ -538,7 +682,10 @@ def verify_browser(
     expected_country: Optional[str] = None,
     check_ads: bool = True,
     strict_mode: bool = True,
-    benchmark: Optional[str] = None
+    benchmark: Optional[str] = None,
+    expected_asn: Optional[str] = None,
+    expected_isp: Optional[str] = None,
+    allow_ip_rotation: bool = False,
 ) -> VerificationReport:
     """
     Fungsi utama (Gatekeeper Entrypoint) yang dipanggil oleh modul lain.
@@ -562,7 +709,10 @@ def verify_browser(
         expected_os=expected_os,
         expected_country=expected_country,
         check_ads=check_ads,
-        benchmark=benchmark
+        benchmark=benchmark,
+        expected_asn=expected_asn,
+        expected_isp=expected_isp,
+        allow_ip_rotation=allow_ip_rotation,
     )
     return report
 
@@ -574,6 +724,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Core Browser & IP Verifier (Pure Assertion Engine)")
     parser.add_argument("--headless", action="store_true", help="Jalankan dalam mode headless")
     parser.add_argument("--expected-ip", type=str, default=None, help="IP yang diharapkan muncul (validasi leak)")
+    parser.add_argument("--expected-asn", type=str, default=None, help="ASN pool proxy (mis. AS5607) untuk mode rotasi")
+    parser.add_argument("--expected-isp", type=str, default=None, help="ISP pool proxy untuk mode rotasi")
+    parser.add_argument("--allow-ip-rotation", action="store_true", help="Izinkan exit IP berbeda selama satu pool (ASN/ISP sama)")
     parser.add_argument("--expected-os", type=str, default="windows", help="OS yang diharapkan (windows, mac, linux)")
     parser.add_argument("--expected-country", type=str, default=None, help="Negara yang diharapkan (US, FR, Indonesia, dll)")
     parser.add_argument("--proxy-server", type=str, default=None, help="Proxy server opsional untuk pengetesan standalone CLI")
@@ -625,7 +778,10 @@ if __name__ == "__main__":
             expected_country=args.expected_country,
             check_ads=True,
             strict_mode=True,
-            benchmark=args.benchmark
+            benchmark=args.benchmark,
+            expected_asn=args.expected_asn,
+            expected_isp=args.expected_isp,
+            allow_ip_rotation=args.allow_ip_rotation,
         )
 
         if args.json:

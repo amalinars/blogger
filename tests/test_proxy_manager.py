@@ -437,3 +437,105 @@ def test_validate_all_and_test_and_delete_dead(temp_proxy_file):
 
 
 
+
+
+def test_gologin_cooldown_does_not_increment_fail_count(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file, enable_supabase=False)
+    alloc = pm.acquire_proxy(caller_id="cooldown_worker", target="gologin")
+    assert alloc is not None
+
+    pm.report_cooldown(
+        alloc,
+        reason="Cloudflare/Turnstile blocked exit 203.0.113.9",
+        cooldown_seconds=60,
+        channel="gologin",
+    )
+
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    assert refreshed["health_gologin"] == HEALTH_COOLDOWN
+    assert refreshed["fail_count_gologin"] == 0
+    assert "Turnstile" in refreshed["last_error_gologin"]
+    assert refreshed["cooldown_until_gologin"] > 0
+
+
+def test_gologin_dead_only_after_confirmed_failures(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file, enable_supabase=False)
+    alloc = pm.acquire_proxy(caller_id="dead_worker", target="gologin")
+    assert alloc is not None
+
+    for attempt in range(1, 3):
+        pm.report_dead(
+            alloc,
+            reason="Residential tidak bisa dihubungi",
+            is_fatal=False,
+            cooldown_seconds=60,
+            channel="gologin",
+        )
+        refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+        assert refreshed["fail_count_gologin"] == attempt
+        assert refreshed["health_gologin"] == HEALTH_COOLDOWN
+
+    pm.report_dead(
+        alloc,
+        reason="Residential tidak bisa dihubungi",
+        is_fatal=False,
+        cooldown_seconds=60,
+        channel="gologin",
+    )
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    assert refreshed["fail_count_gologin"] == 3
+    assert refreshed["health_gologin"] == HEALTH_DEAD
+    assert refreshed["cooldown_until_gologin"] is None
+    assert "[DEAD]" in refreshed["last_error_gologin"]
+
+
+def test_gologin_record_probe_resets_cooldown(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file, enable_supabase=False)
+    alloc = pm.acquire_proxy(caller_id="probe_worker", target="gologin")
+    assert alloc is not None
+
+    pm.report_cooldown(alloc, reason="Navigation stalled", cooldown_seconds=60, channel="gologin")
+    pm.record_probe(
+        alloc,
+        ip_detected="198.51.100.77",
+        latency_ms=321.5,
+        channel="gologin",
+    )
+
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    assert refreshed["health_gologin"] == HEALTH_ALIVE
+    assert refreshed["ip_detected_gologin"] == "198.51.100.77"
+    assert refreshed["latency_ms_gologin"] == 321.5
+    assert refreshed["fail_count_gologin"] == 0
+    assert refreshed["last_error_gologin"] is None
+    assert refreshed["cooldown_until_gologin"] is None
+
+
+def test_gologin_report_dead_force_dead_after_confirmed_hops(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file, enable_supabase=False)
+    alloc = pm.acquire_proxy(caller_id="force_dead_worker", target="gologin")
+    assert alloc is not None
+
+    pm.report_dead(
+        alloc,
+        reason="Residential gagal connect di 2 hop berbeda",
+        force_dead=True,
+        channel="gologin",
+    )
+
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    assert refreshed["health_gologin"] == HEALTH_DEAD
+    assert refreshed["cooldown_until_gologin"] is None
+
+
+def test_record_target_hit_accepts_proxy_dict(temp_proxy_file):
+    pm = ProxyManager(filepath=temp_proxy_file, enable_supabase=False)
+    alloc = pm.acquire_proxy(caller_id="target_worker", target="gologin")
+    assert alloc is not None
+
+    assert pm.record_target_hit(alloc, target="gologin", channel="gologin") is True
+
+    refreshed = next(p for p in pm.get_proxies() if p["id"] == alloc["id"])
+    usage = refreshed["target_usage_gologin"]["gologin"]
+    assert usage["count"] == 1
+    assert usage["last_used"] > 0
