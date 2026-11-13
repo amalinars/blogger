@@ -52,18 +52,6 @@ export default function RootLayout({
             __html: `(function(s){s.dataset.zone='12126541',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
           }}
         />
-        {/* In-Page Push Ad Tag */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(s){s.dataset.zone='12126546',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
-          }}
-        />
-        {/* Vignette Ad Tag */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(s){s.dataset.zone='12126548',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
-          }}
-        />
       </head>
       <body className="min-h-screen bg-[#070c18] text-slate-100 antialiased font-sans selection:bg-cyan-500 selection:text-slate-950">
         <div className="fixed inset-0 pointer-events-none bg-grid-pattern opacity-40 z-0" aria-hidden="true" />
