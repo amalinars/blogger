@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Proxy Switcher — Daftar Proxy</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 32px auto; background: #0d1117; color: #e6edf3; padding: 0 16px; }
+    h1 { font-size: 1.2rem; }
+    p, li { color: #8b949e; font-size: 0.85rem; }
+    textarea { width: 100%; height: 220px; background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 8px; padding: 12px; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
+    button { background: #238636; color: #fff; border: 0; border-radius: 6px; padding: 8px 16px; cursor: pointer; font-size: 0.85rem; }
+    button.secondary { background: #21262d; }
+    #status { margin-left: 12px; font-size: 0.8rem; color: #3fb950; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.8rem; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #30363d; text-align: left; }
+    th { color: #8b949e; font-weight: 600; }
+    .form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    label { font-size: 0.8rem; color: #8b949e; display: flex; flex-direction: column; gap: 4px; }
+    input { background: #161b22; color: #e6edf3; border: 1px solid #30363d; border-radius: 6px; padding: 8px 10px; font-size: 0.8rem; }
+    code { background: #161b22; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Daftar Proxy</h1>
+  <p>Satu proxy per baris. Format yang didukung:</p>
+  <ul>
+    <li><code>host:port</code> — HTTP default</li>
+    <li><code>host:port:user:pass</code> — HTTP dengan autentikasi</li>
+    <li><code>socks5://host:port:user:pass</code> — SOCKS5 dengan autentikasi</li>
+    <li><code>http://host:port</code> — HTTP eksplisit</li>
+  </ul>
+  <textarea id="raw" placeholder="1.2.3.4:8080&#10;5.6.7.8:3128:user:pass&#10;socks5://9.10.11.12:1080"></textarea>
+  <div class="row">
+    <button id="save">Simpan daftar</button>
+    <button id="clear" class="secondary">Hapus semua</button>
+    <span id="status"></span>
+  </div>
+
+  <h1 style="margin-top: 40px">Import dari Supabase</h1>
+  <p>
+    Ekstensi akan fetch REST Supabase kamu dan mengganti bagian "remote" dari daftar
+    (list manual di atas tetap). Di-refresh otomatis tiap browser dibuka.
+  </p>
+  <div class="form">
+    <label>Supabase URL <input id="sb-url" placeholder="https://xxxx.supabase.co" /></label>
+    <label>API key (anon/service) <input id="sb-key" type="password" placeholder="eyJ..." /></label>
+    <label>Nama tabel <input id="sb-table" placeholder="hop_proxy_list" /></label>
+    <label>Schema <input id="sb-schema" placeholder="public" value="public" /></label>
+    <label>Kolom proxy <input id="sb-col" placeholder="proxy" value="proxy" /></label>
+  </div>
+  <div class="row">
+    <button id="sb-fetch">Fetch sekarang</button>
+    <button id="sb-save" class="secondary">Simpan konfigurasi</button>
+    <span id="sb-status"></span>
+  </div>
+
+  <table id="table">
+    <thead><tr><th>#</th><th>Proxy</th><th>Format</th><th>Auth</th><th>Negara</th><th>Status</th><th>Sumber</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

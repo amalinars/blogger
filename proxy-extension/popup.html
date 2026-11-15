@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font-family: system-ui, sans-serif; width: 300px; margin: 0; background: #0d1117; color: #e6edf3; }
+    header { padding: 10px 12px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
+    header strong { font-size: 0.9rem; }
+
+    .status { padding: 14px 12px; border-bottom: 1px solid #30363d; }
+    .status .row { display: flex; align-items: center; gap: 8px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #8b949e; flex: none; }
+    .dot.on { background: #3fb950; box-shadow: 0 0 8px rgba(63,185,80,.6); }
+    .dot.off { background: #8b949e; }
+    .dot.err { background: #e5534b; }
+    .status-label { font-weight: 700; font-size: 0.9rem; }
+    .proxy-name { color: #8b949e; font-size: 0.72rem; margin-top: 2px; }
+
+    .ip-card {
+      margin-top: 10px; background: #161b22; border: 1px solid #30363d;
+      border-radius: 8px; padding: 10px;
+    }
+    .ip { font-family: ui-monospace, monospace; font-size: 1.15rem; font-weight: 700; letter-spacing: 0.02em; }
+    .geo { color: #8b949e; font-size: 0.75rem; margin-top: 2px; }
+    .warn { margin-top: 8px; font-size: 0.72rem; color: #e3b341; line-height: 1.4; background: rgba(227,179,65,.08); border: 1px solid rgba(227,179,65,.3); border-radius: 6px; padding: 6px 8px; }
+
+    .actions { display: flex; gap: 6px; padding: 8px 12px 0; }
+    .actions button {
+      flex: 1; background: #21262d; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 6px; padding: 6px; font-size: 0.72rem; cursor: pointer;
+    }
+    .actions button:hover { background: #30363d; }
+    .actions button.primary { background: #1f6feb; border-color: #1f6feb; }
+    .actions button.primary:hover { background: #388bfd; }
+
+    .filters { display: flex; gap: 6px; padding: 10px 12px 0; }
+    .filters select {
+      flex: 1; background: #161b22; color: #e6edf3; border: 1px solid #30363d;
+      border-radius: 6px; padding: 4px 6px; font-size: 0.7rem; min-width: 0;
+    }
+
+    ul { list-style: none; margin: 0; padding: 4px 0; max-height: 300px; overflow-y: auto; }
+    li { padding: 8px 12px; font-size: 0.8rem; cursor: pointer; border-bottom: 1px solid #21262d; }
+    li:hover { background: #1c2128; }
+    li.active { background: #12233f; color: #4f8ff7; }
+    li .meta { color: #8b949e; font-size: 0.7rem; }
+    .badge { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 0.65rem; margin-left: 6px; }
+    .badge.ALIVE { background: rgba(63,185,80,.2); color: #3fb950; }
+    .badge.COOLDOWN { background: rgba(227,179,65,.2); color: #e3b341; }
+    .badge.DEAD { background: rgba(229,83,75,.2); color: #e5534b; }
+
+    footer { padding: 8px 12px; border-top: 1px solid #30363d; font-size: 0.7rem; color: #8b949e; display: flex; justify-content: space-between; }
+    footer a { color: #4f8ff7; text-decoration: none; }
+    .empty { padding: 16px 12px; font-size: 0.8rem; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Proxy Switcher</strong>
+    <label style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#8b949e">
+      <input type="checkbox" id="master" /> ON
+    </label>
+  </header>
+
+  <section class="status">
+    <div class="row">
+      <span class="dot off" id="dot"></span>
+      <div>
+        <div class="status-label" id="status-label">Terputus</div>
+        <div class="proxy-name" id="proxy-name">Trafik langsung (tanpa proxy)</div>
+        <div class="proxy-name" id="relay-note"></div>
+      </div>
+    </div>
+    <div class="ip-card">
+      <div class="ip" id="exit-ip">—</div>
+      <div class="geo" id="exit-geo">Exit IP belum dicek</div>
+    </div>
+    <div class="warn" id="warn" hidden></div>
+    <div class="actions">
+      <button id="recheck" class="primary">Cek Ulang IP</button>
+      <button id="direct">Bypass</button>
+    </div>
+  </section>
+
+  <div class="filters">
+    <select id="country-filter"><option value="">Semua negara</option></select>
+    <select id="health-filter">
+      <option value="">Semua status</option>
+      <option value="ALIVE">ALIVE</option>
+      <option value="COOLDOWN">COOLDOWN</option>
+      <option value="DEAD">DEAD</option>
+    </select>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>
+    <span id="count"></span>
+    <a href="options.html" target="_blank">Kelola…</a>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

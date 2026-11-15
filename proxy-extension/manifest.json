@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Proxy Switcher",
+  "version": "1.0.0",
+  "description": "Route your browser traffic through a proxy chosen from your own list.",
+  "permissions": ["proxy", "storage", "webRequest", "webRequestAuthProvider"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_popup": "popup.html", "default_title": "Proxy Switcher" },
+  "options_page": "options.html"
+}
