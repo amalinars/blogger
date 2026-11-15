@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from proxy_chain_tester import ChainError, fetch_through_chain
 
 from automation.proxy_bridge import ChainProxyServer
-from core.hop_registry import list_hops as list_hops_from_supabase
+from core.hop_registry import HopRegistry, list_hops as list_hops_from_supabase
 from core.proxy_manager import CHANNEL_GOLOGIN, get_manager
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -43,6 +43,18 @@ FATAL_PROXY_STATUS = {403, 407}
 def _short(text: Any, limit: int = 220) -> str:
     value = str(text or "").replace("\n", " ").strip()
     return value[:limit]
+
+
+def hop_is_blamed(exc: ChainError) -> bool:
+    """True bila kegagalan berasal dari hop (mati / jaringannya diblokir FloppyData),
+    bukan dari residential (402 no-traffic) atau auth (407)."""
+    if exc.stage == "hop_tcp":
+        return True
+    blob = str(exc)
+    raw = getattr(exc, "raw", b"") or b""
+    if isinstance(raw, bytes):
+        blob += " " + raw.decode("latin-1", errors="ignore")
+    return "free trial" in blob.lower()
 
 
 def parse_hop_file(path: str) -> List[Dict[str, Any]]:
@@ -139,6 +151,9 @@ class ChainProxyProvider:
         self.hops = self._load_hops(scrape_file)
         self._rng = random.SystemRandom()
         self._hop_blacklist: Dict[str, float] = {}
+        self._hop_registry: Optional[HopRegistry] = None
+        self._disabled_hosts: set = set()
+        self._disable_lock = threading.Lock()
         if not self.hops:
             raise ValueError(
                 "Tidak ada hop valid di tabel Supabase hop_proxy_list "
@@ -222,26 +237,41 @@ class ChainProxyProvider:
                 hop_probe = self._probe([hop])
             except ChainError as exc:
                 self._blacklist_hop(hop)
+                if exc.stage == "hop_tcp":
+                    self.disable_hop(hop, _short(exc))
                 reasons.append(f"hop {hop['host']} mati: {_short(exc)}")
                 continue
 
             try:
                 chain_probe = self._probe([hop, res_chain])
             except ChainError as exc:
+                blamed = hop_is_blamed(exc)
                 if exc.stage == "hop_tcp":
                     self._blacklist_hop(hop)
+                    self.disable_hop(hop, _short(exc))
                     reasons.append(f"hop {hop['host']} mati: {_short(exc)}")
                 elif exc.stage == "proxy_connect":
-                    if exc.status in FATAL_PROXY_STATUS:
+                    if blamed:
+                        # FloppyData menolak jaringan hop (403 free trial), bukan residential
+                        self._blacklist_hop(hop)
+                        self.disable_hop(hop, _short(exc))
+                        reasons.append(f"hop {hop['host']} ditolak FloppyData: {_short(exc)}")
+                    elif exc.status in FATAL_PROXY_STATUS:
                         fatal_dead = True
                         reasons.append(
                             f"residential menolak auth (HTTP {exc.status}): {_short(exc)}"
                         )
                         break
-                    dead_votes += 1
-                    reasons.append(f"residential tidak bisa dihubungi: {_short(exc)}")
+                    else:
+                        dead_votes += 1
+                        reasons.append(f"residential tidak bisa dihubungi: {_short(exc)}")
                 elif exc.stage == "target":
-                    target_errors.append(_short(exc))
+                    if blamed:
+                        self._blacklist_hop(hop)
+                        self.disable_hop(hop, _short(exc))
+                        reasons.append(f"hop {hop['host']} diblokir FloppyData: {_short(exc)}")
+                    else:
+                        target_errors.append(_short(exc))
                 else:
                     reasons.append(f"probe chain gagal: {_short(exc)}")
                 continue
@@ -253,6 +283,7 @@ class ChainProxyProvider:
                 continue
             if hop_exit_ip and exit_ip == hop_exit_ip:
                 self._blacklist_hop(hop)
+                self.disable_hop(hop, "transparent (exit IP sama dengan hop)")
                 reasons.append(
                     f"hop {hop['host']} transparent (exit IP sama dengan hop)"
                 )
@@ -551,6 +582,27 @@ class ChainProxyProvider:
     def _blacklist_hop(self, hop: Dict[str, Any]) -> None:
         if self.hop_blacklist_seconds > 0:
             self._hop_blacklist[hop["host"]] = time.time() + self.hop_blacklist_seconds
+
+    def disable_hop(self, hop: Dict[str, Any], reason: str = "") -> bool:
+        """Gerbang ketat: hop bermasalah dinonaktifkan permanen di Supabase
+        (enabled=false) supaya tidak di-load lagi di run berikutnya."""
+        host = str(hop.get("host") or "")
+        if not host or hop.get("source") != "supabase":
+            return False
+        with self._disable_lock:
+            if host in self._disabled_hosts:
+                return True
+        if self._hop_registry is None:
+            self._hop_registry = HopRegistry()
+        if not self._hop_registry.enabled:
+            return False
+        count = self._hop_registry.disable_hops([host])
+        if count > 0:
+            with self._disable_lock:
+                self._disabled_hosts.add(host)
+            self._log(f"🚫 Hop {host} dinonaktifkan di DB (enabled=false): {reason}")
+            return True
+        return False
 
     def _probe(
         self,

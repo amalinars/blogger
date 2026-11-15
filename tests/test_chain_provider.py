@@ -5,7 +5,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from automation.chain_provider import ChainProxyProvider, parse_hop_file
+from automation.chain_provider import ChainProxyProvider, hop_is_blamed, parse_hop_file
 from automation.proxy_bridge import _split_host_port
 from proxy_chain_tester import ChainError
 
@@ -215,3 +215,34 @@ def test_provider_rejects_non_floppydata_residential(tmp_path):
 
     assert provider.next_proxy() is None
     assert pm.released == [(1, "lease-1")]
+
+
+def test_hop_is_blamed_rules():
+    assert hop_is_blamed(ChainError("mati", stage="hop_tcp"))
+    assert hop_is_blamed(ChainError("HTTP 403 dari target: free trial traffic", stage="target"))
+    raw = b"HTTP/1.1 403 Forbidden\r\n\r\nFree Trial traffic is not available from this network"
+    assert hop_is_blamed(ChainError("CONNECT ditolak", stage="proxy_connect", raw=raw))
+    assert not hop_is_blamed(ChainError("HTTP 402 dari target: no traffic left", stage="target"))
+    assert not hop_is_blamed(ChainError("CONNECT ditolak (HTTP 407)", stage="proxy_connect", status=407))
+
+
+def test_disable_hop_only_for_supabase_sourced(monkeypatch, tmp_path):
+    calls = []
+
+    class FakeRegistry:
+        enabled = True
+
+        def disable_hops(self, hosts):
+            calls.append(list(hosts))
+            return len(hosts)
+
+    monkeypatch.setattr("automation.chain_provider.HopRegistry", FakeRegistry)
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.9:3129\n", encoding="utf-8")
+    provider = ChainProxyProvider(scrape_file=str(path))
+
+    assert provider.disable_hop({"idx": 5, "host": "1.2.3.4", "source": "supabase"}, "uji") is True
+    assert calls == [["1.2.3.4"]]
+    # hop dari file tidak boleh menulis DB
+    assert provider.disable_hop({"host": "5.6.7.8", "source": "file"}, "uji") is False
+    assert calls == [["1.2.3.4"]]

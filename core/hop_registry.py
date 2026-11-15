@@ -103,10 +103,34 @@ class HopRegistry:
         for row in rows:
             if not isinstance(row, dict):
                 continue
+            if row.get("enabled") is False:
+                continue  # pengaman: skip hop yang sudah dinonaktifkan
             hop = self._to_hop(row)
             if hop:
                 hops.append(hop)
         return hops
+
+    def disable_hops(self, hosts: List[str]) -> int:
+        """Gerbang ketat: set enabled=false untuk hop tertentu (PATCH by host)."""
+        clean = [h for h in (str(x).strip() for x in hosts) if h]
+        if not self.enabled or not clean:
+            return 0
+        endpoint = f"{self.supabase_url}/rest/v1/hop_proxy_list?host=in.({','.join(clean)})"
+        headers = {
+            "apikey": self.supabase_key,
+            "Authorization": f"Bearer {self.supabase_key}",
+            "Accept-Profile": self.supabase_schema,
+            "Content-Profile": self.supabase_schema,
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        }
+        try:
+            resp = requests.patch(
+                endpoint, headers=headers, json={"enabled": False}, timeout=self.timeout
+            )
+        except Exception:
+            return 0
+        return len(clean) if resp.status_code in (200, 204) else 0
 
     def upsert_hops(self, hops: List[Dict[str, Any]]) -> bool:
         if not self.enabled or not hops:
@@ -117,6 +141,11 @@ class HopRegistry:
 
 def list_hops(config_path: Optional[str] = None) -> List[Dict[str, Any]]:
     return HopRegistry(config_path=config_path).list_hops()
+
+
+def disable_hops(hosts: List[str], config_path: Optional[str] = None) -> int:
+    """Nonaktifkan hop permanen di Supabase (enabled=false)."""
+    return HopRegistry(config_path=config_path).disable_hops(hosts)
 
 
 def upsert_hops(

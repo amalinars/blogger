@@ -19,6 +19,9 @@ Contoh Penggunaan:
   # Cek dan hapus yang mati langsung di database SUPABASE:
   python3 check_proxies.py --supabase --delete-dead
 
+  # Cek lewat CHAIN (hop 3xK -> residential), jalur yang sama dengan bot:
+  python3 check_proxies.py --supabase --chain --delete-dead
+
   # Cek dengan 50 thread dan timeout 5 detik:
   python3 check_proxies.py --threads 50 --timeout 5 --delete-dead
 """
@@ -34,6 +37,12 @@ from typing import Any, Dict, List, Optional
 import requests
 
 PROJECT_ROOT = Path(__file__).resolve().parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from automation.chain_provider import ChainProxyProvider, hop_is_blamed  # noqa: E402
+from proxy_chain_tester import ChainError, fetch_through_chain  # noqa: E402
+
 PROXY_FILE = PROJECT_ROOT / "data" / "proxies.json"
 CONFIG_FILE = PROJECT_ROOT / "data" / "supabase_config.json"
 CHECK_ENDPOINTS = [
@@ -102,6 +111,57 @@ def test_proxy(proxy_item: Dict[str, Any], index: int, timeout: int = 12, retrie
         "ip": None,
         "latency_ms": None,
         "last_error": last_err or "Connection failed",
+        "proxy_item": proxy_item,
+    }
+
+
+CHAIN_CHECK_URL = "http://ip-api.com/json"
+
+
+def test_proxy_via_chain(proxy_item: Dict[str, Any], index: int, provider: ChainProxyProvider, timeout: int = 12) -> Dict[str, Any]:
+    """Uji 1 residential lewat jalur yang sama dengan bot: VPS -> hop acak -> residential."""
+    country = proxy_item.get("country", "Unknown")
+    res_chain = provider._chain_item(proxy_item, proxy_item.get("id"))
+    hops = provider._pick_hops(provider.hop_tries)
+
+    last_err = None
+    for hop in hops:
+        try:
+            result = fetch_through_chain([hop, res_chain], CHAIN_CHECK_URL, timeout=timeout)
+            try:
+                data = json.loads(result.get("body") or "{}")
+            except (TypeError, ValueError):
+                data = {}
+            exit_ip = result.get("exit_ip") or data.get("query") or data.get("ip")
+            if not exit_ip:
+                last_err = "Chain tersambung tapi IP exit tidak terbaca"
+                continue
+            return {
+                "index": index,
+                "status": "ALIVE",
+                "country": country,
+                "ip": str(exit_ip),
+                "latency_ms": result.get("latency_ms"),
+                "proxy_item": proxy_item,
+            }
+        except ChainError as exc:
+            if hop_is_blamed(exc):
+                # Gerbang ketat: hop mati / jaringannya ditolak FloppyData -> enabled=false
+                provider._blacklist_hop(hop)
+                provider.disable_hop(hop, str(exc)[:80])
+            elif exc.stage in ("hop_tcp", "proxy_connect"):
+                provider._blacklist_hop(hop)
+            last_err = f"hop {hop.get('host')}: {str(exc)[:70]}"
+        except Exception as exc:
+            last_err = f"{type(exc).__name__}: {str(exc)[:60]}"
+
+    return {
+        "index": index,
+        "status": "DEAD",
+        "country": country,
+        "ip": None,
+        "latency_ms": None,
+        "last_error": last_err or "Semua hop gagal",
         "proxy_item": proxy_item,
     }
 
@@ -200,6 +260,17 @@ def main():
         help="Targetkan pengecekan & penghapusan langsung ke database Supabase (schema proxxies)",
     )
     parser.add_argument(
+        "--chain",
+        action="store_true",
+        help="Uji proxy lewat chain hop 3xK -> residential (jalur yang sama dengan bot)",
+    )
+    parser.add_argument(
+        "--hop-tries",
+        type=int,
+        default=3,
+        help="Jumlah hop acak dicoba per proxy saat mode --chain (default: 3)",
+    )
+    parser.add_argument(
         "-t",
         "--threads",
         type=int,
@@ -221,7 +292,7 @@ def main():
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Paksa hapus meskipun rasio DEAD > 35% (safety guard bypass)",
+        help="Paksa hapus meskipun rasio DEAD > 35%% (safety guard bypass)",
     )
     parser.add_argument(
         "--limit",
@@ -264,18 +335,32 @@ def main():
 
     print(
         f"📊 Ditemukan {total} proxy ({'Supabase Database' if is_supabase else 'File Lokal'}). "
+        f"Mode: {'Chain hop->residential' if args.chain else 'Langsung'}. "
         f"Menjalankan checker paralel ({args.threads} threads, timeout: {args.timeout}s)..."
     )
+
+    chain_provider: Optional[ChainProxyProvider] = None
+    if args.chain:
+        chain_provider = ChainProxyProvider(
+            hop_tries=args.hop_tries,
+            timeout=args.timeout,
+            target="monetag",
+            channel="automation",
+            strict_channel=False,
+            verbose=False,
+        )
 
     alive_proxies = []
     dead_proxies = []
 
     start_check = time.time()
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.threads) as executor:
-        futures = {
-            executor.submit(test_proxy, p, idx, args.timeout, args.retries): p
-            for idx, p in enumerate(proxy_list, 1)
-        }
+        futures = {}
+        for idx, p in enumerate(proxy_list, 1):
+            if chain_provider is not None:
+                futures[executor.submit(test_proxy_via_chain, p, idx, chain_provider, args.timeout)] = p
+            else:
+                futures[executor.submit(test_proxy, p, idx, args.timeout, args.retries)] = p
         for future in concurrent.futures.as_completed(futures):
             res = future.result()
             p_item = res["proxy_item"]
@@ -384,6 +469,8 @@ def main():
             print("   python3 check_proxies.py --supabase --delete-dead")
         else:
             print("   python3 check_proxies.py --delete-dead")
+        if chain_provider is not None:
+            print("   (Mode chain aktif: tambahkan --chain di perintah di atas)")
 
 
 if __name__ == "__main__":
