@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """automation.smartlink.actions.console — warna ANSI + log terminal berwarna."""
 
+from datetime import datetime, timedelta, timezone
+
 # ── Warna terminal (ANSI) ──
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -27,4 +29,5 @@ _STYLES = {
 
 def log(worker_id: int, msg: str, style: str = "white") -> None:
     color = _STYLES.get(style, "")
-    print(f"{color}[W{worker_id}] {msg}{RESET}", flush=True)
+    ts = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")  # WIB
+    print(f"[{ts}] {color}[W{int(worker_id):>2}-Smartlink] {msg}{RESET}", flush=True)

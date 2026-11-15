@@ -30,7 +30,7 @@ if hasattr(sys.stdout, "reconfigure"):
 
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -135,10 +135,13 @@ class BotRunnerCLI:
         target_list = [t.strip().lower() for t in str(self.args.target).split(",") if t.strip()]
         if any(t in ("safelink", "safelinkearn") for t in target_list):
             t_net = "🔗 SafelinkEarn"
+            self._flow_tag = "SafelinkEarn"
         elif len(target_list) > 1:
             t_net = "💎 Monetag + 🔗 Smartlink"
+            self._flow_tag = "Monetag"
         else:
             t_net = "💎 Monetag"
+            self._flow_tag = "Monetag"
         for wid in range(1, self.args.workers + 1):
             self.workers_state[wid] = {
                 "worker_id": wid,
@@ -168,16 +171,16 @@ class BotRunnerCLI:
             index = 0
         return WORKER_COLORS[index]
 
-    def _console(self, worker_id: Any, message: str) -> None:
+    def _console(self, worker_id: Any, message: str, tag: Optional[str] = None) -> None:
         """Cetak satu baris log worker dengan warna & prefix tetap yang rapi."""
-        ts = datetime.now().strftime("%H:%M:%S")
+        ts = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")  # WIB
         try:
-            tag = f"W{int(worker_id):>2}"
+            tag_str = f"W{int(worker_id):>2}-{tag or self._flow_tag}"
         except (TypeError, ValueError):
-            tag = "W?"
+            tag_str = f"W?-{tag or self._flow_tag}"
         color = self._worker_color(worker_id)
         with self._console_lock:
-            print(f"[{ts}] {color}[{tag}]{RESET} {message}", flush=True)
+            print(f"[{ts}] {color}[{tag_str}]{RESET} {message}", flush=True)
 
     def _chain_log(self, message: str) -> None:
         """Rapikan log ChainProxyProvider: ikut warna worker bila ada prefix [Wn]."""
@@ -192,7 +195,7 @@ class BotRunnerCLI:
     def _on_worker_event(self, etype: str, data: Dict[str, Any]) -> None:
         wid = data.get("worker_id", 1)
         w = self.workers_state.setdefault(wid, {"worker_id": wid})
-        ts = datetime.now().strftime("%H:%M:%S")
+        ts = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")  # WIB
 
         # Riwayat aktivitas log real-time per worker (ring buffer 15 baris)
         logs = w.setdefault("logs", [])
@@ -495,12 +498,12 @@ class BotRunnerCLI:
             """Flow ke-2 memakai IP/proxy yang sama dengan sesi Monetag."""
             from automation.smartlink.flow import run_smartlink_session
 
-            self._console(worker_id, "🔗 Lanjut flow Smartlink dengan IP yang sama...")
+            self._console(worker_id, "🔗 Lanjut flow Smartlink dengan IP yang sama...", tag="Smartlink")
             try:
                 run_smartlink_session(worker_id=worker_id, proxy_data=proxy, config=smartlink_cfg or {})
             except Exception as exc:
                 # Monetag sudah sukses; kegagalan Smartlink jangan mengubah hasil sesi
-                self._console(worker_id, f"⚠️ Flow Smartlink gagal (Monetag tetap dihitung): {exc}")
+                self._console(worker_id, f"⚠️ Flow Smartlink gagal (Monetag tetap dihitung): {exc}", tag="Smartlink")
                 return
             residential = proxy.get("_residential") or proxy
             manager = chain_provider.pm if chain_provider is not None else self.proxy_manager
@@ -513,7 +516,7 @@ class BotRunnerCLI:
                     strict_channel=False,
                 )
             except Exception as exc:
-                self._console(worker_id, f"⚠️ Gagal mencatat usage Smartlink: {exc}")
+                self._console(worker_id, f"⚠️ Gagal mencatat usage Smartlink: {exc}", tag="Smartlink")
 
         def _reset_pool() -> None:
             if getattr(self.proxy_manager, "supabase_enabled", False):
