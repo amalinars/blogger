@@ -940,6 +940,7 @@ def monetag_worker_thread_loop(
     stop_event: Optional[threading.Event] = None,
     reset_pool_callback: Optional[Callable[[], None]] = None,
     chain_provider: Optional[Any] = None,
+    post_session: Optional[Callable[[int, Dict[str, Any], Dict[str, Any]], None]] = None,
 ) -> None:
     """
     Loop worker multi-sesi untuk Monetag dengan rotasi proxy residensial.
@@ -1033,6 +1034,9 @@ def monetag_worker_thread_loop(
                 config=config,
                 event_callback=event_callback,
             )
+            # Flow lanjutan memakai IP/proxy yang sama (mis. Smartlink), sebelum lease dilepas
+            if post_session is not None:
+                post_session(worker_id, proxy, config)
             if chain_provider is not None:
                 chain_provider.finish_session(
                     proxy, True, log_prefix=f"[W{worker_id}] "

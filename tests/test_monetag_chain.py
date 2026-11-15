@@ -112,6 +112,38 @@ def test_worker_chain_failure_classifies_and_finishes_once(monkeypatch):
     assert provider.finished == [(False, "proxy")]
 
 
+def test_worker_runs_post_session_with_same_proxy(monkeypatch):
+    stop_event = threading.Event()
+    provider = FakeChainProvider(_chain_proxy())
+    budget = FakeBudget()
+    seen = {}
+
+    def fake_session(**kwargs):
+        seen["session_proxy"] = kwargs["proxy_data"]
+        stop_event.set()
+        return {"success": True}
+
+    def fake_post(worker_id, proxy, _config):
+        seen["post_worker"] = worker_id
+        seen["post_proxy"] = proxy
+
+    monkeypatch.setattr(flow, "run_monetag_session", fake_session)
+
+    monetag_worker_thread_loop(
+        worker_id=7,
+        config={"max_uses_per_day": 2, "proxy_cooldown_hours": 6.0},
+        proxy_manager=NoDirectProxyCalls(),
+        budget=budget,
+        stop_event=stop_event,
+        chain_provider=provider,
+        post_session=fake_post,
+    )
+
+    assert seen["post_worker"] == 7
+    assert seen["post_proxy"] is seen["session_proxy"]
+    assert provider.finished == [(True, "other")]
+
+
 def test_classify_session_error():
     assert _classify_session_error(MonetagVerificationError("ip mismatch")) == "verification"
     assert _classify_session_error(MonetagProxyError("tunnel")) == "proxy"
