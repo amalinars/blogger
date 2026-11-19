@@ -34,6 +34,9 @@ python3 manage_supabase_proxies.py --delete-dead
 
 # Opsi 3: Atur jumlah thread paralel dan timeout untuk Supabase
 python3 check_proxies.py --supabase --threads 50 --timeout 5 --delete-dead
+
+# Opsi 4: Cek lewat chain (hop 3xK -> residential), sama seperti jalur bot
+python3 check_proxies.py --supabase --chain --delete-dead
 ```
 
 > **Catatan Penting:**  
@@ -90,6 +93,8 @@ Script spesialis untuk pengujian multi-threaded performa tinggi.
 | `--delete-dead`, `--clean` | Flag | `False` | Hapus proxy DEAD dari target. Dilengkapi Safety Guard. |
 | `--force` | Flag | `False` | Bypass Safety Guard jika rasio DEAD > 35%. |
 | `--supabase` | Flag | `False` | Targetkan pengecekan langsung ke tabel Supabase (`proxxies.proxy_list`). |
+| `--chain` | Flag | `False` | Uji proxy lewat chain hop 3xK → residential (jalur yang sama dengan bot). |
+| `--hop-tries` | Integer | `3` | Jumlah hop acak yang dicoba per proxy saat mode `--chain`. |
 | `-t`, `--threads` | Integer | `20` | Jumlah thread paralel (disetel 20 agar gateway residential tidak throttled). |
 | `--timeout` | Integer | `12` | Batas timeout HTTP per proxy dalam detik (default: 12s untuk residential). |
 | `--retries` | Integer | `2` | Jumlah percobaan fallback endpoint sebelum menyatakan proxy DEAD. |
@@ -107,6 +112,12 @@ python3 check_proxies.py --supabase --delete-dead -t 60 --timeout 5
 
 # 4. Tes cepat 20 proxy pertama di Supabase
 python3 check_proxies.py --supabase --limit 20
+
+# 5. Cek proxy Supabase lewat chain (hop 3xK -> residential), tanpa hapus
+python3 check_proxies.py --supabase --chain
+
+# 6. Cek lewat chain dan langsung hapus yang DEAD
+python3 check_proxies.py --supabase --chain --delete-dead
 ```
 
 ---
