@@ -11,10 +11,10 @@
 #
 # Contoh pemakaian dinamis:
 #   ./runner.sh start --workers 2 --name "💎 VPS 1"
-#   ./runner.sh start --workers 3 --url "https://article.riztama.my.id"
+#   ./runner.sh start --workers 3 -urls https://a.com https://b.com
 # ==============================================================================
 
-SESSION_NAME="bot_shortlink"
+SESSION_NAME="${BOT_SESSION_NAME:-bot_shortlink}"
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
@@ -23,6 +23,7 @@ GREEN="\033[1;32m"
 CYAN="\033[1;36m"
 YELLOW="\033[1;33m"
 RED="\033[1;31m"
+DIM="\033[2m"
 RESET="\033[0m"
 
 # Cek virtual environment
@@ -50,29 +51,9 @@ case "$COMMAND" in
             exit 0
         fi
 
-        # Parameter default jika tidak ditentukan
+        # Semua argumen user diteruskan apa adanya; default target/workers/url
+        # sudah ditangani run_bot.py, jadi tidak ada nilai hardcoded di sini.
         PASSED_ARGS=("$@")
-
-        has_arg() {
-            local pattern="$1"
-            for a in "${PASSED_ARGS[@]}"; do
-                if [ "$a" = "$pattern" ]; then return 0; fi
-            done
-            return 1
-        }
-
-        if ! has_arg "--target"; then
-            PASSED_ARGS=(--target monetag "${PASSED_ARGS[@]}")
-        fi
-        if ! has_arg "--workers" && ! has_arg "-w"; then
-            PASSED_ARGS=(-w 1 "${PASSED_ARGS[@]}")
-        fi
-        if ! has_arg "--unlimited" && ! has_arg "-u"; then
-            PASSED_ARGS=(-u "${PASSED_ARGS[@]}")
-        fi
-        if ! has_arg "--url"; then
-            PASSED_ARGS=(--url "https://article.riztama.my.id" "${PASSED_ARGS[@]}")
-        fi
 
         ESCAPED_ARGS=""
         for arg in "${PASSED_ARGS[@]}"; do
