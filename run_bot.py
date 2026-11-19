@@ -402,8 +402,17 @@ class BotRunnerCLI:
 
         is_safelink = self.args.target in ("safelink", "safelinkearn")
         default_url = "https://sfe.ad/pB5n5lnLGp" if is_safelink else "https://article.riztama.my.id"
-        target_url = self.args.url or default_url
+        urls: List[str] = []
+        for raw in (getattr(self.args, "urls", None) or []):
+            for part in re.split(r"[,\s]+", str(raw)):
+                part = part.strip()
+                if part and part not in urls:
+                    urls.append(part)
+        if not urls:
+            urls = [self.args.url or default_url]
+        target_url = urls[0]
         self.args.url = target_url
+        self.args.urls = urls
 
         print_banner(
             node_name=self.reporter.node_name,
@@ -411,7 +420,7 @@ class BotRunnerCLI:
             workers=self.args.workers,
             unlimited=self.args.unlimited,
             headless=self.args.headless,
-            url=target_url,
+            url=" , ".join(urls),
             potato=getattr(self.args, "potato", True),
         )
 
@@ -451,6 +460,7 @@ class BotRunnerCLI:
         base_config = load_config()
         base_config.update({
             "target_url": target_url,
+            "target_urls": urls,
             "headless": self.args.headless,
             "max_uses_per_day": self.args.max_uses,
             "proxy_cooldown_hours": self.args.cooldown,
@@ -638,6 +648,12 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="URL web target tujuan (default: Monetag -> article.riztama.my.id, SafelinkEarn -> sfe.ad/pB5n5lnLGp)",
+    )
+    parser.add_argument(
+        "-urls", "--urls",
+        nargs="+",
+        default=None,
+        help="Satu atau lebih URL target (pisah spasi/koma), dirotasi bergantian tiap sesi",
     )
     parser.add_argument(
         "--name",

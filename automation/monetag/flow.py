@@ -948,6 +948,9 @@ def monetag_worker_thread_loop(
     Bila `chain_provider` diberikan, proxy diambil lewat chain hop 3xK.
     """
     tag = f"[W{worker_id}]"
+    config = dict(config)
+    target_urls = list(config.get("target_urls") or [])
+    session_index = 0
 
     def _log(msg: str, style: str = "white") -> None:
         _emit(
@@ -1027,6 +1030,9 @@ def monetag_worker_thread_loop(
         )
 
         chain_finished = False
+        if target_urls:
+            config["target_url"] = target_urls[session_index % len(target_urls)]
+            session_index += 1
         try:
             res = run_monetag_session(
                 worker_id=worker_id,

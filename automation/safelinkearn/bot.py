@@ -1053,6 +1053,8 @@ def safelink_worker_thread_loop(
     """
     tag = f"[W{worker_id}]"
     target_url = config.get("target_url") or "https://sfe.ad/pB5n5lnLGp"
+    target_urls = list(config.get("target_urls") or [])
+    session_index = 0
     headless = bool(config.get("headless", True))
     max_timeout = int(config.get("max_timeout", 180))
     errorlogs = bool(config.get("errorlogs", False))
@@ -1086,6 +1088,10 @@ def safelink_worker_thread_loop(
             max_uses = int(config.get("max_uses_per_day", 2))
             cooldown_hrs = float(config.get("proxy_cooldown_hours", 6.0))
             caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
+
+            if target_urls:
+                target_url = target_urls[session_index % len(target_urls)]
+                session_index += 1
 
             proxy = proxy_manager.acquire_proxy(
                 caller_id=caller_id,
