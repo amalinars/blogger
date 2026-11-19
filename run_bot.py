@@ -355,8 +355,10 @@ class BotRunnerCLI:
                 health = p.get("health", "ALIVE")
                 t_key = "safelink" if self.args.target in ("safelink", "safelinkearn") else "monetag"
                 tu = p.get("target_usage") or {}
-                mn_hit = (tu.get(t_key) or {}).get("count", 0)
-                last_used = (tu.get(t_key) or {}).get("last_used", 0) or 0
+                # Usage lama mungkin masih general ("monetag"); gabungkan dengan key per-URL ("monetag:host").
+                hits = [v for k, v in tu.items() if k == t_key or k.startswith(f"{t_key}:")]
+                mn_hit = sum(int((v or {}).get("count", 0) or 0) for v in hits)
+                last_used = max((((v or {}).get("last_used", 0) or 0) for v in hits), default=0)
                 p_list.append({
                     "ip": ip,
                     "port": p.get("port", 0),

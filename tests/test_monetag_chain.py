@@ -41,10 +41,12 @@ class FakeChainProvider:
         self.proxy = proxy
         self.pm = self
         self.next_calls = 0
+        self.targets = []
         self.finished = []
 
-    def next_proxy(self, caller_id=None, log_prefix=""):
+    def next_proxy(self, caller_id=None, log_prefix="", target=None):
         self.next_calls += 1
+        self.targets.append(target)
         return self.proxy if self.next_calls == 1 else None
 
     def get_target_usage_summary(self, *args, **kwargs):
@@ -87,7 +89,11 @@ def _run_one_session(monkeypatch, session_func, expected_status):
 
     monetag_worker_thread_loop(
         worker_id=1,
-        config={"max_uses_per_day": 2, "proxy_cooldown_hours": 6.0},
+        config={
+            "max_uses_per_day": 2,
+            "proxy_cooldown_hours": 6.0,
+            "target_url": "https://article.riztama.my.id/post-1",
+        },
         proxy_manager=NoDirectProxyCalls(),
         budget=budget,
         stop_event=stop_event,
@@ -95,8 +101,34 @@ def _run_one_session(monkeypatch, session_func, expected_status):
     )
 
     assert provider.next_calls == 1
+    assert provider.targets == ["monetag:article.riztama.my.id"]
     assert budget.results == [expected_status]
     return provider
+
+
+def test_worker_url_offset_per_worker(monkeypatch):
+    stop_event = threading.Event()
+    provider = FakeChainProvider(_chain_proxy())
+    budget = FakeBudget()
+
+    def fake_session(**_kwargs):
+        stop_event.set()
+        return {"success": True}
+
+    monkeypatch.setattr(flow, "run_monetag_session", fake_session)
+    monetag_worker_thread_loop(
+        worker_id=2,
+        config={
+            "max_uses_per_day": 2,
+            "proxy_cooldown_hours": 6.0,
+            "target_urls": ["https://a.example.com", "https://b.example.com"],
+        },
+        proxy_manager=NoDirectProxyCalls(),
+        budget=budget,
+        stop_event=stop_event,
+        chain_provider=provider,
+    )
+    assert provider.targets == ["monetag:b.example.com"]
 
 
 def test_worker_chain_success_finishes_once(monkeypatch):

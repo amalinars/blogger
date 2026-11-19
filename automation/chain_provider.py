@@ -193,12 +193,14 @@ class ChainProxyProvider:
         self,
         caller_id: Optional[str] = None,
         log_prefix: str = "",
+        target: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         self._log_prefix.value = log_prefix or ""
         caller_id = caller_id or f"chain_{uuid.uuid4().hex[:10]}"
+        target_key = target or self.target
         residential = self.pm.acquire_proxy(
             caller_id=caller_id,
-            target=self.target,
+            target=target_key,
             verify_alive=False,
             max_uses_per_day=self.target_max_uses_per_day,
             cooldown_seconds=self.target_cooldown_seconds,
@@ -353,7 +355,7 @@ class ChainProxyProvider:
                 "latency_ms": chain_probe.get("latency_ms"),
                 "source": "chain",
                 "channel": self.channel,
-                "target": self.target,
+                "target": target_key,
                 "verify_country": bool(country or country_code),
                 "hop_ip": hop["host"],
                 "hop_port": hop["port"],
@@ -411,12 +413,13 @@ class ChainProxyProvider:
             return
 
         caller_id = proxy.get("caller_id") or residential.get("leased_by")
+        target_key = proxy.get("target") or self.target
         try:
             if success:
                 try:
                     self.pm.record_target_hit(
                         residential,
-                        target=self.target,
+                        target=target_key,
                         window_seconds=self.target_window_seconds,
                         channel=self.channel,
                         strict_channel=self.strict_channel,

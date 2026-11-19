@@ -360,6 +360,25 @@ def test_reset_cursor(temp_proxy_file):
     assert pm.get_stats()["cursor"] == 0
 
 
+def test_reset_target_usage_removes_exact_and_per_url_keys(temp_proxy_file):
+    with open(temp_proxy_file, "r") as f:
+        raw = json.load(f)
+    raw["proxies"][0]["target_usage"] = {
+        "monetag": {"count": 1, "last_used": 1},
+        "monetag:article.example.com": {"count": 1, "last_used": 2},
+        "smartlink": {"count": 1, "last_used": 3},
+    }
+    with open(temp_proxy_file, "w") as f:
+        json.dump(raw, f)
+
+    pm = ProxyManager(filepath=temp_proxy_file)
+    assert pm.reset_target_usage("monetag") == 2
+
+    with open(temp_proxy_file, "r") as f:
+        usage = json.load(f)["proxies"][0]["target_usage"]
+    assert usage == {"smartlink": {"count": 1, "last_used": 3}}
+
+
 def test_acquire_proxy_with_verify_alive(temp_proxy_file):
     pm = ProxyManager(filepath=temp_proxy_file)
 

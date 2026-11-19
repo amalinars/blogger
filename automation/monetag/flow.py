@@ -950,7 +950,8 @@ def monetag_worker_thread_loop(
     tag = f"[W{worker_id}]"
     config = dict(config)
     target_urls = list(config.get("target_urls") or [])
-    session_index = 0
+    # Offset per worker: W1 mulai URL pertama, W2 URL kedua, dst.
+    session_index = max(0, worker_id - 1)
 
     def _log(msg: str, style: str = "white") -> None:
         _emit(
@@ -961,6 +962,11 @@ def monetag_worker_thread_loop(
             style=style,
         )
 
+    def _target_key() -> str:
+        parsed = urlparse(str(config.get("target_url") or ""))
+        host = (parsed.hostname or "").lower()
+        return f"monetag:{host}" if host else "monetag"
+
     caller_prefix = f"monetag_w{worker_id}"
     _log("Browser Monetag siap — IP dirotasi tiap sesi.", "green")
 
@@ -970,14 +976,20 @@ def monetag_worker_thread_loop(
         if not budget.reserve():
             break
 
-        target_name = "monetag"
+        if target_urls:
+            config["target_url"] = target_urls[session_index % len(target_urls)]
+            session_index += 1
+
+        target_name = _target_key()
         max_uses = int(config.get("max_uses_per_day", 2))
         cooldown_hrs = float(config.get("proxy_cooldown_hours", 6.0))
         caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
 
         if chain_provider is not None:
             proxy = chain_provider.next_proxy(
-                caller_id=caller_id, log_prefix=f"[W{worker_id}] "
+                caller_id=caller_id,
+                log_prefix=f"[W{worker_id}] ",
+                target=target_name,
             )
         else:
             proxy = proxy_manager.acquire_proxy(
@@ -1030,9 +1042,6 @@ def monetag_worker_thread_loop(
         )
 
         chain_finished = False
-        if target_urls:
-            config["target_url"] = target_urls[session_index % len(target_urls)]
-            session_index += 1
         try:
             res = run_monetag_session(
                 worker_id=worker_id,

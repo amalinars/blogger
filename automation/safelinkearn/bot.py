@@ -1054,7 +1054,8 @@ def safelink_worker_thread_loop(
     tag = f"[W{worker_id}]"
     target_url = config.get("target_url") or "https://sfe.ad/pB5n5lnLGp"
     target_urls = list(config.get("target_urls") or [])
-    session_index = 0
+    # Offset per worker: W1 mulai URL pertama, W2 URL kedua, dst.
+    session_index = max(0, worker_id - 1)
     headless = bool(config.get("headless", True))
     max_timeout = int(config.get("max_timeout", 180))
     errorlogs = bool(config.get("errorlogs", False))

@@ -1282,9 +1282,10 @@ class ProxyManager:
                 t_usage = p.get("target_usage")
                 if isinstance(t_usage, dict):
                     if target:
-                        if target in t_usage:
-                            del t_usage[target]
-                            reset_count += 1
+                        keys = [k for k in t_usage if k == target or k.startswith(f"{target}:")]
+                        for k in keys:
+                            del t_usage[k]
+                        reset_count += len(keys)
                     else:
                         if t_usage:
                             t_usage.clear()
