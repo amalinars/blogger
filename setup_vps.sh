@@ -183,6 +183,40 @@ fi
 # 4. Download binary browser Camoufox & komponen GeoIP (sesuai panduan https://camoufox.com/python/installation/)
 echo -e "\n\033[1;33m[4/5] Memeriksa status browser anti-detect Camoufox & GeoIP...\033[0m"
 
+# Repo resmi GitHub (daijro/camoufox & camoufox/camoufox) sudah dibanned (404).
+# Arahkan sumber browser ke fork mirror jo-inc/camofox-browser (asset build-nya sama)
+# dan GeoIP ke MaxMind GeoLite2 (sapics) yang masih aktif.
+python3 - <<'PY' 2>/dev/null || true
+from pathlib import Path
+from camoufox import pkgman
+import yaml
+
+repos_path = Path(pkgman.LOCAL_DATA) / "repos.yml"
+if not repos_path.exists():
+    raise SystemExit(0)
+
+data = yaml.safe_load(repos_path.read_text(encoding="utf-8")) or {}
+mirror = "jo-inc/camofox-browser"
+changed = False
+
+for browser in data.get("browsers", []):
+    if str(browser.get("name", "")).lower() != "official":
+        continue
+    repos = [r.strip() for r in str(browser.get("repo", "")).split(",") if r.strip()]
+    if mirror not in repos:
+        browser["repo"] = ", ".join([mirror] + repos)
+        changed = True
+
+default_geoip = data.setdefault("default", {})
+if default_geoip.get("geoip") != "MaxMind GeoLite2":
+    default_geoip["geoip"] = "MaxMind GeoLite2"
+    changed = True
+
+if changed:
+    repos_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    print(f"  ℹ️ Sumber browser diarahkan ke mirror {mirror} (repo resmi 404).")
+PY
+
 ALREADY_INSTALLED=false
 if [ "$FORCE_FETCH" = false ]; then
     if python3 -c "import sys; from camoufox.multiversion import list_installed, get_active_path; from camoufox.geolocation import ALLOW_GEOIP, get_mmdb_path; p = get_active_path(); has_bin = bool(list_installed() and p and p.exists() and ((p / 'camoufox-bin').exists() or (p / 'camoufox').exists())); has_geoip = (not ALLOW_GEOIP) or get_mmdb_path().exists(); sys.exit(0 if (has_bin and has_geoip) else 1)" 2>/dev/null; then
