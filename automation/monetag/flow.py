@@ -391,6 +391,7 @@ def run_monetag_session(
                         exp_asn = proxy_info.get("expected_asn")
                         exp_isp = proxy_info.get("expected_isp")
                         allow_ip_rotation = True
+                        forbidden_ip = proxy_info.get("hop_ip")
                     else:
                         is_rotating = (
                             proxy_info.get("connection_type") == "residential"
@@ -401,6 +402,7 @@ def run_monetag_session(
                         exp_asn = None
                         exp_isp = None
                         allow_ip_rotation = False
+                        forbidden_ip = None
 
                     report = verifier.verify(
                         page,
@@ -410,6 +412,7 @@ def run_monetag_session(
                         expected_asn=exp_asn,
                         expected_isp=exp_isp,
                         allow_ip_rotation=allow_ip_rotation,
+                        forbidden_ip=forbidden_ip,
                     )
                     actual = report.actual_state
                     _emit(

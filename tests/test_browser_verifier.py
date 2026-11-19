@@ -141,6 +141,54 @@ def test_rotation_without_metadata_uses_warning(monkeypatch):
     assert any("tidak bisa dipastikan" in warning for warning in report.warnings)
 
 
+def test_chain_lenient_accepts_different_pool(monkeypatch):
+    verifier = _make_verifier(monkeypatch, SKY_IP)
+
+    report = verifier.verify(
+        page=None,
+        expected_asn="AS99999",
+        expected_isp="Other Telecom",
+        allow_ip_rotation=True,
+        forbidden_ip="91.1.1.1",
+        check_ads=False,
+    )
+
+    assert report.match_results["ip_matched"] is True
+    assert report.is_safe is True
+
+
+def test_chain_lenient_rejects_hop_ip(monkeypatch):
+    verifier = _make_verifier(monkeypatch, SKY_IP)
+
+    report = verifier.verify(
+        page=None,
+        expected_asn="AS5607",
+        allow_ip_rotation=True,
+        forbidden_ip="90.214.34.176",
+        check_ads=False,
+    )
+
+    assert report.match_results["ip_matched"] is False
+    assert report.is_safe is False
+    assert any("IP hop chain" in issue for issue in report.issues)
+
+
+def test_chain_lenient_allows_undetected_ip(monkeypatch):
+    verifier = _make_verifier(monkeypatch, {})
+
+    report = verifier.verify(
+        page=None,
+        expected_asn="AS5607",
+        allow_ip_rotation=True,
+        forbidden_ip="91.1.1.1",
+        check_ads=False,
+    )
+
+    assert report.match_results["ip_matched"] is None
+    assert report.is_safe is True
+    assert any("tidak terdeteksi" in warning for warning in report.warnings)
+
+
 def test_static_proxy_still_requires_exact_ip(monkeypatch):
     verifier = _make_verifier(monkeypatch, SKY_IP)
 

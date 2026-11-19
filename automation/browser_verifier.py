@@ -189,6 +189,7 @@ class BrowserVerifier:
         expected_asn: Optional[str] = None,
         expected_isp: Optional[str] = None,
         allow_ip_rotation: bool = False,
+        forbidden_ip: Optional[str] = None,
     ) -> VerificationReport:
         issues = []
         warnings = []
@@ -214,6 +215,14 @@ class BrowserVerifier:
         has_ip_expectation = bool(expected_ip or expected_asn or expected_isp)
         if not has_ip_expectation:
             match_results["ip_matched"] = None  # Direct / unspecified
+        elif not detected_ip and forbidden_ip:
+            # Mode chain: exit bisa rotasi / endpoint cek IP diblok. Cukup pastikan
+            # tidak jelas-jelas bocor; jangan gagalkan sesi.
+            warnings.append(
+                "IP publik tidak terdeteksi; cek pool dilewati "
+                f"(hop chain: {forbidden_ip})."
+            )
+            match_results["ip_matched"] = None
         elif not detected_ip:
             issues.append(
                 f"Tidak dapat mendeteksi IP publik browser "
@@ -233,6 +242,7 @@ class BrowserVerifier:
                 expected_isp, detected_org
             )
             same_ip = bool(expected_ip) and detected_ip == expected_ip
+            hop_leak = bool(forbidden_ip) and detected_ip == forbidden_ip
             local_ips = _get_local_egress_ips()
             local_leak = (
                 detected_ip in local_ips
@@ -250,6 +260,21 @@ class BrowserVerifier:
                 )
                 match_results["ip_matched"] = False
                 score -= 40
+            elif hop_leak:
+                issues.append(
+                    f"Masih keluar dari IP hop chain ({forbidden_ip}), "
+                    f"bukan IP residential."
+                )
+                match_results["ip_matched"] = False
+                score -= 40
+            elif forbidden_ip:
+                # Mode chain lenient: cukup bukan IP lokal/hop chain.
+                if not (same_ip or asn_match or isp_match):
+                    warnings.append(
+                        f"Exit beda pool/ASN dari probe ({detected_ip}), "
+                        f"tapi dianggap OK (mode chain lenient)."
+                    )
+                match_results["ip_matched"] = True
             elif same_ip or asn_match or isp_match:
                 match_results["ip_matched"] = True
             elif not detected_meta_available or not (expected_asn or expected_isp):
@@ -686,6 +711,7 @@ def verify_browser(
     expected_asn: Optional[str] = None,
     expected_isp: Optional[str] = None,
     allow_ip_rotation: bool = False,
+    forbidden_ip: Optional[str] = None,
 ) -> VerificationReport:
     """
     Fungsi utama (Gatekeeper Entrypoint) yang dipanggil oleh modul lain.
@@ -713,6 +739,7 @@ def verify_browser(
         expected_asn=expected_asn,
         expected_isp=expected_isp,
         allow_ip_rotation=allow_ip_rotation,
+        forbidden_ip=forbidden_ip,
     )
     return report
 
