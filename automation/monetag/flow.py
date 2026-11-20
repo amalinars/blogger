@@ -24,6 +24,29 @@ from automation.monetag.humanizer import human_click, human_move, human_scroll, 
 from core.proxy_manager import ProxyManager
 
 
+def _target_available(
+    usage_proxy: Dict[str, Any],
+    target: str,
+    max_uses_per_day: int,
+    cooldown_seconds: float,
+    window_seconds: float = 24 * 3600,
+) -> bool:
+    """Cek kuota satu IP untuk satu target dari snapshot target_usage proxy."""
+    data = (usage_proxy.get("target_usage") or {}).get(target) or {}
+    if not isinstance(data, dict):
+        return True
+    count = int(data.get("count", 0) or 0)
+    last_used = float(data.get("last_used") or 0)
+    now = time.time()
+    if last_used > 0 and (now - last_used) >= window_seconds:
+        return True
+    if count >= max_uses_per_day:
+        return False
+    if count > 0 and (now - last_used) < cooldown_seconds:
+        return False
+    return True
+
+
 class MonetagSessionError(RuntimeError):
     """Kegagalan sesi Monetag yang perlu diklasifikasikan oleh worker chain."""
 
@@ -953,6 +976,7 @@ def monetag_worker_thread_loop(
     tag = f"[W{worker_id}]"
     config = dict(config)
     target_urls = list(config.get("target_urls") or [])
+    batch_urls = [u for u in (config.get("site_urls") or []) if u]
     # Offset per worker: W1 mulai URL pertama, W2 URL kedua, dst.
     session_index = max(0, worker_id - 1)
 
@@ -965,47 +989,55 @@ def monetag_worker_thread_loop(
             style=style,
         )
 
-    def _target_key() -> str:
-        parsed = urlparse(str(config.get("target_url") or ""))
+    def _target_key(url: str) -> str:
+        parsed = urlparse(str(url or ""))
         host = (parsed.hostname or "").lower()
         return f"monetag:{host}" if host else "monetag"
 
     caller_prefix = f"monetag_w{worker_id}"
-    _log("Browser Monetag siap — IP dirotasi tiap sesi.", "green")
+    _log("Browser Monetag siap — 1 IP dipakai untuk semua URL, lalu rotasi.", "green")
 
     while not (stop_event and stop_event.is_set()):
         if budget.is_exhausted() or not budget.has_capacity():
             break
-        if not budget.reserve():
-            break
 
-        if target_urls:
-            config["target_url"] = target_urls[session_index % len(target_urls)]
-            session_index += 1
-
-        target_name = _target_key()
-        max_uses = int(config.get("max_uses_per_day", 2))
-        cooldown_hrs = float(config.get("proxy_cooldown_hours", 6.0))
-        caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
-
-        if chain_provider is not None:
-            proxy = chain_provider.next_proxy(
-                caller_id=caller_id,
-                log_prefix=f"[W{worker_id}] ",
-                target=target_name,
-            )
+        if batch_urls:
+            urls_this = batch_urls
         else:
-            proxy = proxy_manager.acquire_proxy(
-                caller_id=caller_id,
-                exclusive=True,
-                verify_alive=False,
-                target=target_name,
-                max_uses_per_day=max_uses,
-                cooldown_seconds=cooldown_hrs * 3600,
-            )
+            if target_urls:
+                config["target_url"] = target_urls[session_index % len(target_urls)]
+                session_index += 1
+            urls_this = [config.get("target_url") or ""]
+
+        max_uses = int(config.get("max_uses_per_day", 2))
+        cooldown_secs = float(config.get("proxy_cooldown_hours", 6.0)) * 3600
+        lease_seconds = int(config.get("proxy_lease_seconds") or max(600, 600 * len(urls_this)))
+
+        proxy = None
+        for url in urls_this:
+            caller_id = f"{caller_prefix}_{int(time.time() * 1000)}"
+            target_name = _target_key(url)
+            if chain_provider is not None:
+                proxy = chain_provider.next_proxy(
+                    caller_id=caller_id,
+                    log_prefix=f"[W{worker_id}] ",
+                    target=target_name,
+                    lease_seconds=lease_seconds,
+                )
+            else:
+                proxy = proxy_manager.acquire_proxy(
+                    caller_id=caller_id,
+                    exclusive=True,
+                    verify_alive=False,
+                    target=target_name,
+                    max_uses_per_day=max_uses,
+                    cooldown_seconds=cooldown_secs,
+                    lease_seconds=lease_seconds,
+                )
+            if proxy:
+                break
 
         if not proxy:
-            stats = proxy_manager.get_stats()
             # Hanya jalankan reset pool lokal jika TIDAK menggunakan database Supabase
             if getattr(budget, "unlimited", False) and reset_pool_callback and not getattr(proxy_manager, "supabase_enabled", False):
                 reset_pool_callback()
@@ -1025,61 +1057,72 @@ def monetag_worker_thread_loop(
         # Surfaced to GUI table
         usage_proxy = proxy.get("_residential") or proxy
         summary_manager = chain_provider.pm if chain_provider is not None else proxy_manager
-        try:
-            t_usage = summary_manager.get_target_usage_summary(
-                usage_proxy, target=target_name, max_uses_per_day=max_uses, cooldown_seconds=cooldown_hrs * 3600
-            )
-        except Exception:
-            t_usage = {}
-        _emit(
-            event_callback,
-            "proxy_assigned",
-            worker_id=worker_id,
-            proxy_id=proxy_id,
-            ip=ip,
-            country=country,
-            target_usage=t_usage.get("summary_text", "Hit 1/2"),
-            hit_count=t_usage.get("current_hit", 1),
-            timezone=expected_geo.get("timezone"),
-            locale=expected_geo.get("locale"),
-        )
+        released = False
+        ran_any = False
 
-        chain_finished = False
-        try:
-            res = run_monetag_session(
-                worker_id=worker_id,
-                proxy_data=proxy,
-                config=config,
-                event_callback=event_callback,
-            )
-            # Flow lanjutan memakai IP/proxy yang sama (mis. Smartlink), sebelum lease dilepas
-            if post_session is not None:
-                post_session(worker_id, proxy, config)
-            if chain_provider is not None:
-                chain_provider.finish_session(
-                    proxy, True, log_prefix=f"[W{worker_id}] "
+        for url in urls_this:
+            if stop_event and stop_event.is_set():
+                break
+            if budget.is_exhausted() or not budget.has_capacity():
+                break
+
+            target_name = _target_key(url)
+            if not _target_available(usage_proxy, target_name, max_uses, cooldown_secs):
+                _log(f"⏭️ {url} masih limit/cooldown untuk IP ini — lanjut URL berikutnya", "dim")
+                continue
+            if not budget.reserve():
+                break
+            ran_any = True
+
+            try:
+                t_usage = summary_manager.get_target_usage_summary(
+                    usage_proxy, target=target_name, max_uses_per_day=max_uses, cooldown_seconds=cooldown_secs
                 )
-                chain_finished = True
-            else:
-                proxy_manager.record_target_hit(proxy, target=target_name)
-            budget.record("PASS")
-            if proxy_id:
-                budget.mark_proxy(proxy_id)
-        except Exception as e_run:
-            _log(f"❌ Error sesi Monetag: {e_run}", "bold red")
+            except Exception:
+                t_usage = {}
             _emit(
                 event_callback,
-                "stepper_update",
+                "proxy_assigned",
                 worker_id=worker_id,
-                stage="❌ GAGAL",
-                status=str(e_run)[:40],
+                proxy_id=proxy_id,
+                ip=ip,
+                country=country,
+                target_usage=t_usage.get("summary_text", "Hit 1/2"),
+                hit_count=t_usage.get("current_hit", 1),
+                timezone=expected_geo.get("timezone"),
+                locale=expected_geo.get("locale"),
             )
-            _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL")
-            budget.record("FAIL")
-            if proxy_id:
-                budget.mark_proxy(proxy_id)
-            if chain_provider is not None:
-                if not chain_finished:
+
+            session_config = dict(config)
+            session_config["target_url"] = url
+            try:
+                run_monetag_session(
+                    worker_id=worker_id,
+                    proxy_data=proxy,
+                    config=session_config,
+                    event_callback=event_callback,
+                )
+                # Flow lanjutan memakai IP/proxy yang sama (mis. Smartlink)
+                if post_session is not None:
+                    post_session(worker_id, proxy, session_config)
+                summary_manager.record_target_hit(usage_proxy, target=target_name)
+                budget.record("PASS")
+                if proxy_id:
+                    budget.mark_proxy(proxy_id)
+            except Exception as e_run:
+                _log(f"❌ Error sesi Monetag: {e_run}", "bold red")
+                _emit(
+                    event_callback,
+                    "stepper_update",
+                    worker_id=worker_id,
+                    stage="❌ GAGAL",
+                    status=str(e_run)[:40],
+                )
+                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL")
+                budget.record("FAIL")
+                if proxy_id:
+                    budget.mark_proxy(proxy_id)
+                if chain_provider is not None:
                     error_kind = _classify_session_error(
                         e_run, stopping=bool(stop_event and stop_event.is_set())
                     )
@@ -1087,11 +1130,26 @@ def monetag_worker_thread_loop(
                         proxy, False, e_run, error_kind,
                         log_prefix=f"[W{worker_id}] ",
                     )
+                else:
+                    try:
+                        proxy_manager.report_failure(proxy, error_message=str(e_run))
+                    finally:
+                        proxy_manager.release_proxy(proxy)
+                released = True
+                break
+
+            time.sleep(random.uniform(0.8, 1.8))
+
+        if not released:
+            if chain_provider is not None:
+                chain_provider.finish_session(
+                    proxy, False, error_kind="batch",
+                    log_prefix=f"[W{worker_id}] ",
+                )
             else:
-                proxy_manager.report_failure(proxy, error_message=str(e_run))
-        finally:
-            if chain_provider is None:
                 proxy_manager.release_proxy(proxy)
+            if not ran_any:
+                time.sleep(1.0)
 
         # Jeda antar-sesi worker (dipercepat agar rotasi impresi tinggi)
         time.sleep(random.uniform(0.8, 1.8))

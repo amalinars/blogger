@@ -415,6 +415,11 @@ class BotRunnerCLI:
         target_url = urls[0]
         self.args.url = target_url
         self.args.urls = urls
+        site_urls = urls if (
+            len(urls) > 1
+            and not is_safelink
+            and getattr(self.args, "site_mode", "sequential") == "sequential"
+        ) else []
 
         print_banner(
             node_name=self.reporter.node_name,
@@ -463,6 +468,7 @@ class BotRunnerCLI:
         base_config.update({
             "target_url": target_url,
             "target_urls": urls,
+            "site_urls": site_urls,
             "headless": self.args.headless,
             "max_uses_per_day": self.args.max_uses,
             "proxy_cooldown_hours": self.args.cooldown,
@@ -655,7 +661,13 @@ def parse_args() -> argparse.Namespace:
         "-urls", "--urls",
         nargs="+",
         default=None,
-        help="Satu atau lebih URL target (pisah spasi/koma), dirotasi bergantian tiap sesi",
+        help="Satu atau lebih URL target (pisah spasi/koma); perilaku mengikuti --site-mode",
+    )
+    parser.add_argument(
+        "--site-mode",
+        choices=("sequential", "rotate"),
+        default="sequential",
+        help="Multi-URL: sequential = satu IP mengerjakan semua URL berurutan lalu rotasi IP; rotate = bergantian tiap sesi",
     )
     parser.add_argument(
         "--name",

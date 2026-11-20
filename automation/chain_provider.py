@@ -194,6 +194,7 @@ class ChainProxyProvider:
         caller_id: Optional[str] = None,
         log_prefix: str = "",
         target: Optional[str] = None,
+        lease_seconds: int = 600,
     ) -> Optional[Dict[str, Any]]:
         self._log_prefix.value = log_prefix or ""
         caller_id = caller_id or f"chain_{uuid.uuid4().hex[:10]}"
@@ -205,6 +206,7 @@ class ChainProxyProvider:
             max_uses_per_day=self.target_max_uses_per_day,
             cooldown_seconds=self.target_cooldown_seconds,
             window_seconds=self.target_window_seconds,
+            lease_seconds=lease_seconds,
             channel=self.channel,
             strict_channel=self.strict_channel,
         )
@@ -430,6 +432,8 @@ class ChainProxyProvider:
                 self._log("   Sesi dihentikan; health proxy tidak diubah.")
             elif error_kind == "test":
                 self._log("   Chain test selesai; health proxy tidak diubah.")
+            elif error_kind == "batch":
+                self._log("   Batch URL selesai; hit sudah dicatat per URL.")
             elif error_kind == "cloudflare":
                 self._cooldown(
                     residential,

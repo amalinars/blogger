@@ -758,6 +758,7 @@ class ProxyManager:
         auto_record: bool = False,
         channel: str = CHANNEL_AUTOMATION,
         strict_channel: bool = False,
+        lease_seconds: int = 600,
     ) -> Optional[Dict[str, Any]]:
         """
         Mengambil proxy sehat berikutnya dengan rotasi berkelanjutan (cursor persisten).
@@ -788,6 +789,7 @@ class ProxyManager:
                         max_uses_per_day=max_uses_per_day,
                         cooldown_seconds=cooldown_seconds,
                         window_seconds=window_seconds,
+                        lease_seconds=lease_seconds,
                         channel=channel,
                     )
                     if sb_proxy is None:
@@ -1750,7 +1752,7 @@ class ProxyManager:
                         "connection_type": conn_type,
                         "health": health,
                         "usage": USAGE_IDLE,
-                        "target_usage": {},
+                        "target_usage": row.get("target_usage") or {},
                         "health_gologin": str(row.get("health_gologin", health)).upper(),
                         "usage_gologin": USAGE_IDLE,
                         "target_usage_gologin": {},
