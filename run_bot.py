@@ -33,6 +33,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -74,6 +75,17 @@ def print_banner(node_name: str, target: str, workers: int, unlimited: bool, hea
     print(f"  {BOLD}Live Monitor   :{RESET} {BOLD}{GREEN}https://article.riztama.my.id/monitoring{RESET}", flush=True)
     print(f"{DIM}───────────────────────────────────────────────────────────────────{RESET}\n", flush=True)
 
+
+
+def _url_label(url: Optional[str], limit: int = 24) -> str:
+    """Label pendek host URL untuk prefix log worker."""
+    raw = str(url or "").strip()
+    if not raw:
+        return ""
+    host = (urlparse(raw).hostname or raw).lower()
+    if host.startswith("www."):
+        host = host[4:]
+    return host[:limit]
 
 
 def get_country_flag(country: Optional[str]) -> str:
@@ -156,6 +168,7 @@ class BotRunnerCLI:
                 "ads": "OK",
                 "status": "SIAP",
                 "sessions_done": 0,
+                "target_url": "",
                 "logs": [],
             }
 
@@ -171,13 +184,22 @@ class BotRunnerCLI:
             index = 0
         return WORKER_COLORS[index]
 
-    def _console(self, worker_id: Any, message: str, tag: Optional[str] = None) -> None:
+    def _console(
+        self,
+        worker_id: Any,
+        message: str,
+        tag: Optional[str] = None,
+        url: Optional[str] = None,
+    ) -> None:
         """Cetak satu baris log worker dengan warna & prefix tetap yang rapi."""
         ts = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")  # WIB
         try:
             tag_str = f"W{int(worker_id):>2}-{tag or self._flow_tag}"
         except (TypeError, ValueError):
             tag_str = f"W?-{tag or self._flow_tag}"
+        label = _url_label(url)
+        if label:
+            tag_str = f"{tag_str} · {label}"
         color = self._worker_color(worker_id)
         with self._console_lock:
             print(f"[{ts}] {color}[{tag_str}]{RESET} {message}", flush=True)
@@ -196,6 +218,9 @@ class BotRunnerCLI:
         wid = data.get("worker_id", 1)
         w = self.workers_state.setdefault(wid, {"worker_id": wid})
         ts = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")  # WIB
+        if data.get("target_url"):
+            w["target_url"] = data["target_url"]
+        display_url = w.get("target_url") or ""
 
         # Riwayat aktivitas log real-time per worker (ring buffer 15 baris)
         logs = w.setdefault("logs", [])
@@ -206,7 +231,7 @@ class BotRunnerCLI:
                 logs.append(f"[{ts}] {msg}")
                 w["logs"] = logs[-15:]
                 w["activity"] = msg[:75]
-                self._console(wid, msg)
+                self._console(wid, msg, url=display_url)
 
         elif etype == "stepper_update":
             stage = data.get("stage", "")
@@ -216,7 +241,7 @@ class BotRunnerCLI:
             logs.append(f"[{ts}] {stage} - {status}")
             w["logs"] = logs[-15:]
             if stage or status:
-                self._console(wid, f"⏳ {stage} — {status}")
+                self._console(wid, f"⏳ {stage} — {status}", url=display_url)
 
         elif etype == "proxy_assigned":
             c_name = data.get("country", "Unknown")
@@ -231,7 +256,11 @@ class BotRunnerCLI:
             w["activity"] = f"IP terpilih: {w['proxy_ip']} ({c_flag} {c_name})"
             logs.append(f"[{ts}] 🛡️ IP Dialokasikan: {w['proxy_ip']} ({c_flag} {c_name})")
             w["logs"] = logs[-15:]
-            self._console(wid, f"🛡️ IP Dialokasikan: {BOLD}{w['proxy_ip']}{RESET} ({c_flag} {c_name}) - {w['target_net']}")
+            self._console(
+                wid,
+                f"🛡️ IP Dialokasikan: {BOLD}{w['proxy_ip']}{RESET} ({c_flag} {c_name}) - {w['target_net']}",
+                url=display_url,
+            )
 
         elif etype == "verifier_report":
             w["out_ip"] = data.get("detected_ip") or w["proxy_ip"]
@@ -248,14 +277,20 @@ class BotRunnerCLI:
             logs.append(f"[{ts}] 🔍 Hasil Audit Stealth: {score}/100 | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}")
             w["logs"] = logs[-15:]
             score_col = GREEN if score >= 80 else (YELLOW if score >= 60 else RED)
-            self._console(wid, f"🔍 Audit Anti-Detect: {score_col}{score}/100{RESET} | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}")
+            self._console(
+                wid,
+                f"🔍 Audit Anti-Detect: {score_col}{score}/100{RESET} | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}",
+                url=display_url,
+            )
 
         elif etype == "session_started":
+            target_url = data.get("target_url") or display_url or self.args.url
+            w["target_url"] = target_url
             w["stepper"] = "🌐 Buka Web"
             w["activity"] = "Membuka halaman web target..."
-            logs.append(f"[{ts}] 🌐 Membuka target: {self.args.url}")
+            logs.append(f"[{ts}] 📄 URL aktif: {target_url}")
             w["logs"] = logs[-15:]
-            self._console(wid, f"🌐 Membuka halaman target: {self.args.url}")
+            self._console(wid, f"📄 URL aktif: {target_url}", url=target_url)
 
         elif etype == "step_waiting":
             step = data.get("index", 1)
@@ -298,7 +333,7 @@ class BotRunnerCLI:
             w["activity"] = f"Verifikasi & interaksi iklan: {ad_type}..."
             logs.append(f"[{ts}] 🎯 Memverifikasi viewability iklan: {ad_type}")
             w["logs"] = logs[-15:]
-            self._console(wid, f"🎯 Interaksi iklan: {ad_type}")
+            self._console(wid, f"🎯 Interaksi iklan: {ad_type}", url=display_url)
 
         elif etype == "flow_completed":
             w["stepper"] = "🏁 Impresi Selesai"
@@ -317,7 +352,11 @@ class BotRunnerCLI:
             w["logs"] = logs[-15:]
 
             status_col = GREEN if raw == "PASS" else (YELLOW if raw == "WARN" else RED)
-            self._console(wid, f"🏁 Sesi Selesai: {status_col}{label}{RESET} (Total Sukses: {w['sessions_done']})")
+            self._console(
+                wid,
+                f"🏁 Sesi Selesai: {status_col}{label}{RESET} (Total Sukses: {w['sessions_done']})",
+                url=display_url,
+            )
 
             # Catat ke JSON lokal & broadcast
             self.reporter.record_session_result(

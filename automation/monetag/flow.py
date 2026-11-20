@@ -239,6 +239,7 @@ def run_monetag_session(
             worker_id=worker_id,
             message=f"[W{worker_id}] {msg}",
             style=style,
+            target_url=target_url,
         )
 
     log(f"Memulai sesi Monetag dengan proxy: {proxy_label}", "cyan")
@@ -463,7 +464,12 @@ def run_monetag_session(
                     log(f"Catatan verifier: {str(e_ver)[:90]}", "dim")
 
             # ── 1. Kunjungi Halaman Target (MultiTag Web) ──
-            _emit(event_callback, "session_started", worker_id=worker_id)
+            _emit(
+                event_callback,
+                "session_started",
+                worker_id=worker_id,
+                target_url=target_url,
+            )
             _emit(
                 event_callback,
                 "stepper_update",
@@ -936,7 +942,13 @@ def run_monetag_session(
             stage="✅ LOLOS",
             status=f"Selesai ({duration}s)",
         )
-        _emit(event_callback, "session_completed", worker_id=worker_id, status="PASS")
+        _emit(
+            event_callback,
+            "session_completed",
+            worker_id=worker_id,
+            status="PASS",
+            target_url=target_url,
+        )
 
         return {
             "worker_id": worker_id,
@@ -1084,6 +1096,7 @@ def monetag_worker_thread_loop(
                 event_callback,
                 "proxy_assigned",
                 worker_id=worker_id,
+                target_url=url,
                 proxy_id=proxy_id,
                 ip=ip,
                 country=country,
@@ -1118,7 +1131,13 @@ def monetag_worker_thread_loop(
                     stage="❌ GAGAL",
                     status=str(e_run)[:40],
                 )
-                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL")
+                _emit(
+                    event_callback,
+                    "session_completed",
+                    worker_id=worker_id,
+                    status="FAIL",
+                    target_url=url,
+                )
                 budget.record("FAIL")
                 if proxy_id:
                     budget.mark_proxy(proxy_id)
