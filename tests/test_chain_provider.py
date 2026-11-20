@@ -217,6 +217,52 @@ def test_provider_rejects_non_floppydata_residential(tmp_path):
     assert pm.released == [(1, "lease-1")]
 
 
+def test_next_proxy_disables_hop_on_3xk_quota(monkeypatch, tmp_path):
+    path = tmp_path / "hops.txt"
+    path.write_text("user:pass@10.0.0.9:3129\n", encoding="utf-8")
+
+    class FakePM:
+        def acquire_proxy(self, **kwargs):
+            return {
+                "id": 1,
+                "host": "geo.floppydata.com",
+                "port": 10080,
+                "leased_by": "lease-1",
+            }
+
+        def release_proxy(self, proxy, caller_id=None, **kwargs):
+            return True
+
+    hop = {
+        "idx": 9,
+        "host": "1.2.3.4",
+        "port": 3129,
+        "username": "u",
+        "password": "p",
+        "source": "supabase",
+    }
+    provider = ChainProxyProvider(scrape_file=str(path), proxy_manager=FakePM())
+    monkeypatch.setattr(provider, "_pick_hops", lambda count: [hop])
+    monkeypatch.setattr(provider, "_blacklist_hop", lambda h: None)
+
+    def fake_probe(chain, targets=None):
+        raise ChainError(
+            "HTTP 429 dari target: Not Enough Bandwidth",
+            stage="target",
+            status=429,
+            raw=b"Error 429: Not Enough Bandwidth.",
+        )
+
+    monkeypatch.setattr(provider, "_probe", fake_probe)
+    disabled = []
+    monkeypatch.setattr(
+        provider, "disable_hop", lambda h, reason="": disabled.append(h["host"]) or True
+    )
+
+    assert provider.next_proxy() is None
+    assert disabled == ["1.2.3.4"]
+
+
 def test_hop_is_blamed_rules():
     assert hop_is_blamed(ChainError("mati", stage="hop_tcp"))
     assert hop_is_blamed(ChainError("HTTP 403 dari target: free trial traffic", stage="target"))
@@ -224,6 +270,14 @@ def test_hop_is_blamed_rules():
     assert hop_is_blamed(ChainError("CONNECT ditolak", stage="proxy_connect", raw=raw))
     assert not hop_is_blamed(ChainError("HTTP 402 dari target: no traffic left", stage="target"))
     assert not hop_is_blamed(ChainError("CONNECT ditolak (HTTP 407)", stage="proxy_connect", status=407))
+    bandwidth = b"Error 429: Not Enough Bandwidth. You have exceeded your bandwidth limit."
+    assert hop_is_blamed(
+        ChainError("CONNECT ditolak", stage="proxy_connect", status=429, raw=bandwidth)
+    )
+    expired = b"Error 407: Proxy Authentication Required. Your username or password is incorrect or your plan expired."
+    assert hop_is_blamed(
+        ChainError("CONNECT ditolak", stage="proxy_connect", status=407, raw=expired)
+    )
 
 
 def test_disable_hop_only_for_supabase_sourced(monkeypatch, tmp_path):

@@ -100,3 +100,44 @@ def test_upsert_hops_returns_false_when_rpc_fails(monkeypatch, tmp_path):
 def test_to_hop_rejects_missing_fields():
     assert HopRegistry._to_hop({"host": "", "port": 1}) is None
     assert HopRegistry._to_hop({"host": "1.2.3.4", "port": 0}) is None
+
+
+def test_disable_hops_uses_service_key_and_marks_false(monkeypatch, tmp_path):
+    cfg = _write_config(tmp_path, key="anon-key")
+    service = tmp_path / "supabase_service.json"
+    service.write_text(
+        json.dumps(
+            {
+                "supabase_url": "https://example.supabase.co",
+                "supabase_key": "service-key",
+                "schema": "proxxies",
+            }
+        ),
+        encoding="utf-8",
+    )
+    reg = HopRegistry(config_path=cfg)
+    seen = {}
+
+    class Resp:
+        status_code = 204
+
+    def fake_patch(url, headers=None, params=None, json=None, timeout=None):
+        seen.update(url=url, headers=headers, params=params, json=json)
+        return Resp()
+
+    monkeypatch.setattr("core.hop_registry.requests.patch", fake_patch)
+
+    assert reg.disable_hops(["1.2.3.4", "5.6.7.8"]) == 2
+    assert seen["headers"]["apikey"] == "service-key"
+    assert seen["params"] == {"host": "in.(1.2.3.4,5.6.7.8)"}
+    assert seen["json"] == {"enabled": False}
+
+
+def test_disable_hops_returns_zero_when_patch_rejected(monkeypatch, tmp_path):
+    reg = HopRegistry(config_path=_write_config(tmp_path))
+
+    class Resp:
+        status_code = 401
+
+    monkeypatch.setattr("core.hop_registry.requests.patch", lambda *a, **k: Resp())
+    assert reg.disable_hops(["1.2.3.4"]) == 0

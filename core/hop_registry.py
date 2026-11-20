@@ -39,6 +39,9 @@ class HopRegistry:
         self.supabase_url = str(cfg.get("supabase_url") or "").rstrip("/")
         self.supabase_key = str(cfg.get("supabase_key") or "")
         self.supabase_schema = str(cfg.get("schema") or "proxxies")
+        # Tabel hop ber-RLS: tulis (enabled=false) butuh service key bila ada.
+        base_dir = os.path.dirname(os.path.abspath(config_path or DEFAULT_CONFIG_FILE))
+        self._write_cfg = load_supabase_config(os.path.join(base_dir, "supabase_service.json"))
         self.timeout = float(timeout)
         self.enabled = bool(self.supabase_url and self.supabase_key)
 
@@ -111,14 +114,20 @@ class HopRegistry:
         return hops
 
     def disable_hops(self, hosts: List[str]) -> int:
-        """Gerbang ketat: set enabled=false untuk hop tertentu (PATCH by host)."""
+        """Gerbang ketat: set enabled=false untuk hop tertentu (PATCH by host).
+
+        Tabel hop memakai RLS, jadi pakai service key (supabase_service.json)
+        bila tersedia; anon key hanya bisa membaca.
+        """
         clean = [h for h in (str(x).strip() for x in hosts) if h]
         if not self.enabled or not clean:
             return 0
-        endpoint = f"{self.supabase_url}/rest/v1/hop_proxy_list?host=in.({','.join(clean)})"
+        base_url = str(self._write_cfg.get("supabase_url") or self.supabase_url).rstrip("/")
+        key = str(self._write_cfg.get("supabase_key") or self.supabase_key)
+        endpoint = f"{base_url}/rest/v1/hop_proxy_list"
         headers = {
-            "apikey": self.supabase_key,
-            "Authorization": f"Bearer {self.supabase_key}",
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
             "Accept-Profile": self.supabase_schema,
             "Content-Profile": self.supabase_schema,
             "Content-Type": "application/json",
@@ -126,7 +135,11 @@ class HopRegistry:
         }
         try:
             resp = requests.patch(
-                endpoint, headers=headers, json={"enabled": False}, timeout=self.timeout
+                endpoint,
+                headers=headers,
+                params={"host": f"in.({','.join(clean)})"},
+                json={"enabled": False},
+                timeout=self.timeout,
             )
         except Exception:
             return 0

@@ -46,15 +46,25 @@ def _short(text: Any, limit: int = 220) -> str:
 
 
 def hop_is_blamed(exc: ChainError) -> bool:
-    """True bila kegagalan berasal dari hop (mati / jaringannya diblokir FloppyData),
-    bukan dari residential (402 no-traffic) atau auth (407)."""
+    """True bila kegagalan berasal dari hop (mati / kuota habis / auth 3xK /
+    jaringannya diblokir FloppyData), bukan dari residential (402 no-traffic)
+    atau auth residential (407)."""
     if exc.stage == "hop_tcp":
         return True
     blob = str(exc)
     raw = getattr(exc, "raw", b"") or b""
     if isinstance(raw, bytes):
         blob += " " + raw.decode("latin-1", errors="ignore")
-    return "free trial" in blob.lower()
+    blob = blob.lower()
+    return any(
+        marker in blob
+        for marker in (
+            "free trial",
+            "not enough bandwidth",
+            "plan expired",
+            "username or password is incorrect",
+        )
+    )
 
 
 def parse_hop_file(path: str) -> List[Dict[str, Any]]:
@@ -241,7 +251,8 @@ class ChainProxyProvider:
                 hop_probe = self._probe([hop])
             except ChainError as exc:
                 self._blacklist_hop(hop)
-                if exc.stage == "hop_tcp":
+                # Probe single-hop: kegagalan kuota/auth 3xK juga wajib disable di DB.
+                if exc.stage == "hop_tcp" or hop_is_blamed(exc):
                     self.disable_hop(hop, _short(exc))
                 reasons.append(f"hop {hop['host']} mati: {_short(exc)}")
                 continue
@@ -531,12 +542,21 @@ class ChainProxyProvider:
         except ChainError as exc:
             if exc.stage == "hop_tcp":
                 self._blacklist_hop(hop)
+                self.disable_hop(hop, _short(exc))
                 self._log(
                     f"   Hop {hop.get('host')} mati saat sesi; residential tidak dihukum."
                 )
                 return
             if exc.stage == "proxy_connect":
                 fatal = exc.status in FATAL_PROXY_STATUS
+                if hop_is_blamed(exc):
+                    self._blacklist_hop(hop)
+                    self.disable_hop(hop, _short(exc))
+                    self._log(
+                        f"   Hop {hop.get('host')} ditolak/mati saat sesi; "
+                        "residential tidak dihukum."
+                    )
+                    return
                 self._mark_dead(
                     residential,
                     (
@@ -547,6 +567,14 @@ class ChainProxyProvider:
                 )
                 return
             if exc.stage == "target":
+                if hop_is_blamed(exc):
+                    self._blacklist_hop(hop)
+                    self.disable_hop(hop, _short(exc))
+                    self._log(
+                        f"   Hop {hop.get('host')} ditolak saat sesi; "
+                        "residential tidak dihukum."
+                    )
+                    return
                 self._cooldown(
                     residential,
                     f"Sesi gagal ({error_kind}): {_short(error)}; target probe gagal: {_short(exc)}",
@@ -575,14 +603,14 @@ class ChainProxyProvider:
 
     def _pick_hops(self, count: int) -> List[Dict[str, Any]]:
         now = time.time()
+        # Hop yang sudah disabled di DB jangan dipakai lagi di run yang sama.
+        pool = [hop for hop in self.hops if hop["host"] not in self._disabled_hosts]
         available = [
-            hop
-            for hop in self.hops
-            if self._hop_blacklist.get(hop["host"], 0.0) <= now
+            hop for hop in pool if self._hop_blacklist.get(hop["host"], 0.0) <= now
         ]
         if not available:
             self._hop_blacklist.clear()
-            available = list(self.hops)
+            available = pool
         self._rng.shuffle(available)
         return available[: max(1, count)]
 
@@ -609,6 +637,7 @@ class ChainProxyProvider:
                 self._disabled_hosts.add(host)
             self._log(f"🚫 Hop {host} dinonaktifkan di DB (enabled=false): {reason}")
             return True
+        self._log(f"! Gagal menonaktifkan hop {host} di DB (cek kredensial/service key): {reason}")
         return False
 
     def _probe(
