@@ -120,12 +120,16 @@ class ProxyManager:
         self.check_url = check_url
         self.timeout = timeout
         self._lock = threading.RLock()
+        self._leases_lock = threading.Lock()
+        self._active_leases: Dict[int, str] = {}
+        self._shutting_down = False
         self._ensure_file()
 
         # Supabase Distributed Coordination (Zero Race Condition across VPS / Colab)
         is_default_file = (self.filepath == os.path.abspath(DEFAULT_PROXY_FILE))
         should_use_supabase = enable_supabase if enable_supabase is not None else is_default_file
-        raw_node = node_id or os.environ.get("BOT_NODE_ID") or f"node_{uuid.uuid4().hex[:6]}"
+        import socket
+        raw_node = node_id or os.environ.get("BOT_NODE_ID") or f"node_{socket.gethostname()}"
         self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", str(raw_node))
         self.supabase_enabled = False
         self.supabase_rpc_available = False
@@ -222,6 +226,8 @@ class ProxyManager:
         channel="gologin" memakai RPC & kolom *_gologin sehingga tidak bertabrakan
         dengan lease/usage/health milik automation.
         """
+        if self._shutting_down:
+            return None
         payload = {
             "p_caller_id": caller_id,
             "p_target": target or "monetag",
@@ -232,6 +238,7 @@ class ProxyManager:
         }
         is_gologin = channel == CHANNEL_GOLOGIN
         fn_name = "acquire_proxy_gologin" if is_gologin else "acquire_proxy"
+        release_fn = "release_proxy_gologin" if is_gologin else "release_proxy"
         res, status = self._supabase_rpc(fn_name, payload)
         used_channel = channel
         if is_gologin and status == 404:
@@ -248,6 +255,14 @@ class ProxyManager:
             self.supabase_rpc_available = True
             if isinstance(res, list) and len(res) > 0:
                 row = res[0]
+                sb_id = row.get("id")
+                if self._shutting_down:
+                    if isinstance(sb_id, int):
+                        self._supabase_rpc(release_fn, {"p_proxy_id": sb_id, "p_caller_id": caller_id})
+                    return None
+                if isinstance(sb_id, int):
+                    with self._leases_lock:
+                        self._active_leases[sb_id] = caller_id
                 host = row.get("host")
                 port = int(row.get("port"))
                 user = row.get("username", "")
@@ -970,42 +985,83 @@ class ProxyManager:
             self._save_raw(data)
             return None
 
-    def reset_usage_to_idle(self, caller_id: Optional[str] = None, channel: str = CHANNEL_AUTOMATION) -> int:
+    def reset_usage_to_idle(
+        self,
+        caller_id: Optional[str] = None,
+        channel: str = CHANNEL_AUTOMATION,
+        shutting_down: bool = False,
+    ) -> int:
         """
         Membersihkan status IN_USE menjadi IDLE hanya untuk proxy yang disewa oleh node ini.
         Proxy milik VPS/Colab lain TIDAK AKAN DIGANGGU.
         Gunakan caller_id='__all__' hanya untuk maintenance reset global seluruh proxy.
         """
+        if shutting_down:
+            self._shutting_down = True
         keys = self._channel_keys(channel)
-        usage_col = "usage_gologin" if channel == CHANNEL_GOLOGIN else "usage"
-        leased_col = "leased_by_gologin" if channel == CHANNEL_GOLOGIN else "leased_by"
-        lease_exp_col = "lease_expires_at_gologin" if channel == CHANNEL_GOLOGIN else "lease_expires_at"
+        is_gologin = channel == CHANNEL_GOLOGIN
+        usage_col = "usage_gologin" if is_gologin else "usage"
+        leased_col = "leased_by_gologin" if is_gologin else "leased_by"
+        lease_exp_col = "lease_expires_at_gologin" if is_gologin else "lease_expires_at"
+        release_fn = "release_proxy_gologin" if is_gologin else "release_proxy"
+        sb_cleaned = 0
 
-        # 1. Bersihkan di Supabase via REST PATCH ter-filter
+        # 1. Bersihkan di Supabase via REST PATCH + fallback RPC SECURITY DEFINER (tahan RLS)
         if self.supabase_enabled:
-            endpoint = f"{self.supabase_url}/rest/v1/{self.supabase_table}"
-            if caller_id == "__all__":
-                endpoint += f"?{usage_col}=eq.IN_USE"
-            else:
-                target_caller = caller_id or self.node_id
-                endpoint += f"?{leased_col}=ilike.{target_caller}*"
-
+            target_caller = caller_id or self.node_id
+            base_endpoint = f"{self.supabase_url}/rest/v1/{self.supabase_table}"
+            filter_q = f"?{usage_col}=eq.IN_USE" if caller_id == "__all__" else f"?{leased_col}=ilike.{target_caller}*"
             headers = {
                 "apikey": self.supabase_key,
                 "Authorization": f"Bearer {self.supabase_key}",
                 "Accept-Profile": self.supabase_schema,
                 "Content-Profile": self.supabase_schema,
                 "Content-Type": "application/json",
+                "Prefer": "return=representation",
             }
+            with self._leases_lock:
+                tracked_ids = set(self._active_leases.keys())
+                if shutting_down or not caller_id or caller_id == "__all__":
+                    self._active_leases.clear()
+
+            # Ambil ID proxy yang sedang IN_USE di Supabase untuk node ini
+            try:
+                get_resp = requests.get(
+                    f"{base_endpoint}{filter_q}&select=id",
+                    headers=headers,
+                    timeout=6,
+                )
+                if get_resp.status_code == 200 and isinstance(get_resp.json(), list):
+                    for r in get_resp.json():
+                        if isinstance(r.get("id"), int):
+                            tracked_ids.add(r["id"])
+            except Exception:
+                pass
+
+            # Coba batch PATCH terlebih dahulu
             patch_data = {
                 usage_col: "IDLE",
                 leased_col: None,
                 lease_exp_col: None,
             }
             try:
-                requests.patch(endpoint, headers=headers, json=patch_data, timeout=6)
+                p_resp = requests.patch(f"{base_endpoint}{filter_q}", headers=headers, json=patch_data, timeout=6)
+                if p_resp.status_code in (200, 204):
+                    rows = p_resp.json() if p_resp.content else []
+                    if isinstance(rows, list):
+                        sb_cleaned = max(sb_cleaned, len(rows))
             except Exception:
                 pass
+
+            # Pastikan 100% kembali ke IDLE lewat RPC SECURITY DEFINER (menembus RLS anon key)
+            if tracked_ids:
+                def _rel_one(pid: int) -> bool:
+                    _, st = self._supabase_rpc(release_fn, {"p_proxy_id": pid, "p_caller_id": None}, timeout=6.0)
+                    return st in (200, 201, 204)
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(tracked_ids))) as pool:
+                    results = list(pool.map(_rel_one, tracked_ids))
+                sb_cleaned = max(sb_cleaned, sum(1 for ok in results if ok))
 
         # 2. Bersihkan di file lokal
         with self._lock:
@@ -1028,7 +1084,7 @@ class ProxyManager:
                     cleaned += 1
             if cleaned > 0:
                 self._save_raw(data)
-            return cleaned
+            return max(sb_cleaned, cleaned)
 
     def reset_cursor(self, to_index: int = 0) -> int:
         """
@@ -1073,6 +1129,8 @@ class ProxyManager:
                     )
                 if status in (200, 201, 204):
                     supabase_ok = True
+                    with self._leases_lock:
+                        self._active_leases.pop(sb_id, None)
         if isinstance(identifier, dict):
             identifier = identifier.get("id") or identifier.get("proxy_url") or ""
         with self._lock:
@@ -1557,6 +1615,8 @@ class ProxyManager:
                 _, status = self._supabase_rpc("mark_cooldown_gologin", payload)
                 if status in (200, 201, 204):
                     supabase_ok = True
+                    with self._leases_lock:
+                        self._active_leases.pop(sb_id, None)
                 elif status == 404:
                     print(
                         "RPC mark_cooldown_gologin tidak ada. Jalankan "
@@ -1622,6 +1682,8 @@ class ProxyManager:
                 _, status = self._supabase_rpc("mark_dead_gologin", payload)
                 if status in (200, 201, 204):
                     supabase_ok = True
+                    with self._leases_lock:
+                        self._active_leases.pop(sb_id, None)
                 elif status == 404:
                     print(
                         "RPC mark_dead_gologin tidak ada. Jalankan "

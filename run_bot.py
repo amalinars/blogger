@@ -44,7 +44,7 @@ from core.telemetry_reporter import get_telemetry_reporter
 from automation.chain_provider import ChainProxyProvider
 from automation.engine import load_config
 from automation.session import SessionBudget
-from automation.monetag.flow import monetag_worker_thread_loop, run_monetag_session
+from automation.monetag.flow import close_worker_browser, monetag_worker_thread_loop, run_monetag_session
 # ANSI Color codes untuk terminal modern
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -120,9 +120,11 @@ def get_country_flag(country: Optional[str]) -> str:
 
 class BotRunnerCLI:
     def __init__(self, args: argparse.Namespace) -> None:
+        import socket
         self.args = args
         self.stop_event = threading.Event()
-        raw_name = self.args.name or os.environ.get("BOT_NODE_ID") or f"node_{uuid.uuid4().hex[:6]}"
+        self._cleaned_up = False
+        raw_name = self.args.name or os.environ.get("BOT_NODE_ID") or f"node_{socket.gethostname()}"
         self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", raw_name)
         self.proxy_manager = ProxyManager(reset_stale_usage=True, node_id=self.node_id)
         self.proxy_manager.reset_usage_to_idle()
@@ -549,14 +551,35 @@ class BotRunnerCLI:
 
         # Daftarkan handler pembersihan status proxy saat Ctrl+C / Stop / Exit
         def _cleanup(*_):
+            if self._cleaned_up:
+                return
+            self._cleaned_up = True
+            try:
+                signal.signal(signal.SIGINT, signal.SIG_IGN)
+                signal.signal(signal.SIGTERM, signal.SIG_IGN)
+            except Exception:
+                pass
             self.stop_event.set()
+            self.proxy_manager._shutting_down = True
             print(f"\n{CYAN}🔄 Mereset status proxy node ({self.node_id}) ke IDLE di Supabase & lokal...{RESET}", flush=True)
-            cleaned = self.proxy_manager.reset_usage_to_idle()
-            print(f"{GREEN}✅ Status proxy node ({self.node_id}) berhasil dikembalikan ke IDLE (Total: {cleaned} lokal).{RESET}\n", flush=True)
+            for wid in range(1, self.args.workers + 1):
+                try:
+                    close_worker_browser(wid)
+                except Exception:
+                    pass
+            cleaned_1 = self.proxy_manager.reset_usage_to_idle(shutting_down=True)
+            time.sleep(0.35)
+            cleaned_2 = self.proxy_manager.reset_usage_to_idle(shutting_down=True)
+            total_cleaned = max(cleaned_1, cleaned_2)
+            print(f"{GREEN}✅ Status proxy node ({self.node_id}) berhasil dikembalikan ke IDLE (Total direset: {total_cleaned}).{RESET}\n", flush=True)
+
+        def _handle_signal(*_):
+            _cleanup()
+            sys.exit(0)
 
         try:
-            signal.signal(signal.SIGINT, lambda s, f: sys.exit(0))
-            signal.signal(signal.SIGTERM, lambda s, f: sys.exit(0))
+            signal.signal(signal.SIGINT, _handle_signal)
+            signal.signal(signal.SIGTERM, _handle_signal)
         except Exception:
             pass
         atexit.register(_cleanup)
