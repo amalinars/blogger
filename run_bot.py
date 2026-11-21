@@ -359,9 +359,6 @@ class BotRunnerCLI:
                 country=w.get("country", "—"),
             )
 
-        # Broadcast state langsung ke Supabase Realtime
-        self._broadcast_now()
-
     def _broadcast_now(self) -> None:
         try:
             stats = self.proxy_manager.get_stats()
@@ -548,7 +545,7 @@ class BotRunnerCLI:
             self.threads.append(t)
             self._console(wid, f"🚀 Worker {w_tag} diaktifkan, mulai mencari & mengalokasikan proxy...")
             if wid < self.args.workers:
-                time.sleep(1.0)
+                time.sleep(0.15)
 
         # Daftarkan handler pembersihan status proxy saat Ctrl+C / Stop / Exit
         def _cleanup(*_):

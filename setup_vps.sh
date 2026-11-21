@@ -212,9 +212,18 @@ if default_geoip.get("geoip") != "MaxMind GeoLite2":
     default_geoip["geoip"] = "MaxMind GeoLite2"
     changed = True
 
+for geo_item in data.get("geoip", []):
+    if str(geo_item.get("name", "")) == "MaxMind GeoLite2" and geo_item.get("deprecated"):
+        geo_item.pop("deprecated", None)
+        changed = True
+
 if changed:
     repos_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
     print(f"  ℹ️ Sumber browser diarahkan ke mirror {mirror} (repo resmi 404).")
+
+pin_path = Path(pkgman.LOCAL_DATA) / "browser-pin.json"
+if pin_path.exists():
+    pin_path.write_text("{}\n", encoding="utf-8")
 PY
 
 ALREADY_INSTALLED=false

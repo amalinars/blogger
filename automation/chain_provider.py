@@ -246,17 +246,6 @@ class ChainProxyProvider:
         target_errors: List[str] = []
 
         for hop in selected_hops:
-            hop_probe = None
-            try:
-                hop_probe = self._probe([hop])
-            except ChainError as exc:
-                self._blacklist_hop(hop)
-                # Probe single-hop: kegagalan kuota/auth 3xK juga wajib disable di DB.
-                if exc.stage == "hop_tcp" or hop_is_blamed(exc):
-                    self.disable_hop(hop, _short(exc))
-                reasons.append(f"hop {hop['host']} mati: {_short(exc)}")
-                continue
-
             try:
                 chain_probe = self._probe([hop, res_chain])
             except ChainError as exc:
@@ -292,7 +281,7 @@ class ChainProxyProvider:
                 continue
 
             exit_ip = chain_probe.get("exit_ip")
-            hop_exit_ip = (hop_probe or {}).get("exit_ip")
+            hop_exit_ip = hop.get("host")
             if not exit_ip:
                 target_errors.append("probe chain tidak mengembalikan exit IP")
                 continue

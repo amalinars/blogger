@@ -3,14 +3,46 @@
 
 import random
 import threading
+import warnings
 from functools import lru_cache
 from typing import Any, Dict, Optional
+
+warnings.filterwarnings("ignore", message=".*MaxMind GeoLite2.*", category=FutureWarning)
+warnings.filterwarnings("ignore", message=".*selected explicitly.*", category=RuntimeWarning)
 
 from camoufox import DefaultAddons
 from camoufox.sync_api import Camoufox
 
-# Global lock to serialize initial proxy connection, verification & initial page loading across all workers
-WORKER_STARTUP_LOCK = threading.Lock()
+# Semaphore (4) agar multi-worker bisa launch browser paralel tanpa antre 1-per-1
+WORKER_STARTUP_LOCK = threading.Semaphore(4)
+_CAMOUFOX_PIN_CHECKED = False
+
+
+def _ensure_camoufox_ready() -> None:
+    """Pastikan Camoufox memakai binary lokal yang sudah terpasang tanpa fetch ke repo 404 daijro/camoufox."""
+    global _CAMOUFOX_PIN_CHECKED
+    if _CAMOUFOX_PIN_CHECKED:
+        return
+    with WORKER_STARTUP_LOCK:
+        if _CAMOUFOX_PIN_CHECKED:
+            return
+        try:
+            from camoufox.multiversion import get_active_path, list_installed, load_config, save_config
+
+            if get_active_path() is None:
+                installed = list_installed()
+                if installed:
+                    inst = installed[0]
+                    cfg = load_config()
+                    cfg["active_version"] = inst.relative_path
+                    cfg["pinned"] = inst.version.full_string
+                    save_config(cfg)
+        except Exception:
+            pass
+        _CAMOUFOX_PIN_CHECKED = True
+
+
+_ensure_camoufox_ready()
 
 # Fallback country -> (timezone, locale) map used when GeoIP lookup is unavailable.
 COUNTRY_GEO_FALLBACK: Dict[str, tuple] = {
@@ -83,7 +115,7 @@ def resolve_geo_profile(proxy_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "source": "unknown",
     }
 
-    ip = proxy_data.get("ip_detected") or proxy_data.get("ip")
+    ip = proxy_data.get("ip_detected") or proxy_data.get("expected_ip") or proxy_data.get("ip")
     if ip:
         geo = _lookup_ip_geo(str(ip))
         if geo:
@@ -195,9 +227,12 @@ def build_camoufox_kwargs(
     proxy_dict = get_proxy_credentials(proxy_data) if proxy_data else None
     geo_profile = resolve_geo_profile(proxy_data)
 
-    geoip_setting: Any = True
-    if proxy_data and (proxy_data.get("ip_detected") or proxy_data.get("ip")):
-        geoip_setting = proxy_data.get("ip_detected") or proxy_data.get("ip")
+    known_ip = (
+        (proxy_data.get("ip_detected") or proxy_data.get("expected_ip") or proxy_data.get("ip"))
+        if proxy_data
+        else None
+    )
+    geoip_setting: Any = str(known_ip) if known_ip else False
 
     user_prefs: Dict[str, Any] = {
         "dom.webnotifications.enabled": True,

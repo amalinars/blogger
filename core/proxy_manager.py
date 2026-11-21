@@ -772,40 +772,40 @@ class ProxyManager:
         - Tidak menyebabkan infinite loop jika tidak ada proxy tersedia.
         - channel="gologin" memakai state terpisah agar tidak mengunci/menghabiskan kuota automation.
         """
+        # Safety: target "gologin" selalu berarti channel GoLogin.
+        if channel == CHANNEL_AUTOMATION and target == CHANNEL_GOLOGIN:
+            channel = CHANNEL_GOLOGIN
+        lease_token = caller_id or f"lease_{uuid.uuid4().hex[:8]}"
+        keys = self._channel_keys(channel)
+
+        # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition & Paralel Tanpa Lock Lokal)
+        if self.supabase_enabled:
+            sb_caller = f"{self.node_id}:{lease_token}" if not str(lease_token).startswith(f"{self.node_id}:") else lease_token
+            for _attempt in range(5 if verify_alive else 1):
+                sb_proxy = self._acquire_proxy_supabase(
+                    caller_id=sb_caller,
+                    target=target,
+                    max_uses_per_day=max_uses_per_day,
+                    cooldown_seconds=cooldown_seconds,
+                    window_seconds=window_seconds,
+                    lease_seconds=lease_seconds,
+                    channel=channel,
+                )
+                if sb_proxy is None:
+                    break
+                if verify_alive:
+                    test_res = self._test_proxy_network(sb_proxy["proxy_url"])
+                    if not test_res["success"]:
+                        self.report_failure(sb_proxy, error_message=test_res["error"], is_proxy_error=True, channel=channel)
+                        self.release_proxy(sb_proxy, caller_id=sb_caller, channel=channel)
+                        continue
+                    sb_proxy["ip_detected"] = test_res.get("ip")
+                    sb_proxy["latency_ms"] = test_res.get("latency_ms")
+                return sb_proxy
+            if self.supabase_rpc_available:
+                return None
+
         with self._lock:
-            # Safety: target "gologin" selalu berarti channel GoLogin.
-            if channel == CHANNEL_AUTOMATION and target == CHANNEL_GOLOGIN:
-                channel = CHANNEL_GOLOGIN
-            lease_token = caller_id or f"lease_{uuid.uuid4().hex[:8]}"
-            keys = self._channel_keys(channel)
-
-            # 0. Prioritas Distributed RPC Supabase (Bebas Race Condition Antar Node)
-            if self.supabase_enabled:
-                sb_caller = f"{self.node_id}:{lease_token}" if not str(lease_token).startswith(f"{self.node_id}:") else lease_token
-                for _attempt in range(5 if verify_alive else 1):
-                    sb_proxy = self._acquire_proxy_supabase(
-                        caller_id=sb_caller,
-                        target=target,
-                        max_uses_per_day=max_uses_per_day,
-                        cooldown_seconds=cooldown_seconds,
-                        window_seconds=window_seconds,
-                        lease_seconds=lease_seconds,
-                        channel=channel,
-                    )
-                    if sb_proxy is None:
-                        break
-                    if verify_alive:
-                        test_res = self._test_proxy_network(sb_proxy["proxy_url"])
-                        if not test_res["success"]:
-                            self.report_failure(sb_proxy, error_message=test_res["error"], is_proxy_error=True, channel=channel)
-                            self.release_proxy(sb_proxy, caller_id=sb_caller, channel=channel)
-                            continue
-                        sb_proxy["ip_detected"] = test_res.get("ip")
-                        sb_proxy["latency_ms"] = test_res.get("latency_ms")
-                    return sb_proxy
-                if self.supabase_rpc_available:
-                    return None
-
             data = self._load_raw()
             proxies = data.get("proxies", [])
             total = len(proxies)
