@@ -721,6 +721,16 @@ def run_monetag_session(
                 time.sleep(0.35)
             return str(tab.url or "")
 
+        def _is_valid_loaded_url(u: str) -> bool:
+            raw = str(u or "").strip().lower()
+            return bool(
+                raw
+                and raw != "about:blank"
+                and not raw.startswith("about:neterror")
+                and not raw.startswith("about:certerror")
+                and not raw.startswith("chrome-error://")
+            )
+
         def drain_popups(tag_name: str = "Popunder") -> int:
             nonlocal popunders_processed
             count = 0
@@ -740,6 +750,13 @@ def run_monetag_session(
                 try:
                     popup.bring_to_front()
                     popup_url = _wait_tab_loaded(popup, wait_redirect_hosts=("uplcm.com", "quge5.com", "5gvci.com"), timeout_sec=18.0)
+                    if not _is_valid_loaded_url(popup_url):
+                        log(f"⚠️ Tab iklan gagal memuat halaman tujuan ({popup_url[:50]}), dilewati.", "yellow")
+                        try:
+                            popup.close()
+                        except Exception:
+                            pass
+                        continue
                     time.sleep(0.5)
                     dwell_time = random.uniform(
                         float(popunder_dwell_cfg.get("min", 5.0)),
@@ -1001,23 +1018,39 @@ def run_monetag_session(
                         wait_redirect_hosts=("uplcm.com", "quge5.com", "5gvci.com", "al5sm.com", "nap5k.com"),
                         timeout_sec=25.0,
                     )
-                    log(f"🟢 Direct Link berhasil termuat ({_host(final_dl_url) or final_dl_url[:45]}), memulai dwell {direct_dwell:.1f}s...", "magenta")
-                    end_dl = time.time() + direct_dwell
-                    has_dl_interacted = False
-                    while time.time() < end_dl and not direct_page.is_closed():
-                        if humanize_enabled:
-                            human_wander(direct_page, duration_seconds=random.uniform(1.0, 1.8))
-                            human_scroll(direct_page, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
-                            if not has_dl_interacted and random.random() < 0.40:
-                                try:
-                                    vp_dl = direct_page.viewport_size or {"width": 1280, "height": 800}
-                                    neut_x = random.randint(120, vp_dl["width"] - 120)
-                                    neut_y = random.randint(180, vp_dl["height"] - 220)
-                                    direct_page.mouse.click(neut_x, neut_y)
-                                    has_dl_interacted = True
-                                except Exception:
-                                    pass
-                        time.sleep(1.2)
+                    if not _is_valid_loaded_url(final_dl_url):
+                        log("🔄 Percobaan #1 Direct Link belum termuat penuh, mencoba reload Direct Link...", "yellow")
+                        try:
+                            direct_page.goto(direct_link_url, wait_until="domcontentloaded", timeout=35000)
+                        except Exception:
+                            pass
+                        final_dl_url = _wait_tab_loaded(
+                            direct_page,
+                            wait_redirect_hosts=("uplcm.com", "quge5.com", "5gvci.com", "al5sm.com", "nap5k.com"),
+                            timeout_sec=20.0,
+                        )
+                    if _is_valid_loaded_url(final_dl_url):
+                        log(f"🟢 Direct Link berhasil termuat ({_host(final_dl_url) or final_dl_url[:45]}), memulai dwell {direct_dwell:.1f}s...", "magenta")
+                        end_dl = time.time() + direct_dwell
+                        has_dl_interacted = False
+                        while time.time() < end_dl and not direct_page.is_closed():
+                            if humanize_enabled:
+                                human_wander(direct_page, duration_seconds=random.uniform(1.0, 1.8))
+                                human_scroll(direct_page, scroll_amount=random.randint(180, 420), pause_range=(0.2, 0.4))
+                                if not has_dl_interacted and random.random() < 0.40:
+                                    try:
+                                        vp_dl = direct_page.viewport_size or {"width": 1280, "height": 800}
+                                        neut_x = random.randint(120, vp_dl["width"] - 120)
+                                        neut_y = random.randint(180, vp_dl["height"] - 220)
+                                        direct_page.mouse.click(neut_x, neut_y)
+                                        has_dl_interacted = True
+                                    except Exception:
+                                        pass
+                            time.sleep(1.2)
+                        direct_links_processed += 1
+                        log("✅ Direct Link dwell selesai dengan sukses!", "bold green")
+                    else:
+                        log(f"⚠️ Direct Link gagal memuat halaman advertiser ({final_dl_url[:50]}).", "yellow")
                     try:
                         direct_page.close()
                     except Exception:
@@ -1028,9 +1061,6 @@ def run_monetag_session(
                             gw.bring_to_front()
                         except Exception:
                             pass
-
-                direct_links_processed += 1
-                log("✅ Direct Link dwell selesai dengan sukses!", "bold green")
             except Exception as e_dl:
                 log(f"Peringatan proses Direct Link: {e_dl}", "dim")
 
@@ -1061,7 +1091,8 @@ def run_monetag_session(
             impression_summary = dict(impression_hits)
         impression_total = sum(impression_summary.values())
         visible_surfaces = int(ad_surface_state.get("count", 0) or 0)
-        ad_verified = bool(impression_total or visible_surfaces or impression_ok)
+        landing_dwelled = (popunders_processed > 0) or (direct_links_processed > 0)
+        ad_verified = bool(landing_dwelled or visible_surfaces > 0)
 
         if ad_total:
             hosts_text = ", ".join(

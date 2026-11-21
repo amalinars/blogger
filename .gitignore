@@ -64,6 +64,7 @@ env/
 !/data/supabase_config.json
 
 /data/errorlogs/
+/data/.node_id
 # Local artifacts and personal downloads
 .playwright-mcp/
 *.zip
