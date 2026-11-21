@@ -120,11 +120,10 @@ def get_country_flag(country: Optional[str]) -> str:
 
 class BotRunnerCLI:
     def __init__(self, args: argparse.Namespace) -> None:
-        import socket
         self.args = args
         self.stop_event = threading.Event()
         self._cleaned_up = False
-        raw_name = self.args.name or os.environ.get("BOT_NODE_ID") or f"node_{socket.gethostname()}"
+        raw_name = self.args.name or os.environ.get("BOT_NODE_ID") or ProxyManager._get_or_create_persistent_node_id()
         self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", raw_name)
         self.proxy_manager = ProxyManager(reset_stale_usage=True, node_id=self.node_id)
         self.proxy_manager.reset_usage_to_idle()

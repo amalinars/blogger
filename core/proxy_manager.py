@@ -128,8 +128,7 @@ class ProxyManager:
         # Supabase Distributed Coordination (Zero Race Condition across VPS / Colab)
         is_default_file = (self.filepath == os.path.abspath(DEFAULT_PROXY_FILE))
         should_use_supabase = enable_supabase if enable_supabase is not None else is_default_file
-        import socket
-        raw_node = node_id or os.environ.get("BOT_NODE_ID") or f"node_{socket.gethostname()}"
+        raw_node = node_id or os.environ.get("BOT_NODE_ID") or self._get_or_create_persistent_node_id()
         self.node_id = re.sub(r"[^a-zA-Z0-9_\-]", "_", str(raw_node))
         self.supabase_enabled = False
         self.supabase_rpc_available = False
@@ -155,6 +154,28 @@ class ProxyManager:
             self.reset_usage_to_idle()
         if reset_cursor:
             self.reset_cursor(0)
+
+    @staticmethod
+    def _get_or_create_persistent_node_id() -> str:
+        """Buat/baca node_id unik yang persisten per mesin (data/.node_id) agar antar-VPS yang hostname-nya sama tidak pernah tabrakan."""
+        import socket
+        node_file = os.path.join(PROJECT_ROOT, "data", ".node_id")
+        try:
+            if os.path.exists(node_file):
+                saved = open(node_file, "r", encoding="utf-8").read().strip()
+                if saved:
+                    return saved
+        except Exception:
+            pass
+        host = re.sub(r"[^a-zA-Z0-9]", "", socket.gethostname())[:12] or "vps"
+        generated = f"node_{host}_{uuid.uuid4().hex[:6]}"
+        try:
+            os.makedirs(os.path.dirname(node_file), exist_ok=True)
+            with open(node_file, "w", encoding="utf-8") as fh:
+                fh.write(generated)
+        except Exception:
+            pass
+        return generated
 
     @staticmethod
     def _is_shutdown_error(error_message: Optional[str]) -> bool:
@@ -1020,25 +1041,32 @@ class ProxyManager:
                 "Prefer": "return=representation",
             }
             with self._leases_lock:
-                tracked_ids = set(self._active_leases.keys())
+                local_active = dict(self._active_leases)
                 if shutting_down or not caller_id or caller_id == "__all__":
                     self._active_leases.clear()
 
-            # Ambil ID proxy yang sedang IN_USE di Supabase untuk node ini
+            # Ambil ID proxy yang di Supabase saat ini BENAR-BENAR masih dimiliki oleh node ini
+            owned_ids: Dict[int, Optional[str]] = {}
             try:
                 get_resp = requests.get(
-                    f"{base_endpoint}{filter_q}&select=id",
+                    f"{base_endpoint}{filter_q}&select=id,{leased_col}",
                     headers=headers,
                     timeout=6,
                 )
                 if get_resp.status_code == 200 and isinstance(get_resp.json(), list):
                     for r in get_resp.json():
-                        if isinstance(r.get("id"), int):
-                            tracked_ids.add(r["id"])
+                        rid = r.get("id")
+                        rleased = str(r.get(leased_col) or "")
+                        if isinstance(rid, int):
+                            if caller_id == "__all__" or rleased.startswith(target_caller):
+                                owned_ids[rid] = rleased or None
             except Exception:
-                pass
+                # Jika GET gagal karena jaringan, fallback hanya ke lease lokal yang cocok dengan target_caller
+                for rid, lcaller in local_active.items():
+                    if caller_id == "__all__" or str(lcaller).startswith(target_caller):
+                        owned_ids[rid] = lcaller
 
-            # Coba batch PATCH terlebih dahulu
+            # Coba batch PATCH ter-filter (hanya baris dengan leased_by milik node ini)
             patch_data = {
                 usage_col: "IDLE",
                 leased_col: None,
@@ -1053,14 +1081,15 @@ class ProxyManager:
             except Exception:
                 pass
 
-            # Pastikan 100% kembali ke IDLE lewat RPC SECURITY DEFINER (menembus RLS anon key)
-            if tracked_ids:
-                def _rel_one(pid: int) -> bool:
-                    _, st = self._supabase_rpc(release_fn, {"p_proxy_id": pid, "p_caller_id": None}, timeout=6.0)
+            # Pastikan 100% kembali ke IDLE lewat RPC SECURITY DEFINER hanya untuk ID yang terkonfirmasi milik node ini
+            if owned_ids:
+                def _rel_one(item: Tuple[int, Optional[str]]) -> bool:
+                    pid, lcaller = item
+                    _, st = self._supabase_rpc(release_fn, {"p_proxy_id": pid, "p_caller_id": lcaller}, timeout=6.0)
                     return st in (200, 201, 204)
 
-                with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(tracked_ids))) as pool:
-                    results = list(pool.map(_rel_one, tracked_ids))
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(16, len(owned_ids))) as pool:
+                    results = list(pool.map(_rel_one, list(owned_ids.items())))
                 sb_cleaned = max(sb_cleaned, sum(1 for ok in results if ok))
 
         # 2. Bersihkan di file lokal
