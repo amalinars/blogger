@@ -13,8 +13,9 @@ warnings.filterwarnings("ignore", message=".*selected explicitly.*", category=Ru
 from camoufox import DefaultAddons
 from camoufox.sync_api import Camoufox
 
-# Semaphore (4) agar multi-worker bisa launch browser paralel tanpa antre 1-per-1
-WORKER_STARTUP_LOCK = threading.Semaphore(4)
+# Semaphore (3) agar setengah dari 6 core CPU dipakai launch browser paralel,
+# dan setengahnya lagi selalu bebas melayani tab yang sedang memuat iklan Monetag.
+WORKER_STARTUP_LOCK = threading.Semaphore(3)
 _CAMOUFOX_PIN_CHECKED = False
 
 
@@ -211,6 +212,10 @@ POTATO_FIREFOX_PREFS: Dict[str, Any] = {
     "network.http.max-connections-per-server": 6,
     # 8. Jangan paksa hardware acceleration jika GPU lemah / software Mesa
     "layers.acceleration.force-enabled": False,
+    # 9. Batasi software WebRender ke 15 FPS (hemat 75% CPU render, requestAnimationFrame iklan tetap jalan 15x/dtk)
+    "layout.frame_rate": 15,
+    "dom.min_background_timeout_value": 1000,
+    "javascript.options.mem.gc_incremental": True,
 }
 
 

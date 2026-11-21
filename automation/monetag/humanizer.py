@@ -57,7 +57,9 @@ def human_move(
     distance = math.hypot(dx, dy)
 
     if steps is None:
-        steps = max(12, int(distance / 25) + random.randint(5, 12))
+        # C++ Camoufox (humanize=True) sudah menghaluskan kurva per move;
+        # 3-6 waypoint di Python memberi lengkungan natural tanpa banjir IPC CPU.
+        steps = max(3, min(6, int(distance / 140) + 2))
 
     # Titik kontrol kurva dengan lengkungan alami
     deviation = min(distance * 0.35, 180.0)
@@ -210,10 +212,10 @@ def human_wander(page: Any, duration_seconds: float) -> None:
     cur_y = random.uniform(200, vp["height"] - 200)
 
     while time.time() - started < duration_seconds:
-        # Pindah kursor santai
+        # Pindah kursor santai (3-5 waypoint; C++ Camoufox menghaluskan sub-step)
         next_x = max(100, min(vp["width"] - 100, cur_x + random.uniform(-250, 250)))
         next_y = max(100, min(vp["height"] - 100, cur_y + random.uniform(-200, 200)))
-        cur_x, cur_y = human_move(page, next_x, next_y, current_x=cur_x, current_y=cur_y, steps=random.randint(15, 30))
+        cur_x, cur_y = human_move(page, next_x, next_y, current_x=cur_x, current_y=cur_y, steps=random.randint(3, 5))
 
         # Jeda membaca
         time.sleep(random.uniform(0.8, 2.2))
