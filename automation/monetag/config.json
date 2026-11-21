@@ -2,49 +2,60 @@
   "target_url": "https://article.riztama.my.id/",
   "direct_link_url": "https://uplcm.com/4/12124796",
   "ad_hosts": [
+    "al5sm.com",
+    "n6wxm.com",
+    "ay267.com",
+    "aichouphaugn.com",
+    "uplcm.com",
     "quge5.com",
     "5gvci.com",
-    "uplcm.com",
-    "al5sm.com",
     "nap5k.com",
-    "n6wxm.com",
     "255md.com",
     "jhnwr.com",
-    "ldrws.com"
+    "ldrws.com",
+    "monetag.com",
+    "mndly.com",
+    "simplistic-walk.com",
+    "prizefamily.com",
+    "hilltopads.com"
+  ],
+  "redirect_hosts": [
+    "ay267.com",
+    "al5sm.com",
+    "n6wxm.com",
+    "uplcm.com",
+    "quge5.com",
+    "5gvci.com",
+    "nap5k.com",
+    "ldrws.com",
+    "255md.com",
+    "jhnwr.com",
+    "simplistic-walk.com",
+    "prizefamily.com"
   ],
   "ad_zones": ["12126541", "12126546", "12126548"],
   "require_ad_impression": true,
-  "ad_wait_seconds": 8.0,
-  "ad_fallback_seconds": 6.0,
   "headless": true,
   "humanize": true,
+  "lightweight": true,
   "run_browser_verifier": false,
-  "use_chain": false,
-  "chain_hop_tries": 3,
-  "chain_timeout": 15.0,
-  "chain_verbose": false,
-  "chain_dead_confirm_hops": 2,
-  "chain_hop_blacklist_seconds": 300.0,
-  "concurrency": 3,
-  "max_sessions_per_run": 50,
-  "max_uses_per_day": 2,
-  "proxy_cooldown_hours": 6.0,
-  "dwell_page_seconds": {
-    "min": 3.0,
-    "max": 6.0
+  "vignette_continue_ctr": 0.42,
+  "in_page_push_ctr": 0.30,
+  "direct_link_ctr": 0.45,
+  "dwell_vignette_card_seconds": {
+    "min": 2.2,
+    "max": 3.5
   },
   "dwell_popup_seconds": {
-    "min": 5.0,
-    "max": 8.5
+    "min": 6.0,
+    "max": 9.5
   },
   "dwell_direct_link_seconds": {
-    "min": 6.0,
-    "max": 10.0
+    "min": 6.5,
+    "max": 10.5
   },
-  "popunder_click_count": {
-    "min": 1,
-    "max": 3
-  },
-  "direct_link_chance": 0.50,
-  "report_dir": "data/monetag_qa"
+  "concurrency": 6,
+  "max_sessions_per_run": 50,
+  "max_uses_per_day": 2,
+  "proxy_cooldown_hours": 6.0
 }

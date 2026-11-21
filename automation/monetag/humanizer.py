@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """
 automation.monetag.humanizer
-Perilaku mouse dan interaksi ultra-natural untuk menghindari bot-detection Monetag.
-Menggunakan kurva Bézier, micro-tremor, variasi kecepatan, dan click offset acak.
+Gerakan mouse Bézier, klik fisik, dan scroll ringan untuk Camoufox (C++ humanize=True).
+Dioptimalkan agar hemat CPU IPC saat menjalankan banyak worker sekaligus.
 """
+
+from __future__ import annotations
 
 import math
 import random
 import time
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 
 def _cubic_bezier(
@@ -18,15 +20,11 @@ def _cubic_bezier(
     p3: Tuple[float, float],
     t: float,
 ) -> Tuple[float, float]:
-    """Menghitung titik pada kurva Bézier kubik pada parameter t [0, 1]."""
     u = 1.0 - t
     tt = t * t
     uu = u * u
-    uuu = uu * u
-    ttt = tt * t
-
-    x = uuu * p0[0] + 3 * uu * t * p1[0] + 3 * u * tt * p2[0] + ttt * p3[0]
-    y = uuu * p0[1] + 3 * uu * t * p1[1] + 3 * u * tt * p2[1] + ttt * p3[1]
+    x = (uu * u) * p0[0] + 3 * uu * t * p1[0] + 3 * u * tt * p2[0] + (tt * t) * p3[0]
+    y = (uu * u) * p0[1] + 3 * uu * t * p1[1] + 3 * u * tt * p2[1] + (tt * t) * p3[1]
     return x, y
 
 
@@ -38,61 +36,47 @@ def human_move(
     current_y: Optional[float] = None,
     steps: Optional[int] = None,
 ) -> Tuple[float, float]:
-    """
-    Menggerakkan kursor mouse ke (target_x, target_y) mengikuti kurva Bézier manusiawi,
-    lengkap dengan deviasi acak dan micro-jitter di sepanjang jalur.
-    """
+    """Gerakkan kursor mengikuti 3-6 waypoint kurva Bézier (C++ Camoufox menghaluskan sub-step)."""
     try:
         vp = page.viewport_size or {"width": 1280, "height": 800}
     except Exception:
         vp = {"width": 1280, "height": 800}
 
-    # Titik awal
     start_x = current_x if current_x is not None else random.uniform(100, vp["width"] - 100)
     start_y = current_y if current_y is not None else random.uniform(100, vp["height"] - 100)
 
-    # Jarak
     dx = target_x - start_x
     dy = target_y - start_y
     distance = math.hypot(dx, dy)
 
     if steps is None:
-        # C++ Camoufox (humanize=True) sudah menghaluskan kurva per move;
-        # 3-6 waypoint di Python memberi lengkungan natural tanpa banjir IPC CPU.
         steps = max(3, min(6, int(distance / 140) + 2))
 
-    # Titik kontrol kurva dengan lengkungan alami
-    deviation = min(distance * 0.35, 180.0)
-    ctrl1_x = start_x + dx * random.uniform(0.15, 0.4) + random.uniform(-deviation, deviation)
-    ctrl1_y = start_y + dy * random.uniform(0.15, 0.4) + random.uniform(-deviation, deviation)
-    ctrl2_x = start_x + dx * random.uniform(0.6, 0.85) + random.uniform(-deviation, deviation)
-    ctrl2_y = start_y + dy * random.uniform(0.6, 0.85) + random.uniform(-deviation, deviation)
-
+    deviation = min(distance * 0.30, 140.0)
     p0 = (start_x, start_y)
-    p1 = (ctrl1_x, ctrl1_y)
-    p2 = (ctrl2_x, ctrl2_y)
+    p1 = (
+        start_x + dx * random.uniform(0.18, 0.38) + random.uniform(-deviation, deviation),
+        start_y + dy * random.uniform(0.18, 0.38) + random.uniform(-deviation, deviation),
+    )
+    p2 = (
+        start_x + dx * random.uniform(0.62, 0.85) + random.uniform(-deviation, deviation),
+        start_y + dy * random.uniform(0.62, 0.85) + random.uniform(-deviation, deviation),
+    )
     p3 = (target_x, target_y)
 
     for i in range(1, steps + 1):
         t = i / steps
-        # Easing in-out (lambat di awal, cepat di tengah, melambat saat mendekati target)
         ease_t = 3 * (t ** 2) - 2 * (t ** 3)
         bx, by = _cubic_bezier(p0, p1, p2, p3, ease_t)
-
-        # Micro-tremor (getaran tangan manusia)
-        jitter_x = random.uniform(-0.8, 0.8) if i < steps else 0
-        jitter_y = random.uniform(-0.8, 0.8) if i < steps else 0
-
-        final_x = max(0, min(vp["width"], bx + jitter_x))
-        final_y = max(0, min(vp["height"], by + jitter_y))
-
+        jx = random.uniform(-0.8, 0.8) if i < steps else 0.0
+        jy = random.uniform(-0.8, 0.8) if i < steps else 0.0
+        fx = max(1.0, min(float(vp["width"] - 1), bx + jx))
+        fy = max(1.0, min(float(vp["height"] - 1), by + jy))
         try:
-            page.mouse.move(final_x, final_y)
+            page.mouse.move(fx, fy)
         except Exception:
             break
-
-        # Variasi jeda antar-langkah (1-4ms)
-        time.sleep(random.uniform(0.002, 0.007))
+        time.sleep(random.uniform(0.005, 0.015))
 
     return target_x, target_y
 
@@ -102,38 +86,24 @@ def human_click(
     target: Union[str, Any, Tuple[float, float]],
     current_pos: Optional[Tuple[float, float]] = None,
 ) -> Optional[Tuple[float, float]]:
-    """
-    Melakukan klik ultra-humanize pada elemen atau koordinat:
-    1. Mencari koordinat acak di dalam area elemen (bukan dead-center eksak).
-    2. Menggerakkan mouse dengan kurva Bézier alami.
-    3. Memberi jeda berpikir sebelum mouse down.
-    4. Mouse down -> Hold delay fisik (60-150ms) -> Mouse up.
-    5. Jeda penyelesaian setelah klik.
-    """
-    click_x: float = 0.0
-    click_y: float = 0.0
-
+    """Klik fisik (move -> hesitation -> mouse.down -> hold -> mouse.up) pada koordinat atau elemen."""
     cur_x = current_pos[0] if current_pos else None
     cur_y = current_pos[1] if current_pos else None
 
-    # Tentukan koordinat target
     if isinstance(target, tuple):
-        click_x, click_y = target
+        click_x, click_y = float(target[0]), float(target[1])
     elif isinstance(target, str):
-        # Target adalah selector string
         loc = page.locator(target).first
         try:
-            loc.wait_for(state="visible", timeout=6000)
+            loc.wait_for(state="visible", timeout=5000)
             box = loc.bounding_box()
             if not box:
                 return None
-            # Acak di area 25% - 75% elemen (hindari border)
             click_x = box["x"] + box["width"] * random.uniform(0.25, 0.75)
             click_y = box["y"] + box["height"] * random.uniform(0.25, 0.75)
         except Exception:
             return None
     else:
-        # Target adalah Locator Playwright
         try:
             box = target.bounding_box()
             if not box:
@@ -143,50 +113,39 @@ def human_click(
         except Exception:
             return None
 
-    # Gerakkan mouse ke posisi target
     end_x, end_y = human_move(page, click_x, click_y, current_x=cur_x, current_y=cur_y)
+    time.sleep(random.uniform(0.08, 0.20))
 
-    # Jeda natural sebelum jari menekan (hesitation delay)
-    time.sleep(random.uniform(0.12, 0.28))
-
-    # Eksekusi klik fisik (Mouse Down -> Hold -> Mouse Up)
     try:
         page.mouse.down()
-        time.sleep(random.uniform(0.065, 0.145))
+        time.sleep(random.uniform(0.055, 0.130))
         page.mouse.up()
     except Exception:
         pass
 
-    # Jeda pasca-klik
-    time.sleep(random.uniform(0.25, 0.55))
+    time.sleep(random.uniform(0.20, 0.45))
     return end_x, end_y
 
 
 def human_scroll(
     page: Any,
     scroll_amount: int,
-    pause_range: Tuple[float, float] = (0.2, 0.5),
+    pause_range: Tuple[float, float] = (0.15, 0.35),
 ) -> None:
-    """
-    Simulasi scroll mouse-wheel natural:
-    - Dipecah menjadi beberapa chunk scroll kecil (70 - 200px).
-    - Ada peluang 15% scroll mundur sedikit seolah user membaca ulang konten.
-    """
+    """Simulasi scroll roda mouse natural dalam beberapa chunk kecil."""
     direction = 1 if scroll_amount > 0 else -1
     remaining = abs(scroll_amount)
 
     while remaining > 0:
-        chunk = min(remaining, random.randint(70, 210))
+        chunk = min(remaining, random.randint(90, 240))
         delta_y = chunk * direction
 
-        # 15% kemungkinan re-scroll mundur sedikit
-        if random.random() < 0.15 and remaining > 150:
-            back_delta = -int(chunk * random.uniform(0.3, 0.6)) * direction
+        if random.random() < 0.12 and remaining > 180:
             try:
-                page.mouse.wheel(0, back_delta)
+                page.mouse.wheel(0, -int(chunk * 0.4) * direction)
             except Exception:
                 pass
-            time.sleep(random.uniform(0.15, 0.35))
+            time.sleep(random.uniform(0.12, 0.25))
 
         try:
             page.mouse.wheel(0, delta_y)
@@ -198,30 +157,25 @@ def human_scroll(
 
 
 def human_wander(page: Any, duration_seconds: float) -> None:
-    """
-    Simulasi pengunjung sedang memperhatikan / membaca halaman:
-    Menggerakkan mouse santai, berhenti sesaat, dan sesekali scrolling kecil.
-    """
+    """Gerakkan kursor santai dan sesekali scroll kecil selama masa dwell."""
     started = time.time()
     try:
         vp = page.viewport_size or {"width": 1280, "height": 800}
     except Exception:
         vp = {"width": 1280, "height": 800}
 
-    cur_x = random.uniform(200, vp["width"] - 200)
-    cur_y = random.uniform(200, vp["height"] - 200)
+    cur_x = random.uniform(180, max(220, vp["width"] - 180))
+    cur_y = random.uniform(180, max(220, vp["height"] - 180))
 
     while time.time() - started < duration_seconds:
-        # Pindah kursor santai (3-5 waypoint; C++ Camoufox menghaluskan sub-step)
-        next_x = max(100, min(vp["width"] - 100, cur_x + random.uniform(-250, 250)))
-        next_y = max(100, min(vp["height"] - 100, cur_y + random.uniform(-200, 200)))
+        next_x = max(80.0, min(float(vp["width"] - 80), cur_x + random.uniform(-220, 220)))
+        next_y = max(80.0, min(float(vp["height"] - 80), cur_y + random.uniform(-180, 180)))
         cur_x, cur_y = human_move(page, next_x, next_y, current_x=cur_x, current_y=cur_y, steps=random.randint(3, 5))
 
-        # Jeda membaca
-        time.sleep(random.uniform(0.8, 2.2))
+        rem = duration_seconds - (time.time() - started)
+        if rem <= 0:
+            break
+        time.sleep(min(rem, random.uniform(0.6, 1.4)))
 
-        # Sesekali scroll halus
-        if random.random() < 0.4:
-            human_scroll(page, random.choice([80, 140, -60]), pause_range=(0.1, 0.3))
-
-        time.sleep(random.uniform(0.5, 1.2))
+        if random.random() < 0.35 and (time.time() - started) < duration_seconds:
+            human_scroll(page, random.choice([90, 150, -70]), pause_range=(0.1, 0.25))

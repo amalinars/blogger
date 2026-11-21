@@ -1,0 +1,42 @@
+{
+  "target_url": "https://ghasima.ai.studio/",
+  "headless": true,
+  "humanize": true,
+  "lightweight": true,
+  "article_clicks_per_session": 2,
+  "push_click_chance": 0.40,
+  "banner_dwell_seconds": {
+    "min": 3.0,
+    "max": 5.0
+  },
+  "video_slider_dwell_seconds": {
+    "min": 5.0,
+    "max": 8.0
+  },
+  "popup_dwell_seconds": {
+    "min": 5.0,
+    "max": 8.5
+  },
+  "article_link_dwell_seconds": {
+    "min": 6.0,
+    "max": 10.0
+  },
+  "ad_hosts": [
+    "prizefamily.com",
+    "hilltopads.com",
+    "uplcm.com",
+    "monetag.com",
+    "quge5.com",
+    "5gvci.com",
+    "al5sm.com",
+    "nap5k.com"
+  ],
+  "redirect_hosts": [
+    "uplcm.com",
+    "prizefamily.com",
+    "quge5.com",
+    "5gvci.com",
+    "al5sm.com",
+    "nap5k.com"
+  ]
+}

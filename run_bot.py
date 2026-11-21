@@ -445,8 +445,11 @@ class BotRunnerCLI:
             potato=getattr(self.args, "potato", True),
         )
 
+        direct_mode = bool(getattr(self.args, "direct", False))
         chain_provider = None
-        if not getattr(self.args, "no_chain", False):
+        if direct_mode:
+            print(f"{YELLOW}🧪 Mode Testing Direct IP aktif (--direct): menjalankan 1 sesi langsung tanpa proxy.{RESET}", flush=True)
+        elif not getattr(self.args, "no_chain", False):
             try:
                 chain_provider = ChainProxyProvider(
                     hop_tries=getattr(self.args, "hop_tries", 3),
@@ -492,7 +495,20 @@ class BotRunnerCLI:
             "target_name": self.args.target,
             "errorlogs": getattr(self.args, "errorlogs", False),
             "lightweight": getattr(self.args, "potato", True),
+            "allow_direct_ip": direct_mode,
         })
+
+        if direct_mode:
+            try:
+                run_monetag_session(
+                    worker_id=1,
+                    proxy_data=None,
+                    config=base_config,
+                    event_callback=self._on_worker_event,
+                )
+            finally:
+                close_worker_browser(1)
+            return
 
         if chain_provider is not None and getattr(self.args, "chain_test", False):
             print(f"{CYAN}🧪 Menjalankan chain test (hop -> residential -> exit IP)...{RESET}", flush=True)
@@ -681,6 +697,11 @@ def parse_args() -> argparse.Namespace:
         "--no-chain",
         action="store_true",
         help="Nonaktifkan chain hop 3xK; pakai residential FloppyData langsung (fallback)",
+    )
+    parser.add_argument(
+        "--direct",
+        action="store_true",
+        help="Testing lokal 1 sesi dengan Direct IP tanpa proxy (hanya untuk uji visual)",
     )
     parser.add_argument(
         "--chain-test",

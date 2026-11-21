@@ -58,6 +58,12 @@ export default function RootLayout({
             __html: `(function(s){s.dataset.zone='12126548',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))`
           }}
         />
+        {/* HilltopAds In-Page Push Ad Tag */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(dduhk){var d=document,s=d.createElement('script'),l=d.currentScript||d.scripts[d.scripts.length-1];s.settings=dduhk||{};s.src="//simplistic-walk.com/b.XsV/sYdhGUlG0rYpWZcQ/Ie/mS9_uLZkUjlZkXP-TEcH1/NAjvI/0WMrDmUDttNrzaUn2lMwjbQmwpONQZ";s.async=true;s.referrerPolicy='no-referrer-when-downgrade';l.parentNode.insertBefore(s,l);})({})`
+          }}
+        />
       </head>
       <body className="min-h-screen bg-[#070c18] text-slate-100 antialiased font-sans selection:bg-cyan-500 selection:text-slate-950">
         <div className="fixed inset-0 pointer-events-none bg-grid-pattern opacity-40 z-0" aria-hidden="true" />

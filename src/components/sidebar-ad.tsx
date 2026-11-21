@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Sparkles,
-  ArrowRight,
   ShieldCheck,
   Activity,
-  Gauge,
   Wifi,
   Lock,
   ChevronRight,
-  ExternalLink,
 } from "lucide-react";
 import { IpData } from "@/lib/types";
 
@@ -18,9 +14,27 @@ interface SidebarAdProps {
   data: IpData;
 }
 
+const HILLTOP_BANNER_SRC =
+  "//simplistic-walk.com/bDX/VSs.dwGRlx0IYNWPcl/JepmJ9busZwUdlukZP/TwcH1INwjhIfzlOEDqkutCNxziU_2/MPjMMj5IMTwc";
+
 export function SidebarAd({ data }: SidebarAdProps) {
   const [testingPing, setTestingPing] = useState(false);
   const [pingResult, setPingResult] = useState<number | null>(28);
+  const bannerSlotRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const slot = bannerSlotRef.current;
+    if (!slot || slot.dataset.hilltopLoaded === "1") return;
+    slot.dataset.hilltopLoaded = "1";
+    const s = document.createElement("script") as HTMLScriptElement & {
+      settings?: Record<string, unknown>;
+    };
+    s.settings = {};
+    s.src = HILLTOP_BANNER_SRC;
+    s.async = true;
+    s.referrerPolicy = "no-referrer-when-downgrade";
+    slot.appendChild(s);
+  }, []);
 
   const runPingTest = () => {
     setTestingPing(true);
@@ -40,43 +54,23 @@ export function SidebarAd({ data }: SidebarAdProps) {
 
   return (
     <div className="space-y-4">
-      {/* Featured Partner Widget */}
-      <div className="rounded-2xl bg-gradient-to-b from-[#0f2249] to-[#09152e] border border-blue-500/30 p-5 shadow-2xl relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-
-        <div className="flex items-center justify-between mb-4">
+      {/* HilltopAds Banner 300x250 Slot */}
+      <aside
+        aria-label="Sponsored banner"
+        className="rounded-2xl bg-gradient-to-b from-[#0f2249] to-[#09152e] border border-blue-500/30 p-3 shadow-2xl relative overflow-hidden"
+      >
+        <div className="flex items-center justify-between mb-2 px-1">
           <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-500/20 text-cyan-300 border border-blue-500/30">
             Sponsor
           </span>
           <span className="text-[11px] text-slate-400">Advertisement</span>
         </div>
 
-        <div className="text-center py-2 space-y-3">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 p-0.5 shadow-lg shadow-cyan-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-[#0a162e] rounded-[14px] flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-cyan-400 group-hover:scale-110 transition-transform" />
-            </div>
-          </div>
-
-          <h3 className="text-xl font-extrabold text-white leading-tight">
-            Protect Your <span className="text-cyan-400">Privacy</span> Online
-          </h3>
-
-          <p className="text-xs text-slate-300 max-w-xs mx-auto leading-relaxed">
-            Shield your real IP address, encrypt network traffic, and access unrestricted worldwide content with military-grade security.
-          </p>
-
-          <div className="pt-2">
-            <a
-              href="#vpn-protect"
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 group-hover:shadow-cyan-500/25 transition-all"
-            >
-              <span>Get Protected Now</span>
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </a>
-          </div>
-        </div>
-      </div>
+        <div
+          ref={bannerSlotRef}
+          className="w-full min-h-[250px] flex items-center justify-center rounded-xl bg-[#070f21]/80 border border-slate-800/70 overflow-hidden"
+        />
+      </aside>
 
       {/* Real-time Network Diagnostic Widget */}
       <div className="rounded-2xl bg-[#091326]/90 border border-slate-700/60 p-5 shadow-2xl space-y-4">
