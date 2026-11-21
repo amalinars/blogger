@@ -112,13 +112,7 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
 
             if method_upper == "CONNECT":
                 host, port = _split_host_port(target, default_port=443)
-                upstream = open_chain_tunnel(
-                    chain.chain,
-                    host,
-                    port,
-                    timeout=chain.timeout,
-                    verbose=chain.verbose,
-                )
+                upstream = self._open_tunnel_with_retry(chain, host, port)
                 try:
                     client.sendall(b"HTTP/1.1 200 Connection Established\r\n\r\n")
                     response_started = True
@@ -162,13 +156,7 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
             rebuilt.append(b"Connection: close")
             request_blob = b"\r\n".join(rebuilt) + b"\r\n\r\n"
 
-            upstream = open_chain_tunnel(
-                chain.chain,
-                host,
-                port,
-                timeout=chain.timeout,
-                verbose=chain.verbose,
-            )
+            upstream = self._open_tunnel_with_retry(chain, host, port)
             try:
                 upstream.sendall(request_blob)
                 if leftover:
@@ -185,6 +173,25 @@ class _ProxyHandler(socketserver.BaseRequestHandler):
                 print(f"[proxy-bridge] request gagal: {type(exc).__name__}: {exc}")
             if not response_started:
                 self._send_error(client, 502, "Bad Gateway")
+
+    @staticmethod
+    def _open_tunnel_with_retry(chain: "ChainProxyServer", host: str, port: int) -> socket.socket:
+        import time
+        last_err: Optional[BaseException] = None
+        for attempt in range(2):
+            try:
+                return open_chain_tunnel(
+                    chain.chain,
+                    host,
+                    port,
+                    timeout=chain.timeout,
+                    verbose=chain.verbose,
+                )
+            except Exception as exc:
+                last_err = exc
+                if attempt == 0:
+                    time.sleep(0.25)
+        raise last_err  # type: ignore[misc]
 
     @staticmethod
     def _send_error(client: socket.socket, status: int, message: str) -> None:

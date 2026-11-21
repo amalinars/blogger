@@ -251,9 +251,9 @@ class ChainProxyProvider:
             except ChainError as exc:
                 blamed = hop_is_blamed(exc)
                 if exc.stage == "hop_tcp":
+                    # Timeout TCP sesaat cukup di-blacklist di memori (5 menit), jangan langsung matikan permanen di DB
                     self._blacklist_hop(hop)
-                    self.disable_hop(hop, _short(exc))
-                    reasons.append(f"hop {hop['host']} mati: {_short(exc)}")
+                    reasons.append(f"hop {hop['host']} timeout TCP: {_short(exc)}")
                 elif exc.stage == "proxy_connect":
                     if blamed:
                         # FloppyData menolak jaringan hop (403 free trial), bukan residential

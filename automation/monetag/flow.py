@@ -239,6 +239,14 @@ _PROXY_ERROR_MARKERS = (
     "err_connection_reset",
     "err_name_not_resolved",
     "err_timed_out",
+    "ns_error_proxy",
+    "ns_error_net",
+    "ns_error_connection",
+    "ns_error_unknown_host",
+    "ns_error_unknown_proxy",
+    "bad_gateway",
+    "502 bad gateway",
+    "unable to connect",
     "proxy connection",
     "tunnel connection",
     "timed out",
@@ -605,15 +613,25 @@ def run_monetag_session(
         ]
         chosen_ref = random.choice(organic_referers)
         log(f"Membuka halaman target (Referer: {_host(chosen_ref)}): {target_url}", "bold yellow")
-        try:
+        nav_ok = False
+        last_nav_err: Optional[BaseException] = None
+        for nav_attempt in range(1, 3):
             try:
-                page.goto(target_url, wait_until="commit", timeout=45000, referer=chosen_ref)
-            except Exception:
                 page.goto(target_url, wait_until="domcontentloaded", timeout=45000, referer=chosen_ref)
-        except Exception as e:
-            if chain_mode and _is_proxy_navigation_error(e):
-                raise MonetagProxyError(f"Navigasi target gagal lewat chain: {e}") from e
-            log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
+                curr_u = str(page.url or "")
+                if curr_u.startswith("about:neterror") or curr_u.startswith("about:certerror"):
+                    raise MonetagProxyError(f"Halaman gagal dimuat ({curr_u})")
+                nav_ok = True
+                break
+            except Exception as e:
+                last_nav_err = e
+                if nav_attempt == 1:
+                    log(f"Percobaan #1 buka target gagal ({str(e).splitlines()[0][:80]}), mencoba ulang...", "yellow")
+                    time.sleep(1.0)
+        if not nav_ok and last_nav_err is not None:
+            if _is_proxy_navigation_error(last_nav_err) or isinstance(last_nav_err, MonetagProxyError):
+                raise MonetagProxyError(f"Navigasi target gagal lewat proxy: {last_nav_err}") from last_nav_err
+            log(f"Peringatan loading ({last_nav_err}), melanjutkan interaksi...", "dim")
 
         # Jeda natural membaca halaman awal (1.0 - 1.8 dtk)
         time.sleep(random.uniform(1.0, 1.8))
@@ -666,6 +684,43 @@ def run_monetag_session(
 
         processed_popups = set()
 
+        def _wait_tab_loaded(tab: Any, wait_redirect_hosts: tuple = ("uplcm.com",), timeout_sec: float = 22.0) -> str:
+            """Tunggu tab baru keluar dari about:blank, melewati redirector, dan selesai memuat DOM sebelum dwell."""
+            deadline = time.time() + timeout_sec
+            # 1. Tunggu keluar dari about:blank
+            while time.time() < deadline and not tab.is_closed():
+                u = str(tab.url or "")
+                if u and u != "about:blank":
+                    break
+                time.sleep(0.25)
+
+            # 2. Jika masih di host redirector (mis. uplcm.com), tunggu redirect ke halaman advertiser
+            if wait_redirect_hosts:
+                redir_deadline = min(deadline, time.time() + 12.0)
+                while time.time() < redir_deadline and not tab.is_closed():
+                    u = str(tab.url or "")
+                    h = _host(u)
+                    if h and not any(rh in h for rh in wait_redirect_hosts):
+                        break
+                    time.sleep(0.35)
+
+            # 3. Tunggu DOM halaman akhir benar-benar termuat (bukan masih muter di about:blank)
+            rem_ms = int(max(3000.0, (deadline - time.time()) * 1000))
+            try:
+                tab.wait_for_load_state("domcontentloaded", timeout=rem_ms)
+            except Exception:
+                pass
+            while time.time() < deadline and not tab.is_closed():
+                try:
+                    state = tab.evaluate("() => document.readyState")
+                    u = str(tab.url or "")
+                    if u and u != "about:blank" and state in ("interactive", "complete"):
+                        break
+                except Exception:
+                    pass
+                time.sleep(0.35)
+            return str(tab.url or "")
+
         def drain_popups(tag_name: str = "Popunder") -> int:
             nonlocal popunders_processed
             count = 0
@@ -684,18 +739,8 @@ def run_monetag_session(
                 processed_popups.add(popup)
                 try:
                     popup.bring_to_front()
-                    # Tunggu jika URL masih about:blank sebelum navigasi selesai
-                    for _ in range(6):
-                        if popup.is_closed() or (popup.url and popup.url != "about:blank"):
-                            break
-                        time.sleep(0.3)
-
-                    try:
-                        popup.wait_for_load_state("domcontentloaded", timeout=6000)
-                    except Exception:
-                        pass
-                    time.sleep(0.6)
-                    popup_url = str(popup.url or "")
+                    popup_url = _wait_tab_loaded(popup, wait_redirect_hosts=("uplcm.com", "quge5.com", "5gvci.com"), timeout_sec=18.0)
+                    time.sleep(0.5)
                     dwell_time = random.uniform(
                         float(popunder_dwell_cfg.get("min", 5.0)),
                         float(popunder_dwell_cfg.get("max", 8.5)),
@@ -895,11 +940,16 @@ def run_monetag_session(
 
         # ── 6. Direct Link Monetag (Cuan Tertinggi) ──
         impression_ok = _ad_impression_seen()
-        force_direct = require_ad_impression and not impression_ok
+        force_direct = (require_ad_impression and not impression_ok) or (popunders_processed == 0)
         if direct_link_url and (force_direct or random.random() < direct_link_chance):
             if force_direct:
+                reason_msg = (
+                    "Belum ada Popunder terbuka di sesi ini"
+                    if popunders_processed == 0
+                    else "Belum ada impresi Monetag"
+                )
                 log(
-                    "🎯 Belum ada impresi Monetag — membuka Direct Link agar iklan pasti tampil.",
+                    f"🎯 {reason_msg} — wajib membuka & dwell Direct Link agar cuan maksimal.",
                     "bold yellow",
                 )
                 _emit(
@@ -907,7 +957,7 @@ def run_monetag_session(
                     "stepper_update",
                     worker_id=worker_id,
                     stage="🔗 Direct Link (Wajib)",
-                    status="Jaminan impresi iklan...",
+                    status="Jaminan impresi landing page...",
                 )
             direct_dwell = random.uniform(
                 float(direct_link_dwell_cfg.get("min", 6.0)),
@@ -944,11 +994,14 @@ def run_monetag_session(
                     direct_page.goto(direct_link_url, wait_until="domcontentloaded", timeout=45000)
 
                 if direct_page:
-                    try:
-                        direct_page.wait_for_load_state("domcontentloaded", timeout=30000)
-                    except Exception:
-                        pass
                     direct_page.bring_to_front()
+                    log("⏳ Menunggu redirect & loading halaman Direct Link selesai sebelum hitung dwell...", "cyan")
+                    final_dl_url = _wait_tab_loaded(
+                        direct_page,
+                        wait_redirect_hosts=("uplcm.com", "quge5.com", "5gvci.com", "al5sm.com", "nap5k.com"),
+                        timeout_sec=25.0,
+                    )
+                    log(f"🟢 Direct Link berhasil termuat ({_host(final_dl_url) or final_dl_url[:45]}), memulai dwell {direct_dwell:.1f}s...", "magenta")
                     end_dl = time.time() + direct_dwell
                     has_dl_interacted = False
                     while time.time() < end_dl and not direct_page.is_closed():

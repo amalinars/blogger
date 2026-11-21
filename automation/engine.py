@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Unified Camoufox browser setup and launch engine for bot automation."""
 
+import os
 import random
 import threading
 import warnings
@@ -297,6 +298,7 @@ def build_camoufox_kwargs(
     }
     if lightweight:
         kwargs["env"] = {
+            **os.environ,
             "MALLOC_ARENA_MAX": "2",
             "MOZ_DISABLE_RDD_PROCESS": "1",
         }
