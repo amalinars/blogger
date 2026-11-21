@@ -45,7 +45,6 @@ from automation.chain_provider import ChainProxyProvider
 from automation.engine import load_config
 from automation.session import SessionBudget
 from automation.monetag.flow import monetag_worker_thread_loop, run_monetag_session
-from automation.safelinkearn.bot import safelink_worker_thread_loop
 # ANSI Color codes untuk terminal modern
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -144,16 +143,8 @@ class BotRunnerCLI:
         self.budget = SessionBudget(max_sess, 1)
 
         self.workers_state: Dict[int, Dict[str, Any]] = {}
-        target_list = [t.strip().lower() for t in str(self.args.target).split(",") if t.strip()]
-        if any(t in ("safelink", "safelinkearn") for t in target_list):
-            t_net = "🔗 SafelinkEarn"
-            self._flow_tag = "SafelinkEarn"
-        elif len(target_list) > 1:
-            t_net = "💎 Monetag + 🔗 Smartlink"
-            self._flow_tag = "Monetag"
-        else:
-            t_net = "💎 Monetag"
-            self._flow_tag = "Monetag"
+        t_net = "💎 Monetag"
+        self._flow_tag = "Monetag"
         for wid in range(1, self.args.workers + 1):
             self.workers_state[wid] = {
                 "worker_id": wid,
@@ -428,21 +419,8 @@ class BotRunnerCLI:
             pass
 
     def run(self) -> None:
-        # Dukungan multi-target: --target monetag,smartlink (satu worker, satu IP, dua flow berurutan)
-        targets: List[str] = []
-        for raw in re.split(r"[,\s]+", str(self.args.target).lower()):
-            raw = raw.strip()
-            if not raw:
-                continue
-            name = "smartlink" if raw in ("smartlink", "smartlinks") else raw
-            if name not in targets:
-                targets.append(name)
-        if len(targets) > 1 and set(targets) != {"monetag", "smartlink"}:
-            raise SystemExit("❌ Target multi hanya didukung: monetag,smartlink")
-        self.args.target = ",".join(targets) if targets else "monetag"
-
-        is_safelink = self.args.target in ("safelink", "safelinkearn")
-        default_url = "https://sfe.ad/pB5n5lnLGp" if is_safelink else "https://article.riztama.my.id"
+        self.args.target = "monetag"
+        default_url = "https://article.riztama.my.id"
         urls: List[str] = []
         for raw in (getattr(self.args, "urls", None) or []):
             for part in re.split(r"[,\s]+", str(raw)):
@@ -456,7 +434,6 @@ class BotRunnerCLI:
         self.args.urls = urls
         site_urls = urls if (
             len(urls) > 1
-            and not is_safelink
             and getattr(self.args, "site_mode", "sequential") == "sequential"
         ) else []
 
@@ -471,7 +448,7 @@ class BotRunnerCLI:
         )
 
         chain_provider = None
-        if not is_safelink and not getattr(self.args, "no_chain", False):
+        if not getattr(self.args, "no_chain", False):
             try:
                 chain_provider = ChainProxyProvider(
                     hop_tries=getattr(self.args, "hop_tries", 3),
@@ -500,7 +477,7 @@ class BotRunnerCLI:
                     flush=True,
                 )
                 raise SystemExit(1)
-        elif not is_safelink:
+        else:
             print(f"{YELLOW}⚠️ Chain dimatikan (--no-chain); memakai residential langsung.{RESET}", flush=True)
 
         base_config = load_config()
@@ -511,7 +488,7 @@ class BotRunnerCLI:
             "headless": self.args.headless,
             "max_uses_per_day": self.args.max_uses,
             "proxy_cooldown_hours": self.args.cooldown,
-            "run_browser_verifier": True,
+            "run_browser_verifier": bool(base_config.get("run_browser_verifier", False)),
             "use_chain": chain_provider is not None,
             "max_sessions_per_run": 0 if self.args.unlimited else self.args.sessions,
             "target_name": self.args.target,
@@ -536,75 +513,25 @@ class BotRunnerCLI:
 
         pool_lock = threading.Lock()
 
-        smartlink_cfg: Optional[Dict[str, Any]] = None
-        if "smartlink" in targets:
-            cfg_path = PROJECT_ROOT / "automation" / "smartlink" / "config.json"
-            try:
-                smartlink_cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-            except Exception as exc:
-                raise SystemExit(f"❌ Gagal memuat config Smartlink: {exc}")
-            smartlink_cfg.update({
-                "headless": self.args.headless,
-                "humanize": True,
-                "use_chain": chain_provider is not None,
-                "max_uses_per_day": self.args.max_uses,
-                "proxy_cooldown_hours": self.args.cooldown,
-            })
-
-        def _run_smartlink_flow(worker_id: int, proxy: Dict[str, Any], _cfg: Dict[str, Any]) -> None:
-            """Flow ke-2 memakai IP/proxy yang sama dengan sesi Monetag."""
-            from automation.smartlink.flow import run_smartlink_session
-
-            self._console(worker_id, "🔗 Lanjut flow Smartlink dengan IP yang sama...", tag="Smartlink")
-            try:
-                run_smartlink_session(worker_id=worker_id, proxy_data=proxy, config=smartlink_cfg or {})
-            except Exception as exc:
-                # Monetag sudah sukses; kegagalan Smartlink jangan mengubah hasil sesi
-                self._console(worker_id, f"⚠️ Flow Smartlink gagal (Monetag tetap dihitung): {exc}", tag="Smartlink")
-                return
-            residential = proxy.get("_residential") or proxy
-            manager = chain_provider.pm if chain_provider is not None else self.proxy_manager
-            try:
-                manager.record_target_hit(
-                    residential,
-                    target="smartlink",
-                    window_seconds=24 * 3600,
-                    channel="automation",
-                    strict_channel=False,
-                )
-            except Exception as exc:
-                self._console(worker_id, f"⚠️ Gagal mencatat usage Smartlink: {exc}", tag="Smartlink")
-
         def _reset_pool() -> None:
             if getattr(self.proxy_manager, "supabase_enabled", False):
                 return
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
-                t_keys = ["safelink"] if is_safelink else ["monetag"]
-                if smartlink_cfg is not None:
-                    t_keys.append("smartlink")
-                reset_hits = sum(self.proxy_manager.reset_target_usage(k) for k in t_keys)
+                reset_hits = self.proxy_manager.reset_target_usage("monetag")
                 self.budget.reset_proxy_counts()
                 print(f"\n{YELLOW}♻️ [Mode Tanpa Batas Lokal] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
 
         # Spawn workers
         for wid in range(1, self.args.workers + 1):
-            if is_safelink:
-                w_fn = safelink_worker_thread_loop
-                w_tag = "SafelinkEarn"
-            else:
-                w_fn = monetag_worker_thread_loop
-                w_tag = "Monetag + Smartlink" if smartlink_cfg is not None else "Monetag"
+            w_tag = "Monetag"
             worker_kwargs: Dict[str, Any] = {
                 "reset_pool_callback": _reset_pool if self.budget.unlimited else None,
+                "chain_provider": chain_provider,
             }
-            if not is_safelink:
-                worker_kwargs["chain_provider"] = chain_provider
-            if smartlink_cfg is not None:
-                worker_kwargs["post_session"] = _run_smartlink_flow
             t = threading.Thread(
-                target=w_fn,
+                target=monetag_worker_thread_loop,
                 args=(
                     wid,
                     base_config,
@@ -621,7 +548,7 @@ class BotRunnerCLI:
             self.threads.append(t)
             self._console(wid, f"🚀 Worker {w_tag} diaktifkan, mulai mencari & mengalokasikan proxy...")
             if wid < self.args.workers:
-                time.sleep(3.0)
+                time.sleep(1.0)
 
         # Daftarkan handler pembersihan status proxy saat Ctrl+C / Stop / Exit
         def _cleanup(*_):

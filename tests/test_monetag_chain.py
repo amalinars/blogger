@@ -287,3 +287,57 @@ def test_classify_session_error():
     assert _classify_session_error(RuntimeError("Target closed")) == "shutdown"
     assert _classify_session_error(RuntimeError("Cloudflare Turnstile")) == "cloudflare"
     assert _classify_session_error(RuntimeError("random")) == "other"
+
+
+def test_monetag_browser_session_reuses_same_proxy_key(monkeypatch):
+    launches = []
+
+    class FakeContext:
+        def __init__(self):
+            self.closed = False
+            self.routes = []
+
+        def route(self, pattern, handler):
+            self.routes.append((pattern, handler))
+
+        def close(self):
+            self.closed = True
+
+    class FakeBrowser:
+        def __init__(self):
+            self.contexts = []
+
+        def new_context(self, **_opts):
+            ctx = FakeContext()
+            self.contexts.append(ctx)
+            return ctx
+
+    class FakeCamoufox:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            self.browser = FakeBrowser()
+            self.exited = False
+            launches.append(self)
+
+        def __enter__(self):
+            return self.browser
+
+        def __exit__(self, *args):
+            self.exited = True
+
+    monkeypatch.setattr(flow, "Camoufox", FakeCamoufox)
+    flow.close_worker_browser(99)
+
+    with flow._monetag_browser_session(99, "127.0.0.1:41001|1.1.1.1", {}, {}, lightweight=True) as (b1, c1):
+        assert len(launches) == 1
+        assert len(c1.routes) == 1
+    assert c1.closed is True
+    assert launches[0].exited is False
+
+    with flow._monetag_browser_session(99, "127.0.0.1:41001|1.1.1.1", {}, {}, lightweight=True) as (b2, c2):
+        assert b2 is b1
+        assert len(launches) == 1
+    assert c2.closed is True
+
+    flow.close_worker_browser(99)
+    assert launches[0].exited is True

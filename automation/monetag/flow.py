@@ -12,6 +12,7 @@ import os
 import random
 import threading
 import time
+from contextlib import contextmanager
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
@@ -22,6 +23,119 @@ from automation.session import SessionBudget, country_label
 from automation.browser_verifier import BrowserVerifier
 from automation.monetag.humanizer import human_click, human_move, human_scroll, human_wander
 from core.proxy_manager import ProxyManager
+
+_WORKER_BROWSERS: Dict[int, Dict[str, Any]] = {}
+_WORKER_BROWSERS_LOCK = threading.Lock()
+_MEDIA_EXT_RE = (".mp4", ".webm", ".m3u8", ".mp3", ".ogg", ".wav", ".avi", ".mov")
+
+
+def close_worker_browser(worker_id: int) -> None:
+    """Tutup instance browser Camoufox yang di-cache untuk worker tertentu."""
+    with _WORKER_BROWSERS_LOCK:
+        entry = _WORKER_BROWSERS.pop(worker_id, None)
+    if entry and entry.get("cm"):
+        try:
+            entry["cm"].__exit__(None, None, None)
+        except Exception:
+            pass
+
+
+def _setup_monetag_media_filter(context: Any) -> None:
+    """Blokir stream video/audio berat di landing page popunder tanpa menyentuh script/iframe iklan."""
+    def _route_handler(route: Any) -> None:
+        try:
+            req = route.request
+            url = (req.url or "").lower().split("?", 1)[0]
+            if req.resource_type == "media" or url.endswith(_MEDIA_EXT_RE):
+                route.abort()
+                return
+            route.continue_()
+        except Exception:
+            try:
+                route.continue_()
+            except Exception:
+                pass
+
+    try:
+        context.route("**/*", _route_handler)
+    except Exception:
+        pass
+
+
+@contextmanager
+def _monetag_browser_session(
+    worker_id: int,
+    proxy_key: str,
+    camoufox_kwargs: Dict[str, Any],
+    context_opts: Dict[str, Any],
+    lightweight: bool = True,
+    max_sessions: int = 8,
+):
+    """Reuse proses Camoufox per-worker untuk proxy yang sama dan kunci WORKER_STARTUP_LOCK hanya saat launch binary."""
+    if not lightweight:
+        with WORKER_STARTUP_LOCK:
+            cm = Camoufox(**camoufox_kwargs)
+            browser = cm.__enter__()
+        context = None
+        try:
+            context = browser.new_context(**context_opts)
+            yield browser, context
+        finally:
+            if context is not None:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            try:
+                cm.__exit__(None, None, None)
+            except Exception:
+                pass
+        return
+
+    with _WORKER_BROWSERS_LOCK:
+        entry = _WORKER_BROWSERS.get(worker_id)
+    browser = None
+    if (
+        entry
+        and entry.get("proxy_key") == proxy_key
+        and entry.get("sessions", 0) < max_sessions
+        and entry.get("browser") is not None
+    ):
+        entry["sessions"] += 1
+        browser = entry["browser"]
+    else:
+        close_worker_browser(worker_id)
+        with WORKER_STARTUP_LOCK:
+            cm = Camoufox(**camoufox_kwargs)
+            browser = cm.__enter__()
+        with _WORKER_BROWSERS_LOCK:
+            _WORKER_BROWSERS[worker_id] = {
+                "cm": cm,
+                "browser": browser,
+                "proxy_key": proxy_key,
+                "sessions": 1,
+            }
+
+    context = None
+    try:
+        context = browser.new_context(**context_opts)
+        _setup_monetag_media_filter(context)
+        yield browser, context
+    except Exception:
+        if context is not None:
+            try:
+                context.close()
+            except Exception:
+                pass
+            context = None
+        close_worker_browser(worker_id)
+        raise
+    finally:
+        if context is not None:
+            try:
+                context.close()
+            except Exception:
+                pass
 
 
 def _target_available(
@@ -202,9 +316,10 @@ def run_monetag_session(
     direct_link_url = config.get("direct_link_url", "https://uplcm.com/4/12124796")
     headless = bool(config.get("headless", True))
     humanize_enabled = bool(config.get("humanize", True))
+    lightweight = bool(config.get("lightweight", True))
     proxy_info = proxy_data or {}
     chain_mode = proxy_info.get("source") == "chain"
-    enable_verifier = bool(config.get("run_browser_verifier", False)) or chain_mode
+    enable_verifier = bool(config.get("run_browser_verifier", False))
 
     traffic_mode = config.get("traffic_mode", "fast_impression")
     is_deep = (traffic_mode == "deep_browse")
@@ -258,11 +373,18 @@ def run_monetag_session(
         humanize=humanize_enabled,
         allow_ads=True,
         extra_prefs={"media.peerconnection.enabled": False} if chain_mode else None,
+        lightweight=lightweight,
     )
     context_opts = build_camoufox_context_options(proxy_data)
+    proxy_key = f"{proxy_label}|{proxy_info.get('expected_ip') or proxy_info.get('ip_detected') or ''}"
 
-    with Camoufox(**camoufox_kwargs) as browser:
-        context = browser.new_context(**context_opts)
+    with _monetag_browser_session(
+        worker_id=worker_id,
+        proxy_key=proxy_key,
+        camoufox_kwargs=camoufox_kwargs,
+        context_opts=context_opts,
+        lightweight=lightweight,
+    ) as (browser, context):
         page = context.new_page()
 
         target_domain = target_host.split(":")[0]
@@ -395,109 +517,107 @@ def run_monetag_session(
                 time.sleep(0.35)
             return _ad_impression_seen()
 
-        log("⏳ Menunggu giliran koneksi & verifikasi proxy...", "dim")
-        with WORKER_STARTUP_LOCK:
-            # ── Pre-flight Browser Audit (Optional Verifier) ──
-            if enable_verifier:
-                _emit(
-                    event_callback,
-                    "stepper_update",
-                    worker_id=worker_id,
-                    stage="🛡️ Audit IP",
-                    status="Cek IP, WebRTC & stealth...",
-                )
-                try:
-                    page.goto("about:blank", wait_until="domcontentloaded", timeout=15000)
-                    verifier = BrowserVerifier(strict_mode=False)
-                    if chain_mode:
-                        exp_ip = proxy_info.get("expected_ip") or proxy_info.get("ip_detected")
-                        exp_country = None
-                        exp_asn = proxy_info.get("expected_asn")
-                        exp_isp = proxy_info.get("expected_isp")
-                        allow_ip_rotation = True
-                        forbidden_ip = proxy_info.get("hop_ip")
-                    else:
-                        is_rotating = (
-                            proxy_info.get("connection_type") == "residential"
-                            or "floppydata" in str(proxy_info.get("host", "")).lower()
-                        )
-                        exp_ip = None if is_rotating else (proxy_info.get("ip_detected") or proxy_info.get("host"))
-                        exp_country = None if is_rotating else proxy_info.get("country")
-                        exp_asn = None
-                        exp_isp = None
-                        allow_ip_rotation = False
-                        forbidden_ip = None
-
-                    report = verifier.verify(
-                        page,
-                        expected_ip=exp_ip,
-                        expected_country=exp_country,
-                        check_ads=True,
-                        expected_asn=exp_asn,
-                        expected_isp=exp_isp,
-                        allow_ip_rotation=allow_ip_rotation,
-                        forbidden_ip=forbidden_ip,
-                    )
-                    actual = report.actual_state
-                    _emit(
-                        event_callback,
-                        "verifier_report",
-                        worker_id=worker_id,
-                        score=report.score,
-                        is_safe=report.is_safe,
-                        detected_ip=actual.get("ip"),
-                        detected_country=country_label(actual.get("country")),
-                        isp=actual.get("isp"),
-                        bot_detected=bool(actual.get("webdriver")),
-                        webrtc_leak=bool(actual.get("webrtc_leak")),
-                        ads_allowed=bool(actual.get("ads_allowed", True)),
-                    )
-                    if chain_mode:
-                        leaked = report.match_results.get("ip_matched") is False
-                        webrtc_leak = report.match_results.get("no_webrtc_leak") is False
-                        if leaked or webrtc_leak:
-                            issues = "; ".join(report.issues[:3]) or "IP exit tidak sesuai"
-                            raise MonetagVerificationError(issues)
-                except MonetagVerificationError:
-                    raise
-                except Exception as e_ver:
-                    log(f"Catatan verifier: {str(e_ver)[:90]}", "dim")
-
-            # ── 1. Kunjungi Halaman Target (MultiTag Web) ──
-            _emit(
-                event_callback,
-                "session_started",
-                worker_id=worker_id,
-                target_url=target_url,
-            )
+        # ── Pre-flight Browser Audit (Optional Verifier) ──
+        if enable_verifier:
             _emit(
                 event_callback,
                 "stepper_update",
-                stage="🌐 Kunjungan Web",
-                status="Membuka web target...",
+                worker_id=worker_id,
+                stage="🛡️ Audit IP",
+                status="Cek IP, WebRTC & stealth...",
             )
-            organic_referers = [
-                "https://www.google.com/",
-                "https://www.bing.com/",
-                "https://t.co/",
-                "https://duckduckgo.com/",
-                "https://news.ycombinator.com/",
-            ]
-            chosen_ref = random.choice(organic_referers)
-            log(f"Membuka halaman target (Referer: {_host(chosen_ref)}): {target_url}", "bold yellow")
             try:
-                try:
-                    page.goto(target_url, wait_until="commit", timeout=45000, referer=chosen_ref)
-                except Exception:
-                    page.goto(target_url, wait_until="domcontentloaded", timeout=45000, referer=chosen_ref)
-            except Exception as e:
-                if chain_mode and _is_proxy_navigation_error(e):
-                    raise MonetagProxyError(f"Navigasi target gagal lewat chain: {e}") from e
-                log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
+                page.goto("about:blank", wait_until="domcontentloaded", timeout=15000)
+                verifier = BrowserVerifier(strict_mode=False)
+                if chain_mode:
+                    exp_ip = proxy_info.get("expected_ip") or proxy_info.get("ip_detected")
+                    exp_country = None
+                    exp_asn = proxy_info.get("expected_asn")
+                    exp_isp = proxy_info.get("expected_isp")
+                    allow_ip_rotation = True
+                    forbidden_ip = proxy_info.get("hop_ip")
+                else:
+                    is_rotating = (
+                        proxy_info.get("connection_type") == "residential"
+                        or "floppydata" in str(proxy_info.get("host", "")).lower()
+                    )
+                    exp_ip = None if is_rotating else (proxy_info.get("ip_detected") or proxy_info.get("host"))
+                    exp_country = None if is_rotating else proxy_info.get("country")
+                    exp_asn = None
+                    exp_isp = None
+                    allow_ip_rotation = False
+                    forbidden_ip = None
 
-            # Jeda natural membaca halaman awal (1.0 - 1.8 dtk)
-            time.sleep(random.uniform(1.0, 1.8))
-            log("🟢 Halaman awal berhasil termuat. Giliran koneksi diserahkan ke worker berikutnya!", "bold green")
+                report = verifier.verify(
+                    page,
+                    expected_ip=exp_ip,
+                    expected_country=exp_country,
+                    check_ads=True,
+                    expected_asn=exp_asn,
+                    expected_isp=exp_isp,
+                    allow_ip_rotation=allow_ip_rotation,
+                    forbidden_ip=forbidden_ip,
+                )
+                actual = report.actual_state
+                _emit(
+                    event_callback,
+                    "verifier_report",
+                    worker_id=worker_id,
+                    score=report.score,
+                    is_safe=report.is_safe,
+                    detected_ip=actual.get("ip"),
+                    detected_country=country_label(actual.get("country")),
+                    isp=actual.get("isp"),
+                    bot_detected=bool(actual.get("webdriver")),
+                    webrtc_leak=bool(actual.get("webrtc_leak")),
+                    ads_allowed=bool(actual.get("ads_allowed", True)),
+                )
+                if chain_mode:
+                    leaked = report.match_results.get("ip_matched") is False
+                    webrtc_leak = report.match_results.get("no_webrtc_leak") is False
+                    if leaked or webrtc_leak:
+                        issues = "; ".join(report.issues[:3]) or "IP exit tidak sesuai"
+                        raise MonetagVerificationError(issues)
+            except MonetagVerificationError:
+                raise
+            except Exception as e_ver:
+                log(f"Catatan verifier: {str(e_ver)[:90]}", "dim")
+
+        # ── 1. Kunjungi Halaman Target (MultiTag Web) ──
+        _emit(
+            event_callback,
+            "session_started",
+            worker_id=worker_id,
+            target_url=target_url,
+        )
+        _emit(
+            event_callback,
+            "stepper_update",
+            stage="🌐 Kunjungan Web",
+            status="Membuka web target...",
+        )
+        organic_referers = [
+            "https://www.google.com/",
+            "https://www.bing.com/",
+            "https://t.co/",
+            "https://duckduckgo.com/",
+            "https://news.ycombinator.com/",
+        ]
+        chosen_ref = random.choice(organic_referers)
+        log(f"Membuka halaman target (Referer: {_host(chosen_ref)}): {target_url}", "bold yellow")
+        try:
+            try:
+                page.goto(target_url, wait_until="commit", timeout=45000, referer=chosen_ref)
+            except Exception:
+                page.goto(target_url, wait_until="domcontentloaded", timeout=45000, referer=chosen_ref)
+        except Exception as e:
+            if chain_mode and _is_proxy_navigation_error(e):
+                raise MonetagProxyError(f"Navigasi target gagal lewat chain: {e}") from e
+            log(f"Peringatan loading ({e}), melanjutkan interaksi...", "dim")
+
+        # Jeda natural membaca halaman awal (1.0 - 1.8 dtk)
+        time.sleep(random.uniform(1.0, 1.8))
+        log("🟢 Halaman awal berhasil termuat!", "bold green")
 
         # ── 2. Perilaku Membaca Natural (Scroll & Mouse Wander) ──
         _emit(
@@ -1161,6 +1281,7 @@ def monetag_worker_thread_loop(
 
         if not released:
             if chain_provider is not None:
+                close_worker_browser(worker_id)
                 chain_provider.finish_session(
                     proxy, False, error_kind="batch",
                     log_prefix=f"[W{worker_id}] ",
@@ -1172,3 +1293,5 @@ def monetag_worker_thread_loop(
 
         # Jeda antar-sesi worker (dipercepat agar rotasi impresi tinggi)
         time.sleep(random.uniform(0.8, 1.8))
+
+    close_worker_browser(worker_id)
