@@ -66,12 +66,15 @@ nohup python3 automation/gologin_grabber.py --headless --workers 1 -r 1 --unlimi
 
 | Parameter | Deskripsi | Default |
 | :--- | :--- | :--- |
-| `--headless` | **Wajib di Colab/VPS**. Menjalankan browser tanpa monitor GUI. | `False` |
+| `--headless` | **Wajib di Colab/VPS**. Menjalankan browser tanpa jendela layar. | `False` |
 | `-c`, `--workers`, `--concurrency` | Jumlah browser Camoufox yang berjalan paralel. | `1` |
 | `-u`, `--unlimited` | Looping terus-menerus tanpa berhenti. | `False` |
 | `-t`, `--target` | Target jumlah proxy baru sebelum bot berhenti. | `100` |
 | `-r`, `--rounds` | Berapa akun yang dibuat per IP sesi (1 akun = 5 proxy). | `2` (~10 proxy) |
 | `--skip-verifier` | Lewati audit anti-detect (sangat disarankan di Colab/datacenter IP). | `False` |
+| `--no-chain` | Pakai hop 3xK langsung dari Supabase (`proxxies.hop_proxy_list`, fallback `--proxy-file`) tanpa chain residential. | `False` |
+| `--proxy-file` | Override file hop lokal (default fallback `data/proxies_scrape.txt`). | `None` |
+| `--use-pool` | Paksa pakai pool Proxy Management langsung tanpa chain. | `False` |
 | `--direct` | Pakai IP mesin langsung tanpa meminjam proxy dari pool. | `False` |
 | `--proxy-index N` | Gunakan proxy dengan indeks nomor tertentu saja. | `None` |
 

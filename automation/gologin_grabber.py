@@ -5,10 +5,11 @@ import time
 import random
 import re
 import threading
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.hop_registry import list_hops
 from core.proxy_manager import (
     upload_to_supabase,
     get_stats,
@@ -101,6 +102,37 @@ def parse_proxy_file(path: str) -> List[Dict[str, Any]]:
                 item["ip_detected"] = host.strip()
             items.append(item)
     return items
+
+
+def load_direct_hops(
+    proxy_file: Optional[str] = None,
+    prefer_supabase: bool = True,
+) -> Tuple[List[Dict[str, Any]], str]:
+    """Muat hop 3xK untuk mode --no-chain (Supabase hop_proxy_list dulu, fallback file)."""
+    if prefer_supabase:
+        try:
+            hops = list_hops()
+        except Exception as exc:
+            print(f"! Gagal memuat hop dari Supabase: {exc}", flush=True)
+            hops = []
+        if hops:
+            items: List[Dict[str, Any]] = []
+            for hop in hops:
+                item = dict(hop)
+                item["source"] = "hop_supabase"
+                item["allow_ip_rotation"] = True
+                host = str(item.get("host") or "").strip()
+                if re.match(r"^\d+\.\d+\.\d+\.\d+$", host):
+                    item["ip_detected"] = host
+                items.append(item)
+            return items, "supabase"
+
+    fallback_path = proxy_file or DEFAULT_PROXY_FILE
+    if fallback_path and os.path.isfile(fallback_path):
+        items = parse_proxy_file(fallback_path)
+        if items:
+            return items, f"file:{fallback_path}"
+    return [], ""
 
 def extract_proxies_from_api_data(data):
     """
@@ -917,22 +949,12 @@ def run_gologin_harvest_job(
     proxy_provider: Optional[Callable[[], Optional[Dict[str, Any]]]] = None,
     chain_provider: Optional[ChainProxyProvider] = None,
     stop_event: Optional[threading.Event] = None,
-    on_log: Optional[Callable[[str, str], None]] = None,
-    on_progress: Optional[Callable[[int, int], None]] = None,
     unlimited: bool = False,
+    use_supabase_hops: bool = False,
 ) -> int:
-    """
-    Menjalankan background multi-threaded harvester GoLogin trial proxies.
-    Dapat dipanggil oleh CLI maupun GUI (PySide6).
-    """
+    """Menjalankan multi-threaded CLI harvester GoLogin trial proxies."""
     if stop_event is None:
         stop_event = threading.Event()
-
-    def _log(msg: str, style: str = "white"):
-        if on_log:
-            on_log(msg, style)
-        else:
-            print(msg, flush=True)
 
     concurrency = max(1, concurrency)
     is_unlimited = unlimited or (target_proxies <= 0)
@@ -943,24 +965,37 @@ def run_gologin_harvest_job(
     }
 
     target_desc = "Tanpa Batas (∞ Looping Continuous)" if is_unlimited else f"{target_proxies} Proxy"
-    _log("=" * 65, "cyan")
-    _log("🌾 GOLOGIN PROXY HARVESTER (AUTO-ROTATING SESSION)", "bold cyan")
-    _log(f"🎯 Target Proxy Baru : {target_desc} | Concurrency: {concurrency} Worker(s)", "white")
-    _log(f"🔄 Rasio Grab        : 1 Proxy untuk {rounds}x Grab Akun GoLogin (~{rounds * 5} proxy)", "white")
-    _log(f"🖥️ Mode Headless     : {headless}", "white")
+    print("=" * 65, flush=True)
+    print("🌾 GOLOGIN PROXY HARVESTER (AUTO-ROTATING SESSION)", flush=True)
+    print(f"🎯 Target Proxy Baru : {target_desc} | Concurrency: {concurrency} Worker(s)", flush=True)
+    print(f"🔄 Rasio Grab        : 1 Proxy untuk {rounds}x Grab Akun GoLogin (~{rounds * 5} proxy)", flush=True)
+    print(f"🖥️ Mode Headless     : {headless}", flush=True)
 
-    file_items: Optional[List[Dict[str, Any]]] = None
-    file_lock = threading.Lock()
-    file_idx = [0]
-    if proxy_file and proxy_provider is None and chain_provider is None:
-        file_items = parse_proxy_file(proxy_file)
-        if not file_items:
-            _log(f"⚠️ File proxy '{proxy_file}' kosong/tidak ada/format salah. Fallback ke pool Proxy Management.", "yellow")
-            file_items = None
+    hop_items: Optional[List[Dict[str, Any]]] = None
+    hop_lock = threading.Lock()
+    hop_idx = [0]
+    if (
+        not direct
+        and proxy_index is None
+        and proxy_provider is None
+        and chain_provider is None
+        and (use_supabase_hops or proxy_file)
+    ):
+        hop_items, hop_source = load_direct_hops(
+            proxy_file=proxy_file,
+            prefer_supabase=use_supabase_hops,
+        )
+        if not hop_items:
+            src_hint = "Supabase hop_proxy_list maupun file fallback" if use_supabase_hops else f"file '{proxy_file}'"
+            print(f"❌ Tidak ada hop valid dari {src_hint}. Hentikan sesi.", flush=True)
+            return 0
+        random.shuffle(hop_items)
+        if hop_source == "supabase":
+            print(f"☁️ Sumber Proxy      : Supabase hop_proxy_list ({len(hop_items)} hop, acak round-robin)", flush=True)
         else:
-            _log(f"📄 Sumber Proxy      : File {proxy_file} ({len(file_items)} proxy, round-robin)", "white")
+            print(f"📄 Sumber Proxy      : File {hop_source.removeprefix('file:')} ({len(hop_items)} hop, acak round-robin)", flush=True)
 
-    _log("=" * 65, "cyan")
+    print("=" * 65, flush=True)
 
     def _worker_job(worker_id: int):
         proxy_run_count = 0
@@ -980,51 +1015,56 @@ def run_gologin_harvest_job(
             error_kind = "other"
 
             if direct:
-                _log(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menggunakan Direct IP (Internet Lokal)...", "cyan")
+                print(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menggunakan Direct IP (Internet Lokal)...", flush=True)
                 selected_proxy = None
             elif chain_provider is not None:
-                _log(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menyiapkan chain: hop 3xK acak -> residential Supabase...", "cyan")
+                print(f"🌐 [W{worker_id} - Sesi #{proxy_run_count}] Menyiapkan chain: hop 3xK acak -> residential Supabase...", flush=True)
                 selected_proxy = chain_provider.next_proxy()
                 if not selected_proxy:
                     if stop_event.is_set():
                         break
-                    _log(f"⚠️ [W{worker_id}] Belum ada chain hop/residential yang valid, menunggu 2 detik...", "yellow")
+                    print(f"⚠️ [W{worker_id}] Belum ada chain hop/residential yang valid, menunggu 2 detik...", flush=True)
                     time.sleep(2.0)
                     continue
                 chain_session = True
-                _log(
+                print(
                     f"🔗 [W{worker_id} - Sesi #{proxy_run_count}] Chain siap: "
                     f"hop {selected_proxy.get('hop_ip')}:{selected_proxy.get('hop_port')} -> "
                     f"residential {selected_proxy.get('residential_host')} "
                     f"(id {selected_proxy.get('residential_id')}) -> "
                     f"exit {selected_proxy.get('expected_ip')} "
                     f"[{selected_proxy.get('country') or '?'} | {selected_proxy.get('latency_ms') or '?'}ms]",
-                    "green",
+                    flush=True,
                 )
             elif proxy_provider is not None:
-                _log(f"🛰️ [W{worker_id} - Sesi #{proxy_run_count}] Mencari 1 proxy Geonode yang hidup & stabil...", "cyan")
+                print(f"🛰️ [W{worker_id} - Sesi #{proxy_run_count}] Mencari 1 proxy Geonode yang hidup & stabil...", flush=True)
                 selected_proxy = proxy_provider()
                 if not selected_proxy:
                     if stop_event.is_set():
                         break
-                    _log(f"⚠️ [W{worker_id}] Belum ada proxy stabil dari Geonode, menunggu 2 detik...", "yellow")
+                    print(f"⚠️ [W{worker_id}] Belum ada proxy stabil dari Geonode, menunggu 2 detik...", flush=True)
                     time.sleep(2.0)
                     continue
-                _log(
+                print(
                     f"🛰️ [W{worker_id} - Sesi #{proxy_run_count}] Pakai proxy Geonode: "
                     f"{selected_proxy['host']}:{selected_proxy['port']} "
                     f"[{selected_proxy.get('country') or '?'} | {selected_proxy.get('latency_ms') or '?'}ms]",
-                    "green",
+                    flush=True,
                 )
-            elif file_items is not None:
-                with file_lock:
-                    selected_proxy = file_items[file_idx[0] % len(file_items)]
-                    file_idx[0] += 1
-                _log(f"📄 [W{worker_id} - Sesi #{proxy_run_count}] Proxy dari file: {selected_proxy['host']}:{selected_proxy['port']} (source=file, bukan pool)", "cyan")
+            elif hop_items is not None:
+                with hop_lock:
+                    selected_proxy = hop_items[hop_idx[0] % len(hop_items)]
+                    hop_idx[0] += 1
+                src_label = "Supabase hop_proxy_list" if selected_proxy.get("source") == "hop_supabase" else "file"
+                print(
+                    f"🛰️ [W{worker_id} - Sesi #{proxy_run_count}] Hop langsung ({src_label}): "
+                    f"{selected_proxy['host']}:{selected_proxy['port']}",
+                    flush=True,
+                )
             elif proxy_index is not None:
                 selected_proxy = get_proxy_by_index(proxy_index)
                 if not selected_proxy:
-                    _log(f"⚠️ [W{worker_id}] Proxy index {proxy_index} tidak ditemukan di Proxy Management.", "yellow")
+                    print(f"⚠️ [W{worker_id}] Proxy index {proxy_index} tidak ditemukan di Proxy Management.", flush=True)
                     break
             else:
                 selected_proxy = acquire_proxy(
@@ -1036,9 +1076,9 @@ def run_gologin_harvest_job(
                 if selected_proxy:
                     is_acquired = True
                     src = "Supabase" if selected_proxy.get("source") == "supabase_rpc" else "Lokal"
-                    _log(f"🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')}) [{src}]", "green")
+                    print(f"🔍 [W{worker_id} - Sesi #{proxy_run_count}] Acquire proxy: {selected_proxy.get('country')} ({selected_proxy.get('host')}:{selected_proxy.get('port')}) [{src}]", flush=True)
                 else:
-                    _log(f"⚠️ [W{worker_id}] Seluruh proxy di pool sedang digunakan atau DEAD. Menunggu 3 detik...", "yellow")
+                    print(f"⚠️ [W{worker_id}] Seluruh proxy di pool sedang digunakan atau DEAD. Menunggu 3 detik...", flush=True)
                     time.sleep(3.0)
                     continue
 
@@ -1057,9 +1097,7 @@ def run_gologin_harvest_job(
                     state["total_added"] += len(new_proxies)
                     total_now = state["total_added"]
                 target_str = "∞" if is_unlimited else str(state["target"])
-                _log(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{target_str}", "bold green")
-                if on_progress:
-                    on_progress(total_now, 0 if is_unlimited else state["target"])
+                print(f"📈 [W{worker_id}] PROGRESS HARVEST: +{len(new_proxies)} proxy baru! Total: {total_now}/{target_str}", flush=True)
             except Exception as e:
                 session_error = e
                 err_text = str(e)
@@ -1076,38 +1114,43 @@ def run_gologin_harvest_job(
                 )
                 if is_shutdown:
                     error_kind = "shutdown"
-                    _log(f"⏹️ [W{worker_id}] Sesi dihentikan — health proxy tidak diubah.", "yellow")
+                    print(f"⏹️ [W{worker_id}] Sesi dihentikan — health proxy tidak diubah.", flush=True)
                 else:
                     is_cf_block = isinstance(e, CloudflareBlockedError)
                     is_stalled = isinstance(e, ProxyStalledError)
                     is_verification = isinstance(e, BrowserVerificationError)
                     if is_cf_block:
                         error_kind = "cloudflare"
-                        _log(
-                            f"🚫 [W{worker_id}] Cloudflare memblokir exit IP {selected_proxy.get('expected_ip') if selected_proxy else ''} "
+                        blocked_ip = (
+                            selected_proxy.get("expected_ip")
+                            or selected_proxy.get("ip_detected")
+                            or selected_proxy.get("host")
+                        ) if selected_proxy else ""
+                        print(
+                            f"🚫 [W{worker_id}] Cloudflare memblokir exit IP {blocked_ip} "
                             f"(sesi #{proxy_run_count}): {e} — rotasi ke proxy berikutnya.",
-                            "red",
+                            flush=True,
                         )
                     elif is_stalled:
                         error_kind = "stalled"
-                        _log(
+                        print(
                             f"🔌 [W{worker_id}] Proxy {selected_proxy.get('host') if selected_proxy else ''} macet/rate-limited "
                             f"(sesi #{proxy_run_count}) — rotasi ke proxy berikutnya.",
-                            "yellow",
+                            flush=True,
                         )
                     elif is_verification:
                         error_kind = "verification"
-                        _log(
+                        print(
                             f"🛡️ [W{worker_id}] Verifikasi browser gagal (exit IP/leak) "
                             f"(sesi #{proxy_run_count}): {e} — rotasi ke proxy berikutnya.",
-                            "red",
+                            flush=True,
                         )
                     else:
                         error_kind = "network" if any(
                             k.lower() in err_text.lower()
                             for k in ["proxy", "timeout", "connection", "reset", "tunnel"]
                         ) else "other"
-                        _log(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", "red")
+                        print(f"⚠️ [W{worker_id}] Terjadi error saat grab pada sesi #{proxy_run_count}: {e}", flush=True)
                     if is_acquired and selected_proxy:
                         is_proxy_err = is_cf_block or is_stalled or any(
                             k.lower() in err_text.lower() for k in ["proxy", "timeout", "connection", "reset"]
@@ -1118,11 +1161,11 @@ def run_gologin_harvest_job(
                             is_proxy_error=is_proxy_err,
                             channel="gologin",
                         )
-                    elif is_cf_block and selected_proxy and selected_proxy.get("source") == "file":
-                        _log(
-                            f"   💡 Proxy file {selected_proxy.get('host')}:{selected_proxy.get('port')} tampaknya diblokir "
-                            "Cloudflare (IP datacenter). Pertimbangkan untuk menghapus/menggantinya dari daftar.",
-                            "yellow",
+                    elif is_cf_block and selected_proxy and selected_proxy.get("source") in ("file", "hop_supabase"):
+                        print(
+                            f"   💡 Hop {selected_proxy.get('host')}:{selected_proxy.get('port')} ({selected_proxy.get('source')}) "
+                            "tampaknya diblokir Cloudflare (IP datacenter). Pertimbangkan menonaktifkan/menggantinya.",
+                            flush=True,
                         )
             finally:
                 if chain_session and selected_proxy and chain_provider is not None:
@@ -1133,12 +1176,12 @@ def run_gologin_harvest_job(
                             error=session_error,
                             error_kind=error_kind,
                         )
-                        _log(f"🔓 [W{worker_id}] Chain selesai; lease residential dilepas dan bridge ditutup.", "dim")
+                        print(f"🔓 [W{worker_id}] Chain selesai; lease residential dilepas dan bridge ditutup.", flush=True)
                     except Exception as finish_exc:
-                        _log(f"⚠️ [W{worker_id}] Gagal finalisasi chain: {finish_exc}", "yellow")
+                        print(f"⚠️ [W{worker_id}] Gagal finalisasi chain: {finish_exc}", flush=True)
                 elif is_acquired and selected_proxy:
                     release_proxy(selected_proxy, caller_id=caller_id, channel="gologin")
-                    _log(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.", "dim")
+                    print(f"🔓 [W{worker_id}] Proxy {selected_proxy.get('id')} telah dilepaskan kembali ke status IDLE.", flush=True)
 
             if proxy_index is not None:
                 break
@@ -1157,15 +1200,15 @@ def run_gologin_harvest_job(
             time.sleep(1.0)
     except KeyboardInterrupt:
         stop_event.set()
-        _log("\n🛑 Sesi dihentikan oleh pengguna (Ctrl+C).", "yellow")
+        print("\n🛑 Sesi dihentikan oleh pengguna (Ctrl+C).", flush=True)
 
     for t in threads:
         t.join(timeout=3.0)
 
-    _log("=" * 65, "cyan")
-    _log(f"📊 Total proxy baru yang berhasil terkumpul: {state['total_added']} proxy.", "bold green")
-    _log("☁️ Seluruh proxy yang didapat telah langsung diupload ke database Supabase (proxxies.proxy_list).", "bold green")
-    _log("=" * 65, "cyan")
+    print("=" * 65, flush=True)
+    print(f"📊 Total proxy baru yang berhasil terkumpul: {state['total_added']} proxy.", flush=True)
+    print("☁️ Seluruh proxy yang didapat telah langsung diupload ke database Supabase (proxxies.proxy_list).", flush=True)
+    print("=" * 65, flush=True)
     return state["total_added"]
 
 
@@ -1182,7 +1225,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-pool", action="store_true", help="Paksa pakai pool Proxy Management saja (tanpa chain)")
     parser.add_argument("--direct", action="store_true", help="Paksa menggunakan Direct IP (Internet Lokal) tanpa proxy")
     parser.add_argument("--skip-verifier", action="store_true", help="Lewati preflight audit (tidak disarankan di mode chain)")
-    parser.add_argument("--no-chain", action="store_true", help="Mode lama: pakai isi proxy file langsung tanpa chain residential")
+    parser.add_argument("--no-chain", action="store_true", help="Pakai hop 3xK langsung dari Supabase (hop_proxy_list, fallback --proxy-file) tanpa chain residential")
 
     c = parser.add_argument_group("Proxy chain (default)")
     c.add_argument("--chain-test", action="store_true", help="Tes acquire + probe chain lalu keluar tanpa membuka browser")
@@ -1197,6 +1240,7 @@ if __name__ == "__main__":
     proxy_file = args.proxy_file or DEFAULT_PROXY_FILE
     proxy_provider = None
     chain_provider = None
+    use_supabase_hops = False
 
     if args.chain_test:
         provider = ChainProxyProvider(
@@ -1219,13 +1263,15 @@ if __name__ == "__main__":
         provider.finish_session(item, success=False, error_kind="test")
         sys.exit(0)
 
-    if args.direct:
-        proxy_file = None
-    elif args.use_pool:
+    if args.direct or args.use_pool or args.proxy_index is not None:
         proxy_file = None
     elif args.no_chain:
+        use_supabase_hops = args.proxy_file is None
         proxy_file = args.proxy_file or DEFAULT_PROXY_FILE
-        print("Mode lama: proxy file langsung tanpa chain residential.")
+        if use_supabase_hops:
+            print("Mode NO-CHAIN: hop 3xK langsung dari Supabase (hop_proxy_list, fallback file lokal) tanpa chain residential.")
+        else:
+            print(f"Mode NO-CHAIN: hop langsung dari file {proxy_file} tanpa chain residential.")
     else:
         proxy_file = None
         chain_provider = ChainProxyProvider(
@@ -1253,4 +1299,5 @@ if __name__ == "__main__":
         proxy_provider=proxy_provider,
         chain_provider=chain_provider,
         unlimited=args.unlimited,
+        use_supabase_hops=use_supabase_hops,
     )

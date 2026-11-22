@@ -283,7 +283,7 @@ boleh dihapus; file hanya dipakai sebagai fallback jika ada.
 2. Fallback `parse_hop_file(data/proxies_scrape.txt)` **hanya jika file ada**.
 
 Blacklist hop hasil probe tetap in-memory per proses (tidak ditulis ke DB).
-Mode chain dipakai oleh CLI maupun GUI (kecuali opsi `--direct`).
+Mode chain aktif default di CLI GoLogin (kecuali `--no-chain`, `--use-pool`, atau `--direct`). Mode `--no-chain` juga memuat hop dari `proxxies.hop_proxy_list` (fallback file lokal) tanpa chain ke residential.
 
 ### Menonaktifkan / menambah hop
 ```sql

@@ -53,12 +53,11 @@ dari event worker otomatis dibersihkan.
 
 ## Konfigurasi
 
-`automation/monetag/config.json` menyimpan default untuk pemakai non-CLI
-(GUI/runner). CLI menimpa nilai berikut:
+`automation/monetag/config.json` menyimpan default untuk runner non-CLI. CLI menimpa nilai berikut:
 
 | Key | Arti |
 | --- | --- |
-| `use_chain` | `false` default; GUI/runner tidak terpengaruh |
+| `use_chain` | `false` default; runner tidak terpengaruh |
 | `chain_hop_tries` | jumlah hop acak per sesi |
 | `chain_timeout` | timeout probe chain (detik) |
 | `chain_verbose` | log detail probe |

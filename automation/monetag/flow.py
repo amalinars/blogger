@@ -1186,7 +1186,7 @@ def monetag_worker_thread_loop(
     chain_provider: Optional[Any] = None,
     post_session: Optional[Callable[[int, Dict[str, Any], Dict[str, Any]], None]] = None,
 ) -> None:
-    """Loop worker multi-sesi Monetag (kompatibel penuh dengan run_bot.py, GUI, dan unit test)."""
+    """Loop worker multi-sesi Monetag (kompatibel penuh dengan run_bot.py dan unit test)."""
     tag = f"[W{worker_id}]"
     config = dict(config)
     target_urls = list(config.get("target_urls") or [])
