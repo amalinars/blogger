@@ -531,9 +531,8 @@ class ChainProxyProvider:
         except ChainError as exc:
             if exc.stage == "hop_tcp":
                 self._blacklist_hop(hop)
-                self.disable_hop(hop, _short(exc))
                 self._log(
-                    f"   Hop {hop.get('host')} mati saat sesi; residential tidak dihukum."
+                    f"   Hop {hop.get('host')} timeout TCP saat sesi (blacklist memori); residential tidak dihukum."
                 )
                 return
             if exc.stage == "proxy_connect":
