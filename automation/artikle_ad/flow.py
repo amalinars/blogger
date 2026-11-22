@@ -236,7 +236,8 @@ def run_article_ad_session(
     )
 
     def log(msg: str, style: str = "white") -> None:
-        print(f"[W{worker_id}-ArtikleAd] {msg}", flush=True)
+        if event_callback is None:
+            print(f"[W{worker_id}-ArtikleAd] {msg}", flush=True)
         _emit(
             event_callback,
             "log_message",
@@ -246,6 +247,8 @@ def run_article_ad_session(
             target_url=target_url,
         )
 
+    _emit(event_callback, "session_started", worker_id=worker_id, target_url=target_url)
+    _emit(event_callback, "stepper_update", worker_id=worker_id, stage="🌐 Kunjungan Web", status="Membuka web target...", target_url=target_url)
     log(f"🚀 Memulai sesi dinamis di {target_url} | koneksi: {proxy_label}", "cyan")
 
     # Penting untuk HilltopAds Video Slider: izinkan muted autoplay agar iklan video berputar & tercatat.
@@ -325,7 +328,10 @@ def run_article_ad_session(
 
             redir_deadline = min(deadline, time.time() + 12.0)
             while time.time() < redir_deadline and not tab.is_closed():
-                h = _host(str(tab.url or ""))
+                u = str(tab.url or "")
+                if u.lower().startswith(("about:neterror", "about:certerror", "chrome-error://")):
+                    return u
+                h = _host(u)
                 if h and not any(rh in h for rh in redirect_hosts):
                     break
                 time.sleep(0.35)
@@ -460,13 +466,13 @@ def run_article_ad_session(
         except Exception:
             human_scroll(page, scroll_amount=random.randint(320, 520))
 
-        # Interaksi ringan pada tombol navigasi/lokasi untuk memicu Popunder HilltopAds jika terpasang
+        # Interaksi ringan pada tombol non-filter untuk memicu Popunder tanpa menyembunyikan artikel lain
         try:
             nav_btns = page.locator(
-                'header nav button, button:has-text("Location Details"), button:has-text("Latest")'
+                'header button:has-text("Latest"), button:has-text("Location Details")'
             )
             if nav_btns.count() > 0:
-                idx = random.randint(0, min(nav_btns.count() - 1, 3))
+                idx = random.randint(0, nav_btns.count() - 1)
                 btn = nav_btns.nth(idx)
                 if btn.is_visible(timeout=1000):
                     log("👆 Klik navigasi alami (memicu Popunder jika aktif)...", "cyan")
@@ -523,58 +529,84 @@ def run_article_ad_session(
                 log("💬 In-Page Push terlihat — pertahankan viewability (tanpa klik demi CTR natural).", "dim")
                 time.sleep(random.uniform(1.5, 2.5))
 
-        # ── 5. Klik 2 Artikel Berbeda (Monetag Direct Link Tertanam di Artikel) ──
+        # ── 5. Klik N Artikel Berbeda (Monetag Direct Link Tertanam di Artikel) ──
         if article_links:
             random.shuffle(article_links)
-            chosen_articles = article_links[:article_clicks_target]
-            log(f"📰 Memilih {len(chosen_articles)} artikel berbeda untuk diklik & dwell...", "bold yellow")
+            target_count = min(article_clicks_target, len(article_links))
+            log(f"📰 Menargetkan {target_count} artikel berbeda (dari {len(article_links)} tersedia) untuk diklik & dwell...", "bold yellow")
 
-            for idx, art in enumerate(chosen_articles, 1):
+            for art in article_links:
+                if stats["articles_clicked"] >= target_count:
+                    break
+                cur_num = stats["articles_clicked"] + 1
                 href = art["href"]
                 title_hint = art.get("text") or href
-                log(f"👆 [Artikel #{idx}/{len(chosen_articles)}] Mengklik: {title_hint[:60]} ({art.get('host')})", "cyan")
+                log(f"👆 [Artikel #{cur_num}/{target_count}] Mengklik: {title_hint[:60]} ({art.get('host')})", "cyan")
                 try:
-                    # Cari elemen <a> yang cocok dengan href ini (utamakan heading atau tombol teks)
-                    link_loc = page.locator(f'main a[href="{href}"], article a[href="{href}"]').first
-                    if not link_loc.is_visible(timeout=2000):
-                        # Coba locator semua yang cocok dan ambil yang visible
-                        all_match = page.locator(f'a[href="{href}"]')
-                        for k in range(all_match.count()):
-                            cand = all_match.nth(k)
+                    # Utamakan link judul (h1/h2/h3) agar area klik lebar & aman dari overlay push kanan-bawah
+                    link_loc = None
+                    for sel in (
+                        f'main h1 a[href="{href}"], main h2 a[href="{href}"], main h3 a[href="{href}"]',
+                        f'main a[href="{href}"], article a[href="{href}"]',
+                        f'a[href="{href}"]',
+                    ):
+                        cand_group = page.locator(sel)
+                        for k in range(cand_group.count()):
+                            cand = cand_group.nth(k)
                             if cand.is_visible(timeout=800):
                                 link_loc = cand
                                 break
+                        if link_loc is not None:
+                            break
+                    if link_loc is None:
+                        log(f"⚠️ [Artikel #{cur_num}] Elemen link tidak terlihat, lanjut kandidat berikut.", "yellow")
+                        continue
 
-                    link_loc.scroll_into_view_if_needed()
+                    try:
+                        # Posisikan ke tengah viewport supaya tidak tertutup kartu In-Page Push kanan-bawah
+                        link_loc.evaluate("el => el.scrollIntoView({block: 'center', inline: 'nearest'})")
+                    except Exception:
+                        link_loc.scroll_into_view_if_needed()
                     time.sleep(random.uniform(0.4, 0.9))
                     if humanize_enabled:
                         human_wander(page, duration_seconds=random.uniform(0.6, 1.2))
 
                     art_tab = None
-                    try:
-                        with context.expect_page(timeout=10000) as art_page_info:
-                            human_click(page, link_loc)
-                        art_tab = art_page_info.value
-                    except Exception:
-                        # Fallback jika klik ke-1 ter-intercept oleh Popunder -> kuras popunder lalu klik ulang
-                        drain_popups(f"InterceptArt#{idx}")
+                    for click_try in range(2):
+                        before_pages = set(context.pages)
                         try:
-                            with context.expect_page(timeout=10000) as art_page_info2:
+                            with context.expect_page(timeout=10000) as art_page_info:
                                 human_click(page, link_loc)
-                            art_tab = art_page_info2.value
+                            art_tab = art_page_info.value
+                            break
                         except Exception:
-                            pass
+                            # Cek jika tab baru sempat terbuka tepat di luar window expect_page
+                            new_tabs = [
+                                p for p in context.pages
+                                if p not in before_pages and p != page and p not in processed_tabs and not p.is_closed()
+                            ]
+                            if new_tabs:
+                                art_tab = new_tabs[-1]
+                                break
+                            if click_try == 0:
+                                drain_popups(f"InterceptArt#{cur_num}")
+                                try:
+                                    link_loc.evaluate("el => el.scrollIntoView({block: 'center', inline: 'nearest'})")
+                                except Exception:
+                                    pass
 
                     if art_tab is not None:
-                        final_u = _dwell_tab(art_tab, article_dwell_cfg, f"Artikel#{idx}")
+                        final_u = _dwell_tab(art_tab, article_dwell_cfg, f"Artikel#{cur_num}")
                         if final_u:
                             stats["articles_clicked"] += 1
                             stats["article_urls_dwelled"].append(final_u)
-                    drain_popups(f"PostArt#{idx}")
+                    else:
+                        log(f"⚠️ [Artikel #{cur_num}] Tab tidak terbuka setelah 2 percobaan, lanjut kandidat berikut.", "yellow")
+                    drain_popups(f"PostArt#{cur_num}")
                 except Exception as exc_art:
-                    log(f"⚠️ Gagal proses Artikel #{idx}: {str(exc_art)[:90]}", "yellow")
+                    log(f"⚠️ Gagal proses Artikel #{cur_num}: {str(exc_art)[:90]}", "yellow")
 
-                if idx < len(chosen_articles):
+                if stats["articles_clicked"] < target_count:
                     time.sleep(random.uniform(1.0, 2.0))
         else:
             log("⚠️ Tidak ada link artikel eksternal (<a target='_blank'>) yang terdeteksi di <main>.", "yellow")
@@ -598,6 +630,16 @@ def run_article_ad_session(
             f"VideoSlider={stats['video_slider_viewed']} | Popunder={stats['popunders_dwelled']}",
             "bold green",
         )
+        status_code = "PASS" if stats["success"] else "FAIL"
+        _emit(
+            event_callback,
+            "stepper_update",
+            worker_id=worker_id,
+            stage="✅ LOLOS" if stats["success"] else "❌ GAGAL",
+            status=f"Selesai ({stats['duration_seconds']}s)",
+            target_url=target_url,
+        )
+        _emit(event_callback, "session_completed", worker_id=worker_id, status=status_code, target_url=target_url)
         return stats
     finally:
         if context is not None:
@@ -619,6 +661,7 @@ def article_ad_worker_thread_loop(
     event_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
     stop_event: Optional[threading.Event] = None,
     chain_provider: Optional[Any] = None,
+    reset_pool_callback: Optional[Callable[[], None]] = None,
 ) -> None:
     """Loop multi-sesi untuk mode Direct IP maupun Proxy/Chain."""
     max_sessions = int(config.get("max_sessions_per_run", 1))
@@ -648,8 +691,19 @@ def article_ad_worker_thread_loop(
                     cooldown_seconds=float(config.get("proxy_cooldown_hours", 6.0)) * 3600,
                 )
             if not proxy:
+                if reset_pool_callback is not None:
+                    reset_pool_callback()
                 time.sleep(3.0)
                 continue
+            _emit(
+                event_callback,
+                "proxy_assigned",
+                worker_id=worker_id,
+                ip=proxy.get("expected_ip") or proxy.get("ip_detected") or proxy.get("host", "—"),
+                country=proxy.get("country") or "Unknown",
+                target_network="📰 ArtikleAd",
+                target_url=target_url,
+            )
 
         if budget is not None and not budget.reserve():
             if proxy and chain_provider is not None:
@@ -678,7 +732,12 @@ def article_ad_worker_thread_loop(
                 elif proxy_manager is not None:
                     proxy_manager.release_proxy(proxy)
         except Exception as exc:
-            print(f"[W{worker_id}-ArtikleAd] ❌ Error sesi: {exc}", flush=True)
+            if event_callback is None:
+                print(f"[W{worker_id}-ArtikleAd] ❌ Error sesi: {exc}", flush=True)
+            else:
+                _emit(event_callback, "log_message", worker_id=worker_id, message=f"[W{worker_id}] ❌ Error sesi: {exc}", style="red", target_url=target_url)
+                _emit(event_callback, "stepper_update", worker_id=worker_id, stage="❌ GAGAL", status=str(exc)[:40], target_url=target_url)
+                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL", target_url=target_url)
             if budget is not None:
                 budget.record("FAIL")
             if proxy:

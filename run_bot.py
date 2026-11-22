@@ -45,6 +45,7 @@ from automation.chain_provider import ChainProxyProvider
 from automation.engine import load_config
 from automation.session import SessionBudget
 from automation.monetag.flow import close_worker_browser, monetag_worker_thread_loop, run_monetag_session
+from automation.artikle_ad.flow import article_ad_worker_thread_loop, run_article_ad_session
 # ANSI Color codes untuk terminal modern
 RESET = "\033[0m"
 BOLD = "\033[1m"
@@ -144,8 +145,11 @@ class BotRunnerCLI:
         self.budget = SessionBudget(max_sess, 1)
 
         self.workers_state: Dict[int, Dict[str, Any]] = {}
-        t_net = "💎 Monetag"
-        self._flow_tag = "Monetag"
+        raw_target = str(getattr(self.args, "target", "monetag") or "monetag").strip().lower()
+        self.target = "artikle_ad" if raw_target in ("artikle_ad", "artikel_ad", "artiklead", "artikelad") else "monetag"
+        is_artikle = self.target == "artikle_ad"
+        t_net = "📰 ArtikleAd" if is_artikle else "💎 Monetag"
+        self._flow_tag = "ArtikleAd" if is_artikle else "Monetag"
         for wid in range(1, self.args.workers + 1):
             self.workers_state[wid] = {
                 "worker_id": wid,
@@ -381,7 +385,7 @@ class BotRunnerCLI:
                 # Proxy HANYA berstatus aktif jika benar-benar sedang dipegang oleh worker yang aktif!
                 is_active = bool(ip in active_ips)
                 health = p.get("health", "ALIVE")
-                t_key = "safelink" if self.args.target in ("safelink", "safelinkearn") else "monetag"
+                t_key = "artikle_ad" if self.target == "artikle_ad" else "monetag"
                 tu = p.get("target_usage") or {}
                 # Usage lama mungkin masih general ("monetag"); gabungkan dengan key per-URL ("monetag:host").
                 hits = [v for k, v in tu.items() if k == t_key or k.startswith(f"{t_key}:")]
@@ -417,8 +421,9 @@ class BotRunnerCLI:
             pass
 
     def run(self) -> None:
-        self.args.target = "monetag"
-        default_url = "https://article.riztama.my.id"
+        self.args.target = self.target
+        is_artikle = self.target == "artikle_ad"
+        default_url = "https://ghasima.ai.studio/" if is_artikle else "https://article.riztama.my.id"
         urls: List[str] = []
         for raw in (getattr(self.args, "urls", None) or []):
             for part in re.split(r"[,\s]+", str(raw)):
@@ -456,7 +461,7 @@ class BotRunnerCLI:
                     timeout=getattr(self.args, "chain_timeout", 15.0),
                     dead_confirm_hops=getattr(self.args, "dead_confirm_hops", 2),
                     verbose=bool(getattr(self.args, "chain_verbose", False)),
-                    target="monetag",
+                    target=self.target,
                     channel="automation",
                     strict_channel=False,
                     target_max_uses_per_day=self.args.max_uses,
@@ -468,7 +473,7 @@ class BotRunnerCLI:
                 )
                 print(
                     f"{GREEN}🔗 Chain mode aktif: hop 3xK -> residential FloppyData "
-                    f"(target=monetag, {len(chain_provider.hops)} hop).{RESET}",
+                    f"(target={self.target}, {len(chain_provider.hops)} hop).{RESET}",
                     flush=True,
                 )
             except Exception as exc:
@@ -482,6 +487,13 @@ class BotRunnerCLI:
             print(f"{YELLOW}⚠️ Chain dimatikan (--no-chain); memakai residential langsung.{RESET}", flush=True)
 
         base_config = load_config()
+        if is_artikle:
+            artikle_cfg_path = PROJECT_ROOT / "automation" / "artikle_ad" / "config.json"
+            if artikle_cfg_path.exists():
+                try:
+                    base_config.update(json.loads(artikle_cfg_path.read_text(encoding="utf-8")))
+                except Exception:
+                    pass
         base_config.update({
             "target_url": target_url,
             "target_urls": urls,
@@ -496,18 +508,27 @@ class BotRunnerCLI:
             "errorlogs": getattr(self.args, "errorlogs", False),
             "lightweight": getattr(self.args, "potato", True),
             "allow_direct_ip": direct_mode,
+            "direct_ip": direct_mode,
         })
 
         if direct_mode:
-            try:
-                run_monetag_session(
+            if is_artikle:
+                run_article_ad_session(
                     worker_id=1,
                     proxy_data=None,
                     config=base_config,
                     event_callback=self._on_worker_event,
                 )
-            finally:
-                close_worker_browser(1)
+            else:
+                try:
+                    run_monetag_session(
+                        worker_id=1,
+                        proxy_data=None,
+                        config=base_config,
+                        event_callback=self._on_worker_event,
+                    )
+                finally:
+                    close_worker_browser(1)
             return
 
         if chain_provider is not None and getattr(self.args, "chain_test", False):
@@ -533,19 +554,20 @@ class BotRunnerCLI:
             with pool_lock:
                 self.proxy_manager.reset_usage_to_idle()
                 self.proxy_manager.reset_cursor(0)
-                reset_hits = self.proxy_manager.reset_target_usage("monetag")
+                reset_hits = self.proxy_manager.reset_target_usage(self.target)
                 self.budget.reset_proxy_counts()
                 print(f"\n{YELLOW}♻️ [Mode Tanpa Batas Lokal] Pool proxy direset kembali ke 0/2 ({reset_hits} IP). Melanjutkan putaran...{RESET}\n")
 
         # Spawn workers
+        w_tag = "ArtikleAd" if is_artikle else "Monetag"
+        worker_fn = article_ad_worker_thread_loop if is_artikle else monetag_worker_thread_loop
         for wid in range(1, self.args.workers + 1):
-            w_tag = "Monetag"
             worker_kwargs: Dict[str, Any] = {
                 "reset_pool_callback": _reset_pool if self.budget.unlimited else None,
                 "chain_provider": chain_provider,
             }
             t = threading.Thread(
-                target=monetag_worker_thread_loop,
+                target=worker_fn,
                 args=(
                     wid,
                     base_config,
@@ -620,7 +642,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--target",
         default="monetag",
-        help="Jaringan target: monetag, safelinkearn, atau gabungan 'monetag,smartlink' (satu IP dua flow)",
+        help="Target flow: monetag (default) atau artikle_ad (alias: artikel_ad)",
     )
     parser.add_argument(
         "-w", "--workers",
@@ -656,7 +678,7 @@ def parse_args() -> argparse.Namespace:
         "--url",
         type=str,
         default=None,
-        help="URL web target tujuan (default: Monetag -> article.riztama.my.id, SafelinkEarn -> sfe.ad/pB5n5lnLGp)",
+        help="URL web target tujuan (default: monetag -> article.riztama.my.id, artikle_ad -> ghasima.ai.studio)",
     )
     parser.add_argument(
         "-urls", "--urls",
