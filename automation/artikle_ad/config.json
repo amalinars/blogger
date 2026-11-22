@@ -3,8 +3,8 @@
   "headless": true,
   "humanize": true,
   "lightweight": true,
-  "article_clicks_per_session": 2,
-  "push_click_chance": 0.40,
+  "article_clicks_per_session": 3,
+  "push_click_chance": 0.80,
   "banner_dwell_seconds": {
     "min": 3.0,
     "max": 5.0
