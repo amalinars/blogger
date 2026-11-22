@@ -607,10 +607,12 @@ def run_monetag_session(
                 return None
 
             dwell = random.uniform(float(dwell_cfg.get("min", 6.0)), float(dwell_cfg.get("max", 9.5)))
+            step_k = "direct_link" if "direct" in label.lower() else ("popunder" if "popunder" in label.lower() or "onclick" in label.lower() else "vignette")
             _emit(
                 event_callback,
                 "stepper_update",
                 worker_id=worker_id,
+                step_key=step_k,
                 stage=f"📑 Dwell {label}",
                 status=f"{_host(final_url)} ({dwell:.1f}s)",
             )
@@ -700,6 +702,7 @@ def run_monetag_session(
                 event_callback,
                 "stepper_update",
                 worker_id=worker_id,
+                step_key="vignette",
                 stage="🖼️ Vignette Banner",
                 status=f"Dwell {v_dwell:.1f}s -> {'Continue' if want_continue else 'Close'}",
             )
@@ -731,7 +734,7 @@ def run_monetag_session(
 
         # ── 1. Buka Halaman Target ──
         _emit(event_callback, "session_started", worker_id=worker_id, target_url=target_url)
-        _emit(event_callback, "stepper_update", worker_id=worker_id, stage="🌐 Kunjungan Web", status="Membuka web target...")
+        _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="open_web", stage="🌐 Kunjungan Web", status="Membuka web target...")
         chosen_ref = random.choice([
             "https://www.google.com/",
             "https://www.bing.com/",
@@ -769,6 +772,7 @@ def run_monetag_session(
         handle_vignette_if_visible()
 
         # ── 4. Pemicu OnClick Popunder via Koordinat Tombol Nyata (Menembus Click-Shield) ──
+        _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="popunder", stage="📑 OnClick Popunder", status="Memicu Popunder...")
         for click_i in range(1, 3):
             if stats["popunders_processed"] >= 1:
                 log("⚡ Advertiser Popunder/Vignette sudah sukses di-dwell — lanjut tahap akhir (hemat CPU).", "green")
@@ -824,6 +828,7 @@ def run_monetag_session(
         advertiser_tabs_dwelled = stats["popunders_processed"] + stats["push_clicked"]
         force_direct = advertiser_tabs_dwelled == 0
         if direct_link_url and (force_direct or random.random() < direct_link_ctr):
+            _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="direct_link", stage="🔗 Direct Link", status="Membuka Direct Link...")
             if force_direct:
                 log("🎯 Belum ada tab advertiser terbuka — 100% WAJIB buka & dwell Direct Link.", "bold yellow")
             else:
@@ -882,6 +887,7 @@ def run_monetag_session(
                 event_callback,
                 "stepper_update",
                 worker_id=worker_id,
+                step_key="failed",
                 stage="❌ TANPA IKLAN",
                 status="Tidak ada iklan termuat — rotasi IP...",
             )
@@ -893,14 +899,38 @@ def run_monetag_session(
         stats["ad_hosts_hit"] = dict(ad_hits)
         stats["ad_verified"] = ad_verified
 
+        expected_imp = (
+            int(stats["vignettes_viewed"] > 0)
+            + int(stats["popunders_processed"])
+            + int(stats["direct_links_processed"])
+            + (1 if stats["push_viewed"] > 0 else 0)
+            + (1 if any(h in ad_hits for h in ("simplistic-walk.com", "prizefamily.com", "hilltopads.com")) else 0)
+        )
+        metrics = {
+            "vignette": int(stats["vignettes_viewed"]),
+            "popunder": int(stats["popunders_processed"]),
+            "direct_link": int(stats["direct_links_processed"]),
+            "in_page_push": 1 if stats["push_viewed"] > 0 else 0,
+            "banner": 1 if any(h in ad_hits for h in ("simplistic-walk.com", "prizefamily.com", "hilltopads.com")) else 0,
+            "expected_impressions": max(1, expected_imp),
+        }
+
         log(
             f"🎉 Sesi Monetag selesai ({duration}s) | Vignette={stats['vignettes_viewed']}(klik:{stats['vignettes_clicked']}) "
             f"| Popunder={stats['popunders_processed']} | DirectLink={stats['direct_links_processed']} "
             f"| Push={stats['push_clicked']}/{stats['push_viewed']}",
             "bold green",
         )
-        _emit(event_callback, "stepper_update", worker_id=worker_id, stage="✅ LOLOS", status=f"Selesai ({duration}s)")
-        _emit(event_callback, "session_completed", worker_id=worker_id, status="PASS", target_url=target_url)
+        _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="done", stage="✅ LOLOS", status=f"Selesai ({duration}s)")
+        _emit(
+            event_callback,
+            "session_completed",
+            worker_id=worker_id,
+            status="PASS",
+            target_url=target_url,
+            duration_seconds=duration,
+            metrics=metrics,
+        )
         return stats
 
 
@@ -1042,8 +1072,8 @@ def monetag_worker_thread_loop(
                     budget.mark_proxy(proxy_id)
             except Exception as e_run:
                 _log(f"❌ Error sesi Monetag: {e_run}", "bold red")
-                _emit(event_callback, "stepper_update", worker_id=worker_id, stage="❌ GAGAL", status=str(e_run)[:40])
-                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL", target_url=url)
+                _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="failed", stage="❌ GAGAL", status=str(e_run)[:40])
+                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL", target_url=url, error=str(e_run)[:80])
                 budget.record("FAIL")
                 if proxy_id:
                     budget.mark_proxy(proxy_id)

@@ -248,7 +248,7 @@ def run_article_ad_session(
         )
 
     _emit(event_callback, "session_started", worker_id=worker_id, target_url=target_url)
-    _emit(event_callback, "stepper_update", worker_id=worker_id, stage="🌐 Kunjungan Web", status="Membuka web target...", target_url=target_url)
+    _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="open_web", stage="🌐 Kunjungan Web", status="Membuka web target...", target_url=target_url)
     log(f"🚀 Memulai sesi dinamis di {target_url} | koneksi: {proxy_label}", "cyan")
 
     # Penting untuk HilltopAds Video Slider: izinkan muted autoplay agar iklan video berputar & tercatat.
@@ -455,6 +455,7 @@ def run_article_ad_session(
         human_wander(page, duration_seconds=random.uniform(1.0, 1.8))
 
         # ── 2. Scroll ke Banner 300x250 & Scan Dinamis Konten/Iklan ──
+        _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="banner_push", stage="🖼️ Banner & Push", status="Dwell Banner & Scan DOM...", target_url=target_url)
         try:
             banner_loc = page.locator('aside[aria-label*="banner" i], aside[aria-label*="sponsored" i]').first
             if banner_loc.is_visible(timeout=2000):
@@ -541,6 +542,15 @@ def run_article_ad_session(
                 cur_num = stats["articles_clicked"] + 1
                 href = art["href"]
                 title_hint = art.get("text") or href
+                _emit(
+                    event_callback,
+                    "stepper_update",
+                    worker_id=worker_id,
+                    step_key="article_1" if cur_num == 1 else "article_2",
+                    stage=f"📰 Artikel #{cur_num}/{target_count}",
+                    status=f"Dwell {title_hint[:32]}",
+                    target_url=target_url,
+                )
                 log(f"👆 [Artikel #{cur_num}/{target_count}] Mengklik: {title_hint[:60]} ({art.get('host')})", "cyan")
                 try:
                     # Utamakan link judul (h1/h2/h3) agar area klik lebar & aman dari overlay push kanan-bawah
@@ -630,16 +640,40 @@ def run_article_ad_session(
             f"VideoSlider={stats['video_slider_viewed']} | Popunder={stats['popunders_dwelled']}",
             "bold green",
         )
+        expected_imp = (
+            (1 if stats["banners_viewed"] > 0 else 0)
+            + (1 if stats["push_detected"] > 0 else 0)
+            + (1 if stats["video_slider_viewed"] > 0 else 0)
+            + int(stats["popunders_dwelled"])
+            + int(stats["articles_clicked"])
+        )
+        metrics = {
+            "banner": 1 if stats["banners_viewed"] > 0 else 0,
+            "in_page_push": 1 if stats["push_detected"] > 0 else 0,
+            "video_slider": 1 if stats["video_slider_viewed"] > 0 else 0,
+            "popunder": int(stats["popunders_dwelled"]),
+            "direct_link": int(stats["articles_clicked"]),
+            "expected_impressions": expected_imp,
+        }
         status_code = "PASS" if stats["success"] else "FAIL"
         _emit(
             event_callback,
             "stepper_update",
             worker_id=worker_id,
+            step_key="done" if stats["success"] else "failed",
             stage="✅ LOLOS" if stats["success"] else "❌ GAGAL",
             status=f"Selesai ({stats['duration_seconds']}s)",
             target_url=target_url,
         )
-        _emit(event_callback, "session_completed", worker_id=worker_id, status=status_code, target_url=target_url)
+        _emit(
+            event_callback,
+            "session_completed",
+            worker_id=worker_id,
+            status=status_code,
+            target_url=target_url,
+            duration_seconds=stats["duration_seconds"],
+            metrics=metrics,
+        )
         return stats
     finally:
         if context is not None:
@@ -736,8 +770,8 @@ def article_ad_worker_thread_loop(
                 print(f"[W{worker_id}-ArtikleAd] ❌ Error sesi: {exc}", flush=True)
             else:
                 _emit(event_callback, "log_message", worker_id=worker_id, message=f"[W{worker_id}] ❌ Error sesi: {exc}", style="red", target_url=target_url)
-                _emit(event_callback, "stepper_update", worker_id=worker_id, stage="❌ GAGAL", status=str(exc)[:40], target_url=target_url)
-                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL", target_url=target_url)
+                _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="failed", stage="❌ GAGAL", status=str(exc)[:40], target_url=target_url)
+                _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL", target_url=target_url, error=str(exc)[:80])
             if budget is not None:
                 budget.record("FAIL")
             if proxy:

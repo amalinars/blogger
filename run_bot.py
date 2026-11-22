@@ -136,9 +136,7 @@ class BotRunnerCLI:
             elif stats.get("total", 0) == 0:
                 print(f"{YELLOW}⚠️ Info: proxies.json kosong dan belum ada proxy di tabel proxxies.proxy_list Supabase.{RESET}", flush=True)
         self.reporter = get_telemetry_reporter()
-
-        if self.args.name:
-            self.reporter.set_node_name(self.args.name)
+        self.reporter.set_node_name(self.args.name or raw_name)
 
         # Budget session
         max_sess = 0 if self.args.unlimited else self.args.sessions
@@ -150,22 +148,25 @@ class BotRunnerCLI:
         is_artikle = self.target == "artikle_ad"
         t_net = "📰 ArtikleAd" if is_artikle else "💎 Monetag"
         self._flow_tag = "ArtikleAd" if is_artikle else "Monetag"
+        now_ts = int(time.time())
         for wid in range(1, self.args.workers + 1):
             self.workers_state[wid] = {
                 "worker_id": wid,
                 "target_net": t_net,
+                "proxy_ip": "—",
                 "country": "—",
                 "country_flag": "🌐",
-                "stepper": "⏳ Memulai",
+                "step_key": "proxy",
+                "step_label": "Siap",
                 "activity": "Menyiapkan worker...",
-                "vscore": "—",
-                "bot": "Aman",
-                "webrtc": "Aman",
-                "ads": "OK",
-                "status": "SIAP",
+                "status": "IDLE",
                 "sessions_done": 0,
+                "sessions_failed": 0,
+                "impressions": 0,
+                "last_duration_s": None,
+                "last_error": None,
+                "last_activity_ts": now_ts,
                 "target_url": "",
-                "logs": [],
             }
 
         self.started_at = time.time()
@@ -213,29 +214,29 @@ class BotRunnerCLI:
     def _on_worker_event(self, etype: str, data: Dict[str, Any]) -> None:
         wid = data.get("worker_id", 1)
         w = self.workers_state.setdefault(wid, {"worker_id": wid})
-        ts = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")  # WIB
+        now_ts = int(time.time())
+        w["last_activity_ts"] = now_ts
         if data.get("target_url"):
             w["target_url"] = data["target_url"]
         display_url = w.get("target_url") or ""
 
-        # Riwayat aktivitas log real-time per worker (ring buffer 15 baris)
-        logs = w.setdefault("logs", [])
-
         if etype == "log_message":
             msg = re.sub(r"^\[W\d+\]\s*", "", data.get("message", ""))
             if msg:
-                logs.append(f"[{ts}] {msg}")
-                w["logs"] = logs[-15:]
                 w["activity"] = msg[:75]
                 self._console(wid, msg, url=display_url)
 
         elif etype == "stepper_update":
             stage = data.get("stage", "")
             status = data.get("status", "")
-            w["stepper"] = stage
-            w["activity"] = status
-            logs.append(f"[{ts}] {stage} - {status}")
-            w["logs"] = logs[-15:]
+            if data.get("step_key"):
+                w["step_key"] = data["step_key"]
+            if stage:
+                w["step_label"] = stage
+            if status:
+                w["activity"] = status[:75]
+            if w.get("step_key") not in ("done", "failed"):
+                w["status"] = "RUNNING"
             if stage or status:
                 self._console(wid, f"⏳ {stage} — {status}", url=display_url)
 
@@ -248,174 +249,101 @@ class BotRunnerCLI:
             t_net = data.get("target_network")
             if t_net:
                 w["target_net"] = t_net
-            w["stepper"] = "🛡️ Alokasi IP"
-            w["activity"] = f"IP terpilih: {w['proxy_ip']} ({c_flag} {c_name})"
-            logs.append(f"[{ts}] 🛡️ IP Dialokasikan: {w['proxy_ip']} ({c_flag} {c_name})")
-            w["logs"] = logs[-15:]
+            w["status"] = "RUNNING"
+            w["step_key"] = "proxy"
+            w["step_label"] = "Alokasi Proxy"
+            w["activity"] = f"{c_flag} {c_name} ({w['proxy_ip']})"
+            w["last_error"] = None
             self._console(
                 wid,
                 f"🛡️ IP Dialokasikan: {BOLD}{w['proxy_ip']}{RESET} ({c_flag} {c_name}) - {w['target_net']}",
                 url=display_url,
             )
 
-        elif etype == "verifier_report":
-            w["out_ip"] = data.get("detected_ip") or w["proxy_ip"]
-            c_name = data.get("detected_country") or w.get("country")
-            w["country"] = c_name
-            w["country_flag"] = get_country_flag(c_name)
-            score = data.get("score", 0)
-            w["vscore"] = str(score)
-            w["bot"] = "Bot!" if data.get("bot_detected") else "Aman"
-            w["webrtc"] = "Bocor" if data.get("webrtc_leak") else "Aman"
-            w["ads"] = "Blokir" if (data.get("adblock_detected") or not data.get("ads_allowed", True)) else "OK"
-            w["user_agent"] = data.get("user_agent", "—")
-            w["activity"] = f"Audit anti-detect: {score}/100 (Bot: {w['bot']}, WebRTC: {w['webrtc']})"
-            logs.append(f"[{ts}] 🔍 Hasil Audit Stealth: {score}/100 | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}")
-            w["logs"] = logs[-15:]
-            score_col = GREEN if score >= 80 else (YELLOW if score >= 60 else RED)
-            self._console(
-                wid,
-                f"🔍 Audit Anti-Detect: {score_col}{score}/100{RESET} | Bot Flag: {w['bot']} | WebRTC: {w['webrtc']}",
-                url=display_url,
-            )
-
         elif etype == "session_started":
             target_url = data.get("target_url") or display_url or self.args.url
             w["target_url"] = target_url
-            w["stepper"] = "🌐 Buka Web"
-            w["activity"] = "Membuka halaman web target..."
-            logs.append(f"[{ts}] 📄 URL aktif: {target_url}")
-            w["logs"] = logs[-15:]
+            w["status"] = "RUNNING"
+            w["step_key"] = "open_web"
+            w["step_label"] = "Buka Web"
+            w["activity"] = f"Membuka {_url_label(target_url) or target_url}"
+            w["last_error"] = None
             self._console(wid, f"📄 URL aktif: {target_url}", url=target_url)
-
-        elif etype == "step_waiting":
-            step = data.get("index", 1)
-            w["stepper"] = f"⏳ Menunggu Step {step}"
-            w["activity"] = f"Menunggu elemen step {step} siap di halaman..."
-            logs.append(f"[{ts}] ⏳ Menunggu tombol/konten step {step}...")
-            w["logs"] = logs[-15:]
-
-        elif etype == "step_countdown_wait":
-            step = data.get("step", 1)
-            seconds = data.get("seconds", 0)
-            w["stepper"] = f"⏳ Step {step} ({seconds}s)"
-            w["activity"] = f"Menunggu hitung mundur countdown step {step} ({seconds} detik)..."
-            logs.append(f"[{ts}] ⏳ Step {step}: Countdown timer berjalan ({seconds}s)")
-            w["logs"] = logs[-15:]
-
-        elif etype == "step_submit_click":
-            step = data.get("step", 1)
-            w["stepper"] = f"🖱️ Klik Step {step}"
-            w["activity"] = f"Mengeklik tombol Lanjut/Open Order step {step}..."
-            logs.append(f"[{ts}] 🖱️ Step {step}: Klik tombol Lanjut dengan interaksi humanize")
-            w["logs"] = logs[-15:]
-
-        elif etype == "step_completed":
-            idx = data.get("index", 1)
-            w["stepper"] = f"✅ Step {idx} Selesai"
-            w["activity"] = f"Step {idx} berhasil dilewati!"
-            logs.append(f"[{ts}] ✅ Step {idx} tuntas, menuju step selanjutnya")
-            w["logs"] = logs[-15:]
-
-        elif etype == "banner_click":
-            w["stepper"] = "🎯 Klik Banner"
-            w["activity"] = f"Interaksi klik banner iklan: {str(data.get('url', ''))[:40]}..."
-            logs.append(f"[{ts}] 🎯 Memicu klik humanize pada banner iklan")
-            w["logs"] = logs[-15:]
-
-        elif etype == "ad_checked":
-            ad_type = data.get("ad_type", "iklan")
-            w["stepper"] = f"🎯 {ad_type}"
-            w["activity"] = f"Verifikasi & interaksi iklan: {ad_type}..."
-            logs.append(f"[{ts}] 🎯 Memverifikasi viewability iklan: {ad_type}")
-            w["logs"] = logs[-15:]
-            self._console(wid, f"🎯 Interaksi iklan: {ad_type}", url=display_url)
-
-        elif etype == "flow_completed":
-            w["stepper"] = "🏁 Impresi Selesai"
-            w["activity"] = "Seluruh tahapan impresi iklan berhasil diselesaikan!"
-            logs.append(f"[{ts}] 🏁 Seluruh alur impresi iklan selesai dengan sukses")
-            w["logs"] = logs[-15:]
 
         elif etype == "session_completed":
             raw = data.get("status", "FAIL")
+            passed = raw == "PASS"
             label = {"PASS": "LOLOS", "WARN": "WASPADA", "FAIL": "GAGAL"}.get(raw, raw)
-            w["status"] = label
-            w["stepper"] = f"✅ {label}" if raw == "PASS" else f"❌ {label}"
-            w["activity"] = f"Selesai dengan status {label}"
-            w["sessions_done"] = w.get("sessions_done", 0) + 1
-            logs.append(f"[{ts}] 🏁 Sesi kunjungan selesai dengan hasil {label}")
-            w["logs"] = logs[-15:]
+            metrics = data.get("metrics") if isinstance(data.get("metrics"), dict) else {}
+            imp_added = int(metrics.get("expected_impressions") or 0)
+            dur = data.get("duration_seconds")
 
-            status_col = GREEN if raw == "PASS" else (YELLOW if raw == "WARN" else RED)
+            w["status"] = "PASS" if passed else "FAIL"
+            w["step_key"] = "done" if passed else "failed"
+            w["step_label"] = label
+            if dur is not None:
+                w["last_duration_s"] = round(float(dur), 1)
+            if passed:
+                w["sessions_done"] = int(w.get("sessions_done", 0)) + 1
+                w["impressions"] = int(w.get("impressions", 0)) + imp_added
+                w["activity"] = f"Selesai ({w.get('last_duration_s') or '—'}s · +{imp_added} imp)"
+                w["last_error"] = None
+            else:
+                w["sessions_failed"] = int(w.get("sessions_failed", 0)) + 1
+                err_txt = str(data.get("error") or "Sesi gagal")[:70]
+                w["last_error"] = err_txt
+                w["activity"] = err_txt
+
+            status_col = GREEN if passed else (YELLOW if raw == "WARN" else RED)
             self._console(
                 wid,
-                f"🏁 Sesi Selesai: {status_col}{label}{RESET} (Total Sukses: {w['sessions_done']})",
+                f"🏁 Sesi Selesai: {status_col}{label}{RESET} (Total Sukses: {w.get('sessions_done', 0)})",
                 url=display_url,
             )
 
-            # Catat ke JSON lokal & broadcast
             self.reporter.record_session_result(
-                target=w.get("target_net", "Adsterra"),
-                passed=(raw == "PASS"),
-                score=int(w.get("vscore") or 0) if str(w.get("vscore")).isdigit() else 80,
-                bot_detected=(w.get("bot") == "Bot!"),
+                target=w.get("target_net", self._flow_tag),
+                passed=passed,
                 proxy_ip=w.get("proxy_ip", "—"),
                 country=w.get("country", "—"),
+                details=metrics,
             )
+            self._broadcast_now()
 
     def _broadcast_now(self) -> None:
         try:
-            stats = self.proxy_manager.get_stats()
             uptime_s = int(time.time() - self.started_at)
-
-            # Buat inventaris proxy real-time yang lengkap & transparan
-            all_proxies = self.proxy_manager.get_proxies()
-            active_ips = {
-                w.get("proxy_ip"): f"Worker #{wid} ({w.get('target_net', '—')})"
-                for wid, w in self.workers_state.items()
-                if w.get("proxy_ip") and w.get("proxy_ip") != "—"
-            }
-
-            p_list = []
-            for p in all_proxies:  # Kirim seluruh daftar proxy di pool
-                ip = p.get("ip_detected") or p.get("host", "?")
-                c_name = p.get("country", "Unknown")
-                c_flag = get_country_flag(c_name)
-                # Proxy HANYA berstatus aktif jika benar-benar sedang dipegang oleh worker yang aktif!
-                is_active = bool(ip in active_ips)
-                health = p.get("health", "ALIVE")
-                t_key = "artikle_ad" if self.target == "artikle_ad" else "monetag"
-                tu = p.get("target_usage") or {}
-                # Usage lama mungkin masih general ("monetag"); gabungkan dengan key per-URL ("monetag:host").
-                hits = [v for k, v in tu.items() if k == t_key or k.startswith(f"{t_key}:")]
-                mn_hit = sum(int((v or {}).get("count", 0) or 0) for v in hits)
-                last_used = max((((v or {}).get("last_used", 0) or 0) for v in hits), default=0)
-                p_list.append({
-                    "ip": ip,
-                    "port": p.get("port", 0),
-                    "country": c_name,
-                    "country_flag": c_flag,
-                    "health": health,
-                    "is_active": is_active,
-                    "used_by": active_ips.get(ip, None),
-                    "monetag_hit": mn_hit,
-                    "last_used": last_used,
-                    "latency_ms": p.get("latency_ms", 0),
-                })
-
+            workers_payload = [
+                {
+                    "worker_id": w.get("worker_id", wid),
+                    "status": w.get("status", "IDLE"),
+                    "step_key": w.get("step_key", "proxy"),
+                    "step_label": w.get("step_label", "Siap"),
+                    "activity": str(w.get("activity") or "")[:75],
+                    "proxy_ip": w.get("proxy_ip", "—"),
+                    "country": w.get("country", "—"),
+                    "country_flag": w.get("country_flag", "🌐"),
+                    "target_url": w.get("target_url", ""),
+                    "sessions_done": int(w.get("sessions_done", 0)),
+                    "sessions_failed": int(w.get("sessions_failed", 0)),
+                    "impressions": int(w.get("impressions", 0)),
+                    "last_duration_s": w.get("last_duration_s"),
+                    "last_error": w.get("last_error"),
+                    "last_activity_ts": int(w.get("last_activity_ts") or time.time()),
+                }
+                for wid, w in sorted(self.workers_state.items())
+            ]
             self.reporter.broadcast_state(
-                target_network=self.args.target.upper(),
+                target_network=self.target.upper(),
                 running=not self.stop_event.is_set(),
                 uptime_seconds=uptime_s,
-                workers=list(self.workers_state.values()),
-                proxy_summary={
-                    "total": stats.get("total", 0),
-                    "alive": stats.get("alive", 0),
-                    "in_use": stats.get("in_use", 0),
-                    "fresh": stats.get("fresh", 0),
+                workers=workers_payload,
+                target_url=str(getattr(self.args, "url", "") or ""),
+                extra_meta={
+                    "chain": not bool(getattr(self.args, "no_chain", False)),
+                    "potato": bool(getattr(self.args, "potato", True)),
+                    "headless": bool(getattr(self.args, "headless", True)),
                 },
-                proxies=p_list,
             )
         except Exception:
             pass
@@ -512,23 +440,29 @@ class BotRunnerCLI:
         })
 
         if direct_mode:
-            if is_artikle:
-                run_article_ad_session(
-                    worker_id=1,
-                    proxy_data=None,
-                    config=base_config,
-                    event_callback=self._on_worker_event,
-                )
-            else:
-                try:
-                    run_monetag_session(
+            self._broadcast_now()
+            try:
+                if is_artikle:
+                    run_article_ad_session(
                         worker_id=1,
                         proxy_data=None,
                         config=base_config,
                         event_callback=self._on_worker_event,
                     )
-                finally:
-                    close_worker_browser(1)
+                else:
+                    try:
+                        run_monetag_session(
+                            worker_id=1,
+                            proxy_data=None,
+                            config=base_config,
+                            event_callback=self._on_worker_event,
+                        )
+                    finally:
+                        close_worker_browser(1)
+            finally:
+                self.stop_event.set()
+                self._broadcast_now()
+                self.reporter.mark_stopped()
             return
 
         if chain_provider is not None and getattr(self.args, "chain_test", False):
@@ -598,6 +532,8 @@ class BotRunnerCLI:
                 pass
             self.stop_event.set()
             self.proxy_manager._shutting_down = True
+            self._broadcast_now()
+            self.reporter.mark_stopped()
             print(f"\n{CYAN}🔄 Mereset status proxy node ({self.node_id}) ke IDLE di Supabase & lokal...{RESET}", flush=True)
             for wid in range(1, self.args.workers + 1):
                 try:
@@ -621,16 +557,17 @@ class BotRunnerCLI:
             pass
         atexit.register(_cleanup)
 
-        # Heartbeat loop
+        # Heartbeat loop (upsert ringan ke proxxies.bot_nodes tiap 4 detik)
         try:
             while not self.stop_event.is_set():
                 self._broadcast_now()
-                time.sleep(2.0)
+                time.sleep(4.0)
         except KeyboardInterrupt:
             print(f"\n{YELLOW}⚠️ Menghentikan worker secara aman...{RESET}")
         finally:
             self.stop_event.set()
             self._broadcast_now()
+            self.reporter.mark_stopped()
             print(f"{GREEN}✅ Bot selesai dijalankan secara bersih.{RESET}\n")
 
 
