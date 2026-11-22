@@ -81,7 +81,14 @@ _DEFAULT_REDIRECT_HOSTS = (
     "prizefamily.com",
 )
 
-_DEFAULT_AD_ZONES = ("12126541", "12126546", "12126548")
+_DEFAULT_AD_ZONES = ("12126541", "12126546", "12126548", "12256564", "12124796")
+
+_DEFAULT_DIRECT_LINK_URLS = (
+    "https://uplcm.com/4/12256564",
+    "https://uplcm.com/4/12124796",
+)
+
+_POPUNDER_INTERCEPT_HOSTS = ("ay267.com", "al5sm.com", "n6wxm.com")
 
 _PROXY_ERROR_MARKERS = (
     "err_proxy",
@@ -204,11 +211,22 @@ _DYNAMIC_MONETAG_SCAN_JS = """
     });
   }
 
+  // 5. Kumpulkan URL Direct Link (a[rel~="sponsored"]) yang aktif di DOM
+  const directLinks = [];
+  const seenDl = new Set();
+  for (const a of document.querySelectorAll('a[rel~="sponsored"][href]')) {
+    const href = (a.getAttribute('href') || '').trim();
+    if (!href || !/^https?:\\/\\//i.test(href) || seenDl.has(href)) continue;
+    seenDl.add(href);
+    directLinks.push(href);
+  }
+
   return {
     vignette,
     clickShield,
     pushCards,
     controls: controls.slice(0, 12),
+    directLinks,
     viewport: { w: vw, h: vh },
   };
 }
@@ -294,6 +312,73 @@ def _is_valid_loaded_url(url: str) -> bool:
         and not raw.startswith("about:certerror")
         and not raw.startswith("chrome-error://")
     )
+
+
+def _resolve_direct_link_urls(
+    config: Dict[str, Any],
+    dom_links: Optional[List[str]] = None,
+) -> List[str]:
+    """Gabungkan semua URL Direct Link unik dari config + link sponsored aktif di DOM."""
+    raw_urls = config.get("direct_link_urls")
+    single_url = str(config.get("direct_link_url") or "").strip()
+    ordered: List[str] = []
+
+    if isinstance(raw_urls, (list, tuple)):
+        for u in raw_urls:
+            s = str(u or "").strip()
+            if s:
+                ordered.append(s)
+        if single_url:
+            ordered.append(single_url)
+    elif single_url:
+        ordered.append(single_url)
+    else:
+        ordered.extend(_DEFAULT_DIRECT_LINK_URLS)
+
+    for u in dom_links or []:
+        s = str(u or "").strip()
+        if s.startswith(("http://", "https://")):
+            ordered.append(s)
+
+    seen = set()
+    result: List[str] = []
+    for u in ordered:
+        if u not in seen:
+            seen.add(u)
+            result.append(u)
+    return result
+
+
+def _url_matches_direct_link(req_url: str, dl_url: str) -> bool:
+    """True bila URL request/tab berasal dari direct link target (bukan popunder)."""
+    low = str(req_url or "").strip().lower()
+    target = str(dl_url or "").strip().lower()
+    if not low or not target:
+        return False
+    if low.startswith(target) or target in low:
+        return True
+    parsed_t = urlparse(target)
+    t_host = (parsed_t.hostname or "").lower()
+    t_path = parsed_t.path.rstrip("/")
+    if not t_host:
+        return False
+    parsed_r = urlparse(low)
+    r_host = (parsed_r.hostname or "").lower()
+    if r_host == t_host or r_host.endswith("." + t_host):
+        if not t_path or t_path in (parsed_r.path or "").lower():
+            return True
+    return False
+
+
+def _looks_like_popunder_intercept(url: str, dl_url: str) -> bool:
+    """True bila tab baru justru mengarah ke popunder/click-shield, bukan direct link."""
+    if _url_matches_direct_link(url, dl_url):
+        return False
+    low = str(url or "").lower()
+    if "zoneid=12126541" in low:
+        return True
+    h = _host(low)
+    return bool(h and any(h == ph or h.endswith("." + ph) for ph in _POPUNDER_INTERCEPT_HOSTS))
 
 
 def _emit(callback: Optional[Callable[[str, Dict[str, Any]], None]], event_type: str, **kwargs: Any) -> None:
@@ -430,7 +515,6 @@ def run_monetag_session(
     target_domain = target_host.split(":")[0]
     target_url = f"{parsed.scheme or 'https'}://{target_host}/" if parsed.path.rstrip("/") == "/m" else raw_target_url
 
-    direct_link_url = str(config.get("direct_link_url") or "https://uplcm.com/4/12124796").strip()
     headless = bool(config.get("headless", True))
     humanize_enabled = bool(config.get("humanize", True))
     lightweight = bool(config.get("lightweight", True))
@@ -439,7 +523,15 @@ def run_monetag_session(
     # Pengaturan CTR natural per format iklan
     vignette_continue_ctr = float(config.get("vignette_continue_ctr", 0.42))
     in_page_push_ctr = float(config.get("in_page_push_ctr", 0.30))
-    direct_link_ctr = float(config.get("direct_link_ctr", config.get("direct_link_chance", 0.45)))
+    direct_link_ctr = float(config.get("direct_link_ctr", config.get("direct_link_chance", 1.0)))
+    trigger_all_direct_links = bool(config.get("trigger_all_direct_links", True))
+    raw_pop_cap = config.get("max_popunders_per_session", {"min": 1, "max": 2})
+    if isinstance(raw_pop_cap, dict):
+        p_min = max(1, int(raw_pop_cap.get("min", 1)))
+        p_max = max(p_min, int(raw_pop_cap.get("max", 2)))
+        popunder_cap = random.randint(p_min, p_max)
+    else:
+        popunder_cap = max(1, int(raw_pop_cap or 2))
 
     vignette_dwell_cfg = config.get("dwell_vignette_card_seconds") or {"min": 2.2, "max": 3.5}
     popup_dwell_cfg = config.get("dwell_popup_seconds") or {"min": 6.0, "max": 9.5}
@@ -472,6 +564,8 @@ def run_monetag_session(
         "push_viewed": 0,
         "push_clicked": 0,
         "direct_links_processed": 0,
+        "direct_links_target": 0,
+        "direct_links_dwelled": [],
         "proxy": proxy_label,
     }
 
@@ -515,11 +609,15 @@ def run_monetag_session(
 
         ad_hits: Dict[str, int] = {}
         ad_hits_lock = threading.Lock()
+        active_dl_watch: Dict[str, Any] = {"url": None, "hit": False}
         popups_opened: List[Any] = []
         processed_tabs = set()
 
         def on_request(req: Any) -> None:
             url = str(req.url or "")
+            watch_url = active_dl_watch.get("url")
+            if watch_url and _url_matches_direct_link(url, watch_url):
+                active_dl_watch["hit"] = True
             h = _host(url)
             matched = None
             if h:
@@ -646,18 +744,38 @@ def run_monetag_session(
             return final_url
 
         def drain_popups(tag: str) -> int:
-            """Tangkap dan dwell semua tab advertiser/popunder baru yang terbuka."""
+            """Tangkap dan dwell popunder hingga batas `popunder_cap`; sisanya tutup cepat agar tetap natural."""
             done = 0
             time.sleep(0.45)
             candidates = [
                 p for p in (list(popups_opened) + list(context.pages))
                 if p != page and p not in processed_tabs and not p.is_closed()
             ]
+            dismissed = 0
             for tab in candidates:
+                if stats["popunders_processed"] >= popunder_cap:
+                    processed_tabs.add(tab)
+                    time.sleep(random.uniform(0.25, 0.55))
+                    try:
+                        tab.close()
+                    except Exception:
+                        pass
+                    dismissed += 1
+                    continue
                 final_u = _dwell_advertiser_tab(tab, popup_dwell_cfg, f"Popunder/{tag}")
                 if final_u:
                     stats["popunders_processed"] += 1
                     done += 1
+            if dismissed > 0:
+                log(
+                    f"🧹 Menutup cepat {dismissed} tab popunder ekstra (cap sesi={popunder_cap}).",
+                    "dim",
+                )
+                if not page.is_closed():
+                    try:
+                        page.bring_to_front()
+                    except Exception:
+                        pass
             return done
 
         def check_main_tab_redirect() -> bool:
@@ -773,9 +891,9 @@ def run_monetag_session(
 
         # ── 4. Pemicu OnClick Popunder via Koordinat Tombol Nyata (Menembus Click-Shield) ──
         _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="popunder", stage="📑 OnClick Popunder", status="Memicu Popunder...")
-        for click_i in range(1, 3):
+        for click_i in range(1, 4):
             if stats["popunders_processed"] >= 1:
-                log("⚡ Advertiser Popunder/Vignette sudah sukses di-dwell — lanjut tahap akhir (hemat CPU).", "green")
+                log("⚡ Popunder sudah sukses di-dwell — lanjut ke Push & semua Direct Link.", "green")
                 break
             if page.is_closed():
                 break
@@ -824,54 +942,177 @@ def run_monetag_session(
                 log("💬 In-Page Push tampil — jaga viewability (CTR natural).", "dim")
                 time.sleep(random.uniform(1.2, 2.0))
 
-        # ── 6. Direct Link Monetag (CTR Natural ~45%, atau 100% WAJIB jika belum ada tab advertiser) ──
+        # ── 6. Trigger & Dwell SEMUA Direct Link (Bukan Fallback — Semua URL Dipicu & Di-dwell) ──
+        direct_link_urls = _resolve_direct_link_urls(config, st_push.get("directLinks"))
+        stats["direct_links_target"] = len(direct_link_urls)
         advertiser_tabs_dwelled = stats["popunders_processed"] + stats["push_clicked"]
-        force_direct = advertiser_tabs_dwelled == 0
-        if direct_link_url and (force_direct or random.random() < direct_link_ctr):
-            _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="direct_link", stage="🔗 Direct Link", status="Membuka Direct Link...")
-            if force_direct:
-                log("🎯 Belum ada tab advertiser terbuka — 100% WAJIB buka & dwell Direct Link.", "bold yellow")
-            else:
-                log("🔗 Membuka Direct Link Monetag tambahan (CTR natural)...", "cyan")
+        should_run_direct = bool(
+            direct_link_urls
+            and (trigger_all_direct_links or advertiser_tabs_dwelled == 0 or random.random() < direct_link_ctr)
+        )
+        if should_run_direct:
+            ordered_direct_links = list(direct_link_urls)
+            random.shuffle(ordered_direct_links)
+            total_dl = len(ordered_direct_links)
+            log(f"🔗 Memicu & dwell semua Direct Link ({total_dl} URL)...", "bold cyan")
 
-            direct_page = None
-            try:
+            for dl_idx, dl_url in enumerate(ordered_direct_links, start=1):
+                if page.is_closed():
+                    break
+                dl_tag = dl_url.rstrip("/").rsplit("/", 1)[-1] or f"#{dl_idx}"
+                _emit(
+                    event_callback,
+                    "stepper_update",
+                    worker_id=worker_id,
+                    step_key="direct_link",
+                    stage=f"🔗 Direct Link #{dl_idx}/{total_dl}",
+                    status=f"Membuka {dl_tag}...",
+                )
+                log(f"🔗 [DirectLink #{dl_idx}/{total_dl}] Memicu {dl_url}...", "cyan")
+
+                active_dl_watch["url"] = dl_url
+                active_dl_watch["hit"] = False
+                direct_page = None
+
                 try:
-                    with context.expect_page(timeout=10000) as new_p:
-                        page.evaluate(
-                            """(url) => {
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.target = '_blank';
-                                a.rel = 'noopener noreferrer';
-                                document.body.appendChild(a);
-                                a.click();
-                                a.remove();
-                            }""",
-                            direct_link_url,
-                        )
-                    direct_page = new_p.value
-                except Exception:
-                    direct_page = context.new_page()
-                    direct_page.goto(direct_link_url, wait_until="domcontentloaded", timeout=40000)
+                    # 1) Coba klik fisik elemen <a href="..."> yang terlihat di halaman
+                    dl_esc = dl_url.replace("\\", "\\\\").replace('"', '\\"')
+                    link_loc = None
+                    try:
+                        cand_group = page.locator(f'a[href="{dl_esc}"]')
+                        for k in range(cand_group.count()):
+                            cand = cand_group.nth(k)
+                            if cand.is_visible(timeout=600):
+                                link_loc = cand
+                                break
+                    except Exception:
+                        link_loc = None
 
-                if direct_page is not None:
-                    final_dl = _dwell_advertiser_tab(direct_page, direct_dwell_cfg, "DirectLink")
-                    if not final_dl:
-                        # Auto-reload 1x jika Direct Link sempat macet di about:blank / neterror
-                        log("🔄 Reload 1x Direct Link...", "yellow")
-                        retry_p = context.new_page()
+                    # Jika kuota popunder sesi sudah terpenuhi, hindari klik menabrak click-shield lagi;
+                    # cukup scroll alami ke link lalu buka dengan Referer web target agar tidak memicu popunder liar.
+                    if stats["popunders_processed"] >= popunder_cap:
+                        if link_loc is not None:
+                            try:
+                                link_loc.evaluate("el => el.scrollIntoView({block: 'center', inline: 'nearest'})")
+                            except Exception:
+                                pass
+                            time.sleep(random.uniform(0.3, 0.6))
+                        direct_page = context.new_page()
+                        direct_page.goto(dl_url, wait_until="domcontentloaded", timeout=40000, referer=target_url)
+
+                    if direct_page is None and link_loc is not None:
                         try:
-                            retry_p.goto(direct_link_url, wait_until="domcontentloaded", timeout=35000)
+                            link_loc.evaluate("el => el.scrollIntoView({block: 'center', inline: 'nearest'})")
                         except Exception:
                             pass
-                        final_dl = _dwell_advertiser_tab(retry_p, direct_dwell_cfg, "DirectLink-Retry")
+                        time.sleep(random.uniform(0.25, 0.5))
+                        before_pages = set(context.pages)
+                        cand_tab = None
+                        try:
+                            with context.expect_page(timeout=8000) as new_p:
+                                human_click(page, link_loc)
+                            cand_tab = new_p.value
+                        except Exception:
+                            new_tabs = [
+                                p for p in context.pages
+                                if p not in before_pages and p != page and p not in processed_tabs and not p.is_closed()
+                            ]
+                            if new_tabs:
+                                cand_tab = new_tabs[-1]
+
+                        if cand_tab is not None:
+                            wait_check = time.time() + 1.0
+                            while time.time() < wait_check and not cand_tab.is_closed():
+                                cur_u = str(cand_tab.url or "")
+                                if active_dl_watch["hit"] or _url_matches_direct_link(cur_u, dl_url):
+                                    break
+                                if _looks_like_popunder_intercept(cur_u, dl_url):
+                                    break
+                                time.sleep(0.15)
+                            cur_u = str(cand_tab.url or "")
+                            if active_dl_watch["hit"] or (not _looks_like_popunder_intercept(cur_u, dl_url) and cur_u):
+                                direct_page = cand_tab
+                            else:
+                                log(
+                                    f"🛡️ [DirectLink #{dl_idx}] Klik fisik dicegat click-shield ({_host(cur_u) or 'popunder'}) — dwell popunder lalu buka Direct Link langsung.",
+                                    "yellow",
+                                )
+                                drain_popups(f"ShieldDL#{dl_idx}")
+
+                    # 2) Jika belum terbuka & popunder belum mencapai cap, coba klik DOM <a> langsung;
+                    # kalau sudah mencapai cap, langsung buka tab dengan Referer agar tidak memicu popunder tambahan.
+                    if direct_page is None and stats["popunders_processed"] < popunder_cap:
+                        active_dl_watch["hit"] = False
+                        cand_tab = None
+                        try:
+                            with context.expect_page(timeout=10000) as new_p:
+                                page.evaluate(
+                                    """(url) => {
+                                        const existing = Array.from(document.querySelectorAll('a[href]')).find(
+                                            (el) => (el.getAttribute('href') || '').trim() === url
+                                        );
+                                        if (existing) {
+                                            existing.click();
+                                            return;
+                                        }
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.target = '_blank';
+                                        a.rel = 'noopener noreferrer sponsored';
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        a.remove();
+                                    }""",
+                                    dl_url,
+                                )
+                            cand_tab = new_p.value
+                        except Exception:
+                            cand_tab = None
+
+                        if cand_tab is not None:
+                            wait_check = time.time() + 0.8
+                            while time.time() < wait_check and not cand_tab.is_closed():
+                                cur_u = str(cand_tab.url or "")
+                                if active_dl_watch["hit"] or _url_matches_direct_link(cur_u, dl_url):
+                                    break
+                                if _looks_like_popunder_intercept(cur_u, dl_url):
+                                    break
+                                time.sleep(0.15)
+                            cur_u = str(cand_tab.url or "")
+                            if not active_dl_watch["hit"] and _looks_like_popunder_intercept(cur_u, dl_url):
+                                drain_popups(f"DomShieldDL#{dl_idx}")
+                                cand_tab = None
+                            else:
+                                direct_page = cand_tab
+
+                    # 3) Fallback tab baru dengan Referer web target bila popup masih diblokir/dicegat atau popunder sudah cap
+                    if direct_page is None:
+                        direct_page = context.new_page()
+                        direct_page.goto(dl_url, wait_until="domcontentloaded", timeout=40000, referer=target_url)
+
+                    final_dl = _dwell_advertiser_tab(direct_page, direct_dwell_cfg, f"DirectLink#{dl_idx}")
+                    if not final_dl:
+                        log(f"🔄 Reload 1x Direct Link #{dl_idx} ({dl_tag})...", "yellow")
+                        retry_p = context.new_page()
+                        try:
+                            retry_p.goto(dl_url, wait_until="domcontentloaded", timeout=35000, referer=target_url)
+                        except Exception:
+                            pass
+                        final_dl = _dwell_advertiser_tab(retry_p, direct_dwell_cfg, f"DirectLink#{dl_idx}-Retry")
                     if final_dl:
                         stats["direct_links_processed"] += 1
-            except Exception as exc_dl:
-                log(f"⚠️ Catatan Direct Link: {str(exc_dl)[:80]}", "dim")
-            drain_popups("PostDirect")
-        elif direct_link_url:
+                        stats["direct_links_dwelled"].append(dl_url)
+                except Exception as exc_dl:
+                    log(f"⚠️ Catatan Direct Link #{dl_idx}: {str(exc_dl)[:80]}", "dim")
+                finally:
+                    active_dl_watch["url"] = None
+
+                drain_popups(f"PostDirect#{dl_idx}")
+                if dl_idx < total_dl:
+                    if humanize_enabled and not page.is_closed():
+                        human_wander(page, duration_seconds=random.uniform(0.8, 1.5))
+                    time.sleep(random.uniform(0.6, 1.2))
+        elif direct_link_urls:
             log(f"ℹ️ Direct Link dilewati demi CTR organik ({int(direct_link_ctr * 100)}%).", "dim")
 
         # Cleanup akhir
@@ -917,7 +1158,7 @@ def run_monetag_session(
 
         log(
             f"🎉 Sesi Monetag selesai ({duration}s) | Vignette={stats['vignettes_viewed']}(klik:{stats['vignettes_clicked']}) "
-            f"| Popunder={stats['popunders_processed']} | DirectLink={stats['direct_links_processed']} "
+            f"| Popunder={stats['popunders_processed']} | DirectLink={stats['direct_links_processed']}/{stats['direct_links_target']} "
             f"| Push={stats['push_clicked']}/{stats['push_viewed']}",
             "bold green",
         )
