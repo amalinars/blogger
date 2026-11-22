@@ -42,7 +42,9 @@ export function TopAdBanner() {
 
         <div className="flex items-center gap-2 shrink-0 z-10">
           <a
-            href="#partner"
+            href="https://uplcm.com/4/12256564"
+            target="_blank"
+            rel="noopener noreferrer sponsored"
             className="px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-medium text-xs sm:text-sm shadow-md shadow-blue-900/30 transition-all flex items-center gap-1.5 active:scale-95"
           >
             <span>Learn More</span>

@@ -157,6 +157,7 @@ class ChainProxyProvider:
         self._pm = proxy_manager
         self._log_func = log_func or print
         self._log_prefix = threading.local()
+        self._last_miss_reason = threading.local()
 
         self.hops = self._load_hops(scrape_file)
         self._rng = random.SystemRandom()
@@ -175,6 +176,10 @@ class ChainProxyProvider:
         if self._pm is None:
             self._pm = get_manager()
         return self._pm
+
+    @property
+    def last_miss_reason(self) -> str:
+        return str(getattr(self._last_miss_reason, "value", "") or "")
 
     def _log(self, message: str) -> None:
         prefix = getattr(self._log_prefix, "value", "")
@@ -207,6 +212,7 @@ class ChainProxyProvider:
         lease_seconds: int = 600,
     ) -> Optional[Dict[str, Any]]:
         self._log_prefix.value = log_prefix or ""
+        self._last_miss_reason.value = ""
         caller_id = caller_id or f"chain_{uuid.uuid4().hex[:10]}"
         target_key = target or self.target
         residential = self.pm.acquire_proxy(
@@ -221,6 +227,7 @@ class ChainProxyProvider:
             strict_channel=self.strict_channel,
         )
         if not residential:
+            self._last_miss_reason.value = "pool_empty"
             return None
 
         release_caller = (
@@ -235,6 +242,7 @@ class ChainProxyProvider:
                 f"{self.residential_host_contains}; lease dilepas."
             )
             self._release(residential, release_caller)
+            self._last_miss_reason.value = "non_residential"
             return None
 
         res_chain = self._chain_item(residential, residential.get("supabase_id") or 0)
@@ -371,21 +379,27 @@ class ChainProxyProvider:
             }
 
         # Semua hop gagal: putuskan apakah residential memang mati atau cuma hop.
+        res_id = residential.get("supabase_id") or residential.get("id") or "?"
         if fatal_dead or dead_votes >= self.dead_confirm_hops:
             reason = "Residential tidak bisa connect: " + "; ".join(reasons[-3:])
+            self._log(f"   Residential #{res_id} ditandai DEAD: {_short(reason, 140)}")
             self._mark_dead(
                 residential,
                 reason,
                 is_fatal=fatal_dead,
                 force_dead=(not fatal_dead and dead_votes >= self.dead_confirm_hops),
             )
+            self._last_miss_reason.value = "dead"
         elif target_errors:
             reason = f"Probe target gagal lewat chain: {target_errors[-1]}"
+            self._log(f"   Residential #{res_id} cooldown probe: {_short(reason, 140)}")
             self._cooldown(residential, reason)
+            self._last_miss_reason.value = "cooldown"
         else:
             self._log(
                 "   Semua hop 3xK gagal; residential tidak dihukum (bukan bukti IP mati)."
             )
+            self._last_miss_reason.value = "hops_failed"
 
         self._release(residential, release_caller)
         return None

@@ -62,7 +62,21 @@ _PROXY_ERROR_MARKERS = (
     "ns_error_unknown_host",
     "ns_error_unknown_proxy",
     "bad_gateway",
+    "502 bad gateway",
     "unable to connect",
+    "proxy connection",
+    "tunnel connection",
+    "timed out",
+    "timeout",
+)
+
+_SHUTDOWN_MARKERS = (
+    "target closed",
+    "browser has been closed",
+    "browser closed",
+    "context closed",
+    "has been closed",
+    "target page, context or browser has been closed",
 )
 
 # Scan dinamis struktur halaman: banner, in-page push, video slider, dan link artikel eksternal.
@@ -198,6 +212,11 @@ def _is_proxy_error(err: BaseException) -> bool:
     return any(m in txt for m in _PROXY_ERROR_MARKERS)
 
 
+def _is_shutdown_error(err: BaseException) -> bool:
+    txt = str(err or "").lower()
+    return any(m in txt for m in _SHUTDOWN_MARKERS)
+
+
 def _emit(cb: Optional[Callable[[str, Dict[str, Any]], None]], etype: str, **kwargs: Any) -> None:
     if cb:
         try:
@@ -271,6 +290,8 @@ def run_article_ad_session(
     )
     # Pastikan pref video_friendly menang setelah POTATO_FIREFOX_PREFS diterapkan
     camoufox_kwargs["firefox_user_prefs"].update(video_friendly_prefs)
+    if isinstance(camoufox_kwargs.get("env"), dict):
+        camoufox_kwargs["env"].pop("MOZ_DISABLE_RDD_PROCESS", None)
     context_opts = build_camoufox_context_options(proxy_data)
 
     with WORKER_STARTUP_LOCK:
@@ -554,11 +575,12 @@ def run_article_ad_session(
                 log(f"👆 [Artikel #{cur_num}/{target_count}] Mengklik: {title_hint[:60]} ({art.get('host')})", "cyan")
                 try:
                     # Utamakan link judul (h1/h2/h3) agar area klik lebar & aman dari overlay push kanan-bawah
+                    href_esc = href.replace("\\", "\\\\").replace('"', '\\"')
                     link_loc = None
                     for sel in (
-                        f'main h1 a[href="{href}"], main h2 a[href="{href}"], main h3 a[href="{href}"]',
-                        f'main a[href="{href}"], article a[href="{href}"]',
-                        f'a[href="{href}"]',
+                        f'main h1 a[href="{href_esc}"], main h2 a[href="{href_esc}"], main h3 a[href="{href_esc}"]',
+                        f'main a[href="{href_esc}"], article a[href="{href_esc}"]',
+                        f'a[href="{href_esc}"]',
                     ):
                         cand_group = page.locator(sel)
                         for k in range(cand_group.count()):
@@ -702,7 +724,30 @@ def article_ad_worker_thread_loop(
     use_direct = bool(config.get("direct_ip", True)) and proxy_manager is None and chain_provider is None
     target_url = str(config.get("target_url") or "https://ghasima.ai.studio/")
     target_key = f"artikle_ad:{_host(target_url) or 'site'}"
+    max_uses = int(config.get("max_uses_per_day", 2))
+    cooldown_hours = float(config.get("proxy_cooldown_hours", 6.0))
+    cooldown_secs = cooldown_hours * 3600
     done = 0
+    last_wait_log = 0.0
+
+    def _log(msg: str, style: str = "white") -> None:
+        if event_callback is None:
+            print(f"[W{worker_id}-ArtikleAd] {msg}", flush=True)
+        else:
+            _emit(
+                event_callback,
+                "log_message",
+                worker_id=worker_id,
+                message=f"[W{worker_id}] {msg}",
+                style=style,
+                target_url=target_url,
+            )
+
+    def _wait(seconds: float) -> None:
+        if stop_event is not None:
+            stop_event.wait(seconds)
+        else:
+            time.sleep(seconds)
 
     while not (stop_event and stop_event.is_set()):
         if max_sessions > 0 and done >= max_sessions:
@@ -713,22 +758,76 @@ def article_ad_worker_thread_loop(
         proxy = None
         if not use_direct:
             caller_id = f"artikle_w{worker_id}_{int(time.time() * 1000)}"
-            if chain_provider is not None:
-                proxy = chain_provider.next_proxy(caller_id=caller_id, log_prefix=f"[W{worker_id}] ", target=target_key)
-            elif proxy_manager is not None:
-                proxy = proxy_manager.acquire_proxy(
-                    caller_id=caller_id,
-                    exclusive=True,
-                    verify_alive=False,
-                    target=target_key,
-                    max_uses_per_day=int(config.get("max_uses_per_day", 2)),
-                    cooldown_seconds=float(config.get("proxy_cooldown_hours", 6.0)) * 3600,
-                )
-            if not proxy:
-                if reset_pool_callback is not None:
-                    reset_pool_callback()
-                time.sleep(3.0)
+            try:
+                if chain_provider is not None:
+                    proxy = chain_provider.next_proxy(
+                        caller_id=caller_id,
+                        log_prefix=f"[W{worker_id}] ",
+                        target=target_key,
+                    )
+                elif proxy_manager is not None:
+                    proxy = proxy_manager.acquire_proxy(
+                        caller_id=caller_id,
+                        exclusive=True,
+                        verify_alive=False,
+                        target=target_key,
+                        max_uses_per_day=max_uses,
+                        cooldown_seconds=cooldown_secs,
+                    )
+            except Exception as exc_acq:
+                _log(f"⚠️ Gagal mengalokasikan proxy: {exc_acq}", "yellow")
+                _wait(5.0)
                 continue
+
+            if not proxy:
+                if (
+                    reset_pool_callback is not None
+                    and not getattr(proxy_manager, "supabase_enabled", False)
+                ):
+                    reset_pool_callback()
+                    _log("♻️ Pool proxy lokal habis — direset untuk rotasi ulang.", "cyan")
+                    _wait(1.0)
+                    continue
+
+                miss_reason = (
+                    getattr(chain_provider, "last_miss_reason", "")
+                    if chain_provider is not None
+                    else "pool_empty"
+                )
+                if miss_reason in ("", "pool_empty"):
+                    now = time.time()
+                    if now - last_wait_log >= 30.0:
+                        _emit(
+                            event_callback,
+                            "stepper_update",
+                            worker_id=worker_id,
+                            step_key="proxy",
+                            stage="⏳ Menunggu IP",
+                            status=f"Semua IP cooldown ({cooldown_hours:g}j) / limit ({max_uses}x)",
+                            target_url=target_url,
+                        )
+                        _log(
+                            f"⏳ Belum ada proxy tersedia untuk {target_key} "
+                            f"(semua IP sedang cooldown {cooldown_hours:g}j / limit {max_uses}x/hari / IN_USE). "
+                            f"Menunggu... (tip: turunkan --cooldown atau naikkan --max-uses)",
+                            "yellow",
+                        )
+                        last_wait_log = now
+                    _wait(5.0)
+                else:
+                    _emit(
+                        event_callback,
+                        "stepper_update",
+                        worker_id=worker_id,
+                        step_key="proxy",
+                        stage="🔄 Rotasi Proxy",
+                        status="Mencari hop/IP lain...",
+                        target_url=target_url,
+                    )
+                    _wait(1.0)
+                continue
+
+            last_wait_log = 0.0
             _emit(
                 event_callback,
                 "proxy_assigned",
@@ -741,7 +840,7 @@ def article_ad_worker_thread_loop(
 
         if budget is not None and not budget.reserve():
             if proxy and chain_provider is not None:
-                chain_provider.finish_session(proxy, False, error_kind="budget")
+                chain_provider.finish_session(proxy, False, error_kind="shutdown", log_prefix=f"[W{worker_id}] ")
             elif proxy and proxy_manager is not None:
                 proxy_manager.release_proxy(proxy)
             break
@@ -757,33 +856,43 @@ def article_ad_worker_thread_loop(
             if budget is not None:
                 budget.record("PASS" if res.get("success") else "FAIL")
             if proxy:
-                usage_proxy = proxy.get("_residential") or proxy
-                mgr = chain_provider.pm if chain_provider is not None else proxy_manager
-                if mgr and res.get("success"):
-                    mgr.record_target_hit(usage_proxy, target=target_key)
                 if chain_provider is not None:
-                    chain_provider.finish_session(proxy, False, error_kind="batch", log_prefix=f"[W{worker_id}] ")
+                    if res.get("success"):
+                        chain_provider.finish_session(proxy, True, log_prefix=f"[W{worker_id}] ")
+                    else:
+                        chain_provider.finish_session(
+                            proxy,
+                            False,
+                            RuntimeError("Sesi tidak menghasilkan impresi/artikel"),
+                            "no_ad",
+                            log_prefix=f"[W{worker_id}] ",
+                        )
                 elif proxy_manager is not None:
+                    if res.get("success"):
+                        proxy_manager.record_target_hit(proxy, target=target_key)
                     proxy_manager.release_proxy(proxy)
         except Exception as exc:
-            if event_callback is None:
-                print(f"[W{worker_id}-ArtikleAd] ❌ Error sesi: {exc}", flush=True)
-            else:
-                _emit(event_callback, "log_message", worker_id=worker_id, message=f"[W{worker_id}] ❌ Error sesi: {exc}", style="red", target_url=target_url)
+            _log(f"❌ Error sesi: {exc}", "red")
+            if event_callback is not None:
                 _emit(event_callback, "stepper_update", worker_id=worker_id, step_key="failed", stage="❌ GAGAL", status=str(exc)[:40], target_url=target_url)
                 _emit(event_callback, "session_completed", worker_id=worker_id, status="FAIL", target_url=target_url, error=str(exc)[:80])
             if budget is not None:
                 budget.record("FAIL")
             if proxy:
+                stopping = bool(stop_event and stop_event.is_set()) or _is_shutdown_error(exc)
                 if chain_provider is not None:
-                    chain_provider.finish_session(proxy, False, exc, "proxy" if _is_proxy_error(exc) else "other")
+                    error_kind = "shutdown" if stopping else ("proxy" if _is_proxy_error(exc) else "other")
+                    chain_provider.finish_session(
+                        proxy, False, exc, error_kind, log_prefix=f"[W{worker_id}] "
+                    )
                 elif proxy_manager is not None:
                     try:
-                        proxy_manager.report_failure(proxy, error_message=str(exc))
+                        if not stopping:
+                            proxy_manager.report_failure(proxy, error_message=str(exc))
                     finally:
                         proxy_manager.release_proxy(proxy)
             if use_direct:
                 break
 
         if max_sessions <= 0 or done < max_sessions:
-            time.sleep(random.uniform(1.0, 2.0))
+            _wait(random.uniform(1.0, 2.0))

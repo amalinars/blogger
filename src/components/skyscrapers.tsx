@@ -37,7 +37,9 @@ export function LeftSkyscraper() {
 
         <div className="pt-2">
           <a
-            href="#network-security"
+            href="https://uplcm.com/4/12256564"
+            target="_blank"
+            rel="noopener noreferrer sponsored"
             className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs flex items-center justify-center gap-1 shadow-md transition-all"
           >
             <span>Learn More</span>
@@ -65,7 +67,7 @@ export function RightSkyscraper() {
         </button>
 
         <span className="text-[10px] text-slate-400 uppercase tracking-widest block">
-          Ad · Apify
+          Sponsored
         </span>
 
         <div className="w-12 h-12 mx-auto rounded-xl bg-[#1e293b] border border-slate-700 flex items-center justify-center shadow-lg">
@@ -83,9 +85,9 @@ export function RightSkyscraper() {
 
         <div className="pt-2">
           <a
-            href="https://apify.com"
+            href="https://uplcm.com/4/12124796"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener noreferrer sponsored"
             className="w-full py-2 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs flex items-center justify-center gap-1 shadow-md transition-all"
           >
             <span>Try for free</span>

@@ -34,6 +34,13 @@ DECLARE
     v_now_epoch BIGINT := EXTRACT(EPOCH FROM NOW())::BIGINT;
     v_proxy_id INT;
 BEGIN
+    -- Kembalikan proxy COOLDOWN yang sudah lewat 15 menit ke ALIVE agar tidak macet permanen
+    UPDATE proxxies.proxy_list
+    SET health = 'ALIVE',
+        updated_at = NOW()
+    WHERE health = 'COOLDOWN'
+      AND updated_at <= NOW() - interval '15 minutes';
+
     -- Putaran 1: Cari kandidat proxy FRESH (count = 0 atau belum pernah dipakai target ini)
     -- FOR UPDATE SKIP LOCKED mengunci baris di level row database secara instan
     SELECT id INTO v_proxy_id

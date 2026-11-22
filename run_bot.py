@@ -138,8 +138,9 @@ class BotRunnerCLI:
         self.reporter = get_telemetry_reporter()
         self.reporter.set_node_name(self.args.name or raw_name)
 
-        # Budget session
-        max_sess = 0 if self.args.unlimited else self.args.sessions
+        # Budget session (--sessions > 0 mengalahkan default --unlimited)
+        req_sessions = max(0, int(getattr(self.args, "sessions", 0) or 0))
+        max_sess = req_sessions if req_sessions > 0 else (0 if self.args.unlimited else 1)
         self.budget = SessionBudget(max_sess, 1)
 
         self.workers_state: Dict[int, Dict[str, Any]] = {}
@@ -372,7 +373,7 @@ class BotRunnerCLI:
             node_name=self.reporter.node_name,
             target=self.args.target,
             workers=self.args.workers,
-            unlimited=self.args.unlimited,
+            unlimited=self.budget.unlimited,
             headless=self.args.headless,
             url=" , ".join(urls),
             potato=getattr(self.args, "potato", True),
@@ -431,7 +432,7 @@ class BotRunnerCLI:
             "proxy_cooldown_hours": self.args.cooldown,
             "run_browser_verifier": bool(base_config.get("run_browser_verifier", False)),
             "use_chain": chain_provider is not None,
-            "max_sessions_per_run": 0 if self.args.unlimited else self.args.sessions,
+            "max_sessions_per_run": 0 if self.budget.unlimited else self.budget.max_sessions,
             "target_name": self.args.target,
             "errorlogs": getattr(self.args, "errorlogs", False),
             "lightweight": getattr(self.args, "potato", True),

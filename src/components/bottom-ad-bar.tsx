@@ -27,7 +27,9 @@ export function BottomAdBar() {
 
         <div className="flex items-center gap-2 shrink-0">
           <a
-            href="#vpn"
+            href="https://uplcm.com/4/12124796"
+            target="_blank"
+            rel="noopener noreferrer sponsored"
             className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shadow-md flex items-center gap-1 transition-all active:scale-95"
           >
             <span>Open</span>

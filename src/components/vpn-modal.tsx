@@ -60,9 +60,9 @@ export function VpnModal({ isOpen, onClose, data }: VpnModalProps) {
 
         <div className="space-y-2">
           <a
-            href="https://nordvpn.com"
+            href="https://uplcm.com/4/12256564"
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener noreferrer sponsored"
             className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-sm shadow-lg shadow-red-900/30 flex items-center justify-center gap-2 transition-all active:scale-95"
           >
             <ShieldCheck className="w-4 h-4" />
